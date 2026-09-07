@@ -22,7 +22,7 @@ interface WorkExamplesSectionProps {
     onGalleryNext: () => void;
     onGalleryPrevious: () => void;
     onSelectGalleryImage: (index: number) => void;
-    onDeleteWorkExample: (id: number) => Promise<void>;
+    onDeleteWorkExample: (id: string | number) => Promise<void>;
     onDeleteAllWorkExamples: () => Promise<void>;
     onWorkExampleUpload: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
     onShowMoreWorkExamples: () => void;

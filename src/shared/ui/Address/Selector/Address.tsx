@@ -121,7 +121,7 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
         : villagesInSelectedSettlement;
 
     // Обработчики выбора
-    const handleProvinceSelect = (provinceId: number) => {
+    const handleProvinceSelect = (provinceId: string | number) => {
         onChange({
             provinceId: selectedProvinceId === provinceId ? null : provinceId,
             cityId: null,
@@ -139,7 +139,7 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
         setVillageQuery('');
     };
 
-    const handleCitySelect = (cityId: number) => {
+    const handleCitySelect = (cityId: string | number) => {
         onChange({
             ...value!,
             cityId: selectedCityId === cityId ? null : cityId,
@@ -151,7 +151,7 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
         });
     };
 
-    const handleSuburbSelect = (suburbId: number) => {
+    const handleSuburbSelect = (suburbId: string | number) => {
         const newSuburbIds = selectedSuburbIds.includes(suburbId) ? [] : [suburbId];
         onChange({
             ...value!,
@@ -159,7 +159,7 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
         });
     };
 
-    const handleDistrictSelect = (districtId: number) => {
+    const handleDistrictSelect = (districtId: string | number) => {
         const newDistrictIds = selectedDistrictIds.includes(districtId) ? [] : [districtId];
         onChange({
             ...value!,
@@ -176,7 +176,7 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
         setVillageQuery('');
     };
 
-    const handleSettlementSelect = (settlementId: number) => {
+    const handleSettlementSelect = (settlementId: string | number) => {
         onChange({
             ...value!,
             settlementId: selectedSettlementId === settlementId ? null : settlementId,
@@ -185,7 +185,7 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
         });
     };
 
-    const handleCommunitySelect = (communityId: number) => {
+    const handleCommunitySelect = (communityId: string | number) => {
         onChange({
             ...value!,
             communityId: selectedCommunityId === communityId ? null : communityId,
@@ -194,7 +194,7 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
         });
     };
 
-    const handleVillageSelect = (villageId: number) => {
+    const handleVillageSelect = (villageId: string | number) => {
         onChange({
             ...value!,
             villageId: selectedVillageId === villageId ? null : villageId

@@ -19,7 +19,7 @@ interface FilterPanelProps {
     onResetFilters: () => void;
     categories: Category[];
     provinces: Province[];
-    cities: { id: number; title: string }[];
+    cities: { id: string | number; title: string }[];
     occupations: Occupation[];
 }
 
@@ -95,17 +95,21 @@ function FilterPanel({
             try {
                 const [allCities, allDistricts] = await Promise.all([getCities(), getDistricts()]);
 
-                const provinceId = localFilters.province ? Number(localFilters.province) : null;
+                // provinceId — id теперь UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md),
+                // Number(uuid) даёт NaN и молча ломает сравнение ниже (province?.id === NaN
+                // всегда false, а NaN в тернарнике falsy — фильтр просто не срабатывал и
+                // тихо показывал города/районы со всех провинций сразу). Сравниваем строкой.
+                const provinceId = localFilters.province || null;
                 const citiesFiltered = provinceId
-                    ? allCities.filter(c => c.province?.id === provinceId)
+                    ? allCities.filter(c => String(c.province?.id) === provinceId)
                     : allCities;
                 const districtsFiltered = provinceId
-                    ? allDistricts.filter(d => d.province?.id === provinceId)
+                    ? allDistricts.filter(d => String(d.province?.id) === provinceId)
                     : allDistricts;
 
                 const combined: SelectOption[] = [
-                    ...citiesFiltered.map((c: { id: number; title: string }) => ({ value: `city_${c.id}`, label: c.title })),
-                    ...districtsFiltered.map((d: { id: number; title?: string }) => ({ value: `district_${d.id}`, label: d.title ?? '' })),
+                    ...citiesFiltered.map((c: { id: string | number; title: string }) => ({ value: `city_${c.id}`, label: c.title })),
+                    ...districtsFiltered.map((d: { id: string | number; title?: string }) => ({ value: `district_${d.id}`, label: d.title ?? '' })),
                 ].sort((a, b) => a.label.localeCompare(b.label));
 
                 setCityDistrictOptions(combined);

@@ -7,8 +7,12 @@ export type { Unit } from './Unit';
 import type { Unit } from './Unit';
 
 export type Ticket = {
-    id: number;
+    id: string | number;
     title: string;
+    /** Decorative, non-persisted transliteration of `title` (e.g. "Ремонт крана" →
+     * "remont-krana") — not an identifier, backend never resolves anything from it.
+     * For nicer share/SEO urls: put it in the query string (`?slug=`), never the path. */
+    slug?: string;
     description?: string;
     notice?: string;
     budget?: number;

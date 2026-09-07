@@ -4,13 +4,13 @@ import { useDragReorder, DragHandle } from '../../../../widgets/DragReorder';
 import styles from './Grid.module.scss';
 
 export type PhotoItem =
-    | { type: 'existing'; id: number; image: string }
+    | { type: 'existing'; id: string | number; image: string }
     | { type: 'new'; file: File; previewUrl: string };
 
 export function buildOrderedImagePayload(
     photoItems: PhotoItem[],
-    currentImages: Array<{ id: number; image: string }>
-): Array<{ id: number; image: string }> {
+    currentImages: Array<{ id: string | number; image: string }>
+): Array<{ id: string | number; image: string }> {
     const existingIds = new Set(photoItems.filter(p => p.type === 'existing').map(p => p.id));
     const uploadedNewImages = currentImages.filter(img => !existingIds.has(img.id));
     let uploadedIndex = 0;

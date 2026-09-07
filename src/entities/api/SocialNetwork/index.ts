@@ -1,11 +1,11 @@
 export interface SocialNetwork {
-    id: number;
+    id: string | number;
     network: string;
     handle: string;
 }
 
 export interface AvailableSocialNetwork {
-    id: number;
+    id: string | number;
     network: string;
 }
 

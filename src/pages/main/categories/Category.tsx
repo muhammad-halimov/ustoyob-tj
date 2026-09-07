@@ -79,7 +79,7 @@ export default function Category() {
         return () => window.removeEventListener("resize", checkMobile);
     }, []);
 
-    const handleCategoryClick = (categoryId: number, categoryTitle: string) => {
+    const handleCategoryClick = (categoryId: string | number, categoryTitle: string) => {
         console.log('Category clicked:', categoryId);
         navigate(ROUTES.CATEGORY_TICKETS_BY_ID(categoryId), { state: { categoryName: categoryTitle } });
     };

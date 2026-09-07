@@ -7,7 +7,11 @@ import type { OAuthProvider } from '../OAuth';
 import type { Timestamps } from '../Misc';
 
 export type User = {
-    id: number;
+    // UUID string as of the 06–07.09.2026 backend migration (was auto-increment
+    // number) — widened rather than a clean `string` cutover so pre-migration
+    // code that narrows/compares against a number doesn't need a synchronized
+    // rewrite everywhere at once; see guides/UUID_MIGRATION_GUIDE.md.
+    id: string | number;
     email?: string;
     login?: string;
     name?: string;

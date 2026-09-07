@@ -34,7 +34,7 @@ interface RecommendationsProps {
     /** Whether to render the "Show more" button. Default: true. */
     showMoreButton?: boolean;
     initialLimit?: number;
-    onItemClick?: (id: number) => void;
+    onItemClick?: (id: string | number) => void;
 }
 
 /**
@@ -67,11 +67,11 @@ function Recommendations({
     const displayLoading = customData ? customLoading : isLoading;
     
     // Respond state
-    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(() => getPersistedRespondedTicketIds());
-    const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
+    const [respondedTickets, setRespondedTickets] = useState<Set<string | number>>(() => getPersistedRespondedTicketIds());
+    const [respondingTicketId, setRespondingTicketId] = useState<string | number | null>(null);
     const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
-    const [cardReviewTarget, setCardReviewTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
-    const [cardComplaintTarget, setCardComplaintTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
+    const [cardReviewTarget, setCardReviewTarget] = useState<{ authorId: string | number; ticketId: string | number } | null>(null);
+    const [cardComplaintTarget, setCardComplaintTarget] = useState<{ authorId: string | number; ticketId: string | number } | null>(null);
     const currentUserId = getUserData()?.id;
     // Check existing chats on mount and merge with persisted ids
     useEffect(() => {
@@ -80,10 +80,10 @@ function Recommendations({
         (async () => {
             try {
                 const chats: any[] = await getChatsMe();
-                const ids = new Set<number>();
+                const ids = new Set<string | number>();
                 chats.forEach((chat: any) => {
                     const t = chat.ticket;
-                    const cid = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/\d+$/); return m ? parseInt(m[0].slice(1)) : null; })();
+                    const cid = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/([^/]+)$/); return m ? m[1] : null; })();
                     if (cid) ids.add(cid);
                 });
                 const merged = new Set([...getPersistedRespondedTicketIds(), ...ids]);
@@ -91,7 +91,7 @@ function Recommendations({
             } catch { /* ignore */ }
         })();
     }, []);
-    const handleRespondCard = async (ticketId: number, authorId: number) => {
+    const handleRespondCard = async (ticketId: string | number, authorId: string | number) => {
         const token = getAuthToken();
         if (!token) {
             window.dispatchEvent(new CustomEvent('openAuthModal'));
@@ -208,7 +208,7 @@ function Recommendations({
         return 'Автор';
     };
 
-    const getAuthorId = (announcement: Ticket): number | undefined => {
+    const getAuthorId = (announcement: Ticket): string | number | undefined => {
         if (announcement.service && announcement.master) {
             return announcement.master.id;
         }
@@ -241,7 +241,7 @@ function Recommendations({
         return 0;
     };
 
-    const handleCardClick = (announcementId: number) => {
+    const handleCardClick = (announcementId: string | number) => {
         if (onItemClick) {
             onItemClick(announcementId);
         } else {

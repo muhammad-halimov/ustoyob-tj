@@ -2,7 +2,7 @@ import type { User } from '../../api';
 
 /** Обработанный URL изображения чата для отображения */
 export interface ChatImageView {
-    id: number;
+    id: string | number;
     imageUrl: string;
     thumbnailUrl?: string;
     author?: User | null;
@@ -11,7 +11,7 @@ export interface ChatImageView {
 
 /** UI view-model сообщения (локальное состояние Chat.tsx) */
 export interface ChatMessageView {
-    id: number;
+    id: string | number;
     sender: 'me' | 'other';
     name: string;
     text: string;
@@ -23,10 +23,10 @@ export interface ChatMessageView {
     progress?: number;
     isLocal?: boolean;
     createdAt?: string;
-    replyTo?: { id: number; text: string; name: string };
+    replyTo?: { id: string | number; text: string; name: string };
     edited?: boolean;
     /** Soft-deleted via `DELETE /chat-messages/{id}` — render a placeholder, not `text`. */
     deletedByAuthor?: boolean;
     readAt?: string | null;
-    images?: { id: number; url: string; name: string }[];
+    images?: { id: string | number; url: string; name: string }[];
 }

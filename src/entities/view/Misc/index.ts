@@ -13,7 +13,7 @@ export type FilterState =
     };
 
 export interface LocalStorageFavorites {
-    tickets: number[];
-    masters?: number[];
-    users?: number[];
+    tickets: (string | number)[];
+    masters?: (string | number)[];
+    users?: (string | number)[];
 }

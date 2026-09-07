@@ -51,7 +51,7 @@ const CreateEdit = () => {
     });
     const [isLoading, setIsLoading] = useState(isEditMode);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [pendingSubcategoryId, setPendingSubcategoryId] = useState<number | null>(null);
+    const [pendingSubcategoryId, setPendingSubcategoryId] = useState<string | number | null>(null);
     const [photos, setPhotos] = useState<PhotoItem[]>([]);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showErrorModal, setShowErrorModal] = useState(false);
@@ -91,9 +91,9 @@ const CreateEdit = () => {
     });
 
     // Выбранные значения
-    const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-    const [selectedSubcategory, setSelectedSubcategory] = useState<number | null>(null);
-    const [selectedUnit, setSelectedUnit] = useState<number | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<string | number | null>(null);
+    const [selectedSubcategory, setSelectedSubcategory] = useState<string | number | null>(null);
+    const [selectedUnit, setSelectedUnit] = useState<string | number | null>(null);
     const [negotiableBudget, setNegotiableBudget] = useState(false);
 
     const formRef = useRef<HTMLFormElement>(null);
@@ -133,7 +133,7 @@ const CreateEdit = () => {
         // Если режим редактирования - загружаем данные тикета по ID
         if (isEditMode && id) {
             console.log('Edit mode detected, fetching ticket data for ID:', id);
-            fetchTicketData(Number(id));
+            fetchTicketData(id);
         } else if (!isEditMode) {
             // Сбрасываем состояние формы при переходе в режим создания
             setNegotiableBudget(false);
@@ -223,7 +223,7 @@ const CreateEdit = () => {
         }
     };
 
-    const fetchTicketData = async (ticketId: number) => {
+    const fetchTicketData = async (ticketId: string | number) => {
         try {
             setIsLoading(true);
             const data = await universalApiRequest(API_ROUTES.TICKET_BY_ID(ticketId));
@@ -481,7 +481,9 @@ const CreateEdit = () => {
                         <SelectSearch
                             options={categories.map(c => ({ value: String(c.id), label: c.title }))}
                             value={selectedCategory ? String(selectedCategory) : ''}
-                            onChange={(val) => setSelectedCategory(val ? Number(val) : null)}
+                            // id теперь UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md) — Number(uuid)
+                            // даёт NaN и тихо ломает выбор категории. Сохраняем строкой как есть.
+                            onChange={(val) => setSelectedCategory(val || null)}
                             placeholder={t('createEdit:selectCategory')}
                         />
                     </div>
@@ -495,7 +497,8 @@ const CreateEdit = () => {
                             <SelectSearch
                                 options={filteredOccupations.map(o => ({ value: String(o.id), label: o.title }))}
                                 value={selectedSubcategory ? String(selectedSubcategory) : ''}
-                                onChange={(val) => setSelectedSubcategory(val ? Number(val) : null)}
+                                // id теперь UUID-строка — см. комментарий выше про Number()/NaN.
+                                onChange={(val) => setSelectedSubcategory(val || null)}
                                 placeholder={t('createEdit:selectSubcategory')}
                             />
                         </div>
@@ -540,7 +543,8 @@ const CreateEdit = () => {
                                 <SelectSearch
                                     options={units.map(unit => ({ value: String(unit.id), label: unit.title }))}
                                     value={selectedUnit ? String(selectedUnit) : ''}
-                                    onChange={(val) => setSelectedUnit(val ? Number(val) : null)}
+                                    // id теперь UUID-строка — см. комментарий выше про Number()/NaN.
+                                    onChange={(val) => setSelectedUnit(val || null)}
                                     placeholder={t('createEdit:unitPlaceholder')}
                                     disabled={negotiableBudget}
                                 />

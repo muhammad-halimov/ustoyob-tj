@@ -9,7 +9,14 @@
   background-color: #fff;
   border-radius: 12px;
   border: 1px solid map.get(vars.$colors, color-stroke);
-  overflow: hidden;
+  // Раньше был overflow: hidden — нужен был только чтобы скруглить квадратный
+  // hover-фон у toggle_btn под общий border-radius блока. Но этот же blok — предок
+  // выпадающего списка SelectSearch (position: absolute, ему нужно визуально
+  // вылезать ниже блока) — overflow: hidden обрезал не только отрисовку нижних
+  // пунктов, но и попадание кликов по ним: клик по "По старизне" не долетал до
+  // самого <li>, вместо этого срабатывал обработчик "клик снаружи" у SelectSearch
+  // и список просто закрывался без выбора. Скругление верхних углов теперь на
+  // самом toggle_btn — родителю обрезать больше нечего.
 }
 
 .toggle_btn {
@@ -20,6 +27,7 @@
   padding: 12px 20px;
   background: none;
   border: none;
+  border-radius: 12px 12px 0 0;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;

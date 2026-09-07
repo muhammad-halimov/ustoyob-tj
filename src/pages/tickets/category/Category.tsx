@@ -86,7 +86,7 @@ function Category() {
     const [subcategorySearchQuery, setSubcategorySearchQuery] = useState<string>('');
     // Filter & sort state — restored from sessionStorage on mount
     const [_catSession] = useState(() => getCatSession(id));
-    const [selectedSubcategory, setSelectedSubcategory] = useState<number | null>(() => (_catSession?.selectedSubcategory as number | null) ?? null);
+    const [selectedSubcategory, setSelectedSubcategory] = useState<string | number | null>(() => (_catSession?.selectedSubcategory as string | number | null) ?? null);
     const [showAllOccupations, setShowAllOccupations] = useState<boolean>(() => (_catSession?.showAllOccupations as boolean) ?? false);
     const [showOnlyServices, setShowOnlyServices] = useState<boolean>(() => (_catSession?.showOnlyServices as boolean) ?? false);
     const [showOnlyAnnouncements, setShowOnlyAnnouncements] = useState<boolean>(() => (_catSession?.showOnlyAnnouncements as boolean) ?? false);
@@ -99,11 +99,11 @@ function Category() {
         setSessionJSON(`cat-filters-${id}`, { showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, selectedSubcategory, showAllOccupations });
     }, [id, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, selectedSubcategory, showAllOccupations]);
     // Respond state
-    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(() => getPersistedRespondedTicketIds());
-    const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
+    const [respondedTickets, setRespondedTickets] = useState<Set<string | number>>(() => getPersistedRespondedTicketIds());
+    const [respondingTicketId, setRespondingTicketId] = useState<string | number | null>(null);
     const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
-    const [cardReviewTarget, setCardReviewTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
-    const [cardComplaintTarget, setCardComplaintTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
+    const [cardReviewTarget, setCardReviewTarget] = useState<{ authorId: string | number; ticketId: string | number } | null>(null);
+    const [cardComplaintTarget, setCardComplaintTarget] = useState<{ authorId: string | number; ticketId: string | number } | null>(null);
     // Check existing chats on mount and merge with persisted ids
     useEffect(() => {
         const token = getAuthToken();
@@ -111,10 +111,10 @@ function Category() {
         (async () => {
             try {
                 const chats: any[] = await getChatsMe();
-                const ids = new Set<number>();
+                const ids = new Set<string | number>();
                 chats.forEach((chat: any) => {
                     const t = chat.ticket;
-                    const cid = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/\d+$/); return m ? parseInt(m[0].slice(1)) : null; })();
+                    const cid = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/([^/]+)$/); return m ? m[1] : null; })();
                     if (cid) ids.add(cid);
                 });
                 const merged = new Set([...getPersistedRespondedTicketIds(), ...ids]);
@@ -122,7 +122,7 @@ function Category() {
             } catch { /* ignore */ }
         })();
     }, []);
-    const handleRespondCard = useCallback(async (ticketId: number, authorId: number) => {
+    const handleRespondCard = useCallback(async (ticketId: string | number, authorId: string | number) => {
         const token = getAuthToken();
         if (!token) {
             window.dispatchEvent(new CustomEvent('openAuthModal'));
@@ -421,7 +421,7 @@ function Category() {
 
 
     // Обработчики подкатегорий
-    const handleSubcategoryClick = (subcategoryId: number | null) => {
+    const handleSubcategoryClick = (subcategoryId: string | number | null) => {
         appendTicketsRef.current = false;
         setPage(1);
         setSelectedSubcategory(subcategoryId);
@@ -492,7 +492,7 @@ function Category() {
     const shouldShowViewAllOccupations = !showAllOccupations && !subcategorySearchQuery.trim() && occupations.length > 8;
     const shouldShowShowLessOccupations = showAllOccupations && occupations.length > 0;
 
-    const handleCardClick = (ticketId: number) => {
+    const handleCardClick = (ticketId: string | number) => {
         navigate(ROUTES.TICKET_BY_ID(ticketId));
     };
 

@@ -19,23 +19,23 @@ import {
 } from 'react-icons/io5';
 
 export interface AppealReason {
-    id: number;
+    id: string | number;
     title: string;
 }
 
 export interface TechSupportAuthor {
-    id: number;
+    id: string | number;
     name: string | null;
     surname: string | null;
 }
 
 export interface TechSupportImage {
-    id: number;
+    id: string | number;
     image: string;
 }
 
 export interface TechSupportMessage {
-    id: number;
+    id: string | number;
     author: TechSupportAuthor | null;
     description: string | null;
     /** Set via POST /tech-supports/{id}/read. Marking read doesn't emit a Mercure event — see API_REFERENCE.md §11. */
@@ -60,14 +60,14 @@ export interface TechSupportMessage {
 export type TechSupportStatus = 'new' | 'renewed' | 'in_progress' | 'resolved' | 'closed' | 'banned';
 
 export interface SupportTicket {
-    id: number;
+    id: string | number;
     title: string;
     description: string;
     priority: string;
     status?: TechSupportStatus;
     createdAt?: string;
     updatedAt?: string | null;
-    reason?: { id?: number; title?: string };
+    reason?: { id?: string | number; title?: string };
     administrant?: TechSupportAuthor | null;
     author?: TechSupportAuthor | null;
     images?: TechSupportImage[];
@@ -123,7 +123,7 @@ export function getLastActivityAt(ticket: SupportTicket): string | undefined {
  * {id}/read, API_REFERENCE.md §11) — "unread" mirrors the backend's own definition:
  * `author != caller && readAt == null`.
  */
-export function getUnreadCount(ticket: SupportTicket, currentUserId?: number): number {
+export function getUnreadCount(ticket: SupportTicket, currentUserId?: string | number): number {
     if (!currentUserId) return 0;
     return (ticket.messages ?? []).filter(m => m.author?.id !== currentUserId && !m.readAt).length;
 }

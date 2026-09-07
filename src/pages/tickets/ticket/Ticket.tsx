@@ -9,7 +9,6 @@ import Auth from "../../../shared/ui/Modal/Auth/Auth";
 import {smartNameTranslator, textHelper} from "../../../utils/textUtils";
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import {useTranslation} from 'react-i18next';
-import {useLanguageChange} from '../../../hooks';
 import {getStorageItem} from '../../../utils/storageUtils';
 import Status from '../../../shared/ui/Modal/Status';
 import Feedback from '../../../shared/ui/Modal/Feedback';
@@ -72,8 +71,8 @@ export function Ticket() {
     const [showComplaintModal, setShowComplaintModal] = useState(false);
 
     // States for review complaints
-    const [reviewComplaintReviewId, setReviewComplaintReviewId] = useState<number | null>(null);
-    const [reviewComplaintAuthorId, setReviewComplaintAuthorId] = useState<number | null>(null);
+    const [reviewComplaintReviewId, setReviewComplaintReviewId] = useState<string | number | null>(null);
+    const [reviewComplaintAuthorId, setReviewComplaintAuthorId] = useState<string | number | null>(null);
     const [showReviewComplaintModal, setShowReviewComplaintModal] = useState(false);
 
     // States for review editing
@@ -96,14 +95,14 @@ export function Ticket() {
 
     // States for ticket deactivation
     const [isTicketActive, setIsTicketActive] = useState(true);
-    const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+    const [currentUserId, setCurrentUserId] = useState<string | number | null>(null);
     const [isTogglingActive, setIsTogglingActive] = useState(false);
     const [isResponding, setIsResponding] = useState(false);
     const isLoadingRef = useRef<boolean>(false); // Отслеживаем текущие запросы
     const isServiceRef = useRef<boolean>(false);
 
     // States for chat checking
-    const [existingChatId, setExistingChatId] = useState<number | null>(null);
+    const [existingChatId, setExistingChatId] = useState<string | number | null>(null);
     const [isCheckingChats, setIsCheckingChats] = useState(false);
 
     // Social networks of the ticket author
@@ -136,7 +135,7 @@ export function Ticket() {
                 console.log('Starting fetchOrder for ticket ID:', id);
                 isLoadingRef.current = true;
                 try {
-                    await fetchOrder(parseInt(id));
+                    await fetchOrder(id);
                 } finally {
                     isLoadingRef.current = false;
                 }
@@ -145,13 +144,6 @@ export function Ticket() {
 
         loadData();
     }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    // Перезагружать данные при смене языка
-    useLanguageChange(() => {
-        if (id) {
-            fetchOrder(parseInt(id));
-        }
-    });
 
     useEffect(() => {
         if (order) {
@@ -217,7 +209,7 @@ export function Ticket() {
 
     const getFullAddress = getTicketFullAddress;
 
-    const fetchOrder = async (ticketId: number) => {
+    const fetchOrder = async (ticketId: string | number) => {
         const fetchTime = Date.now();
         console.log(`[${fetchTime}] fetchOrder STARTED for ticket ID:`, ticketId);
         
@@ -264,7 +256,7 @@ export function Ticket() {
             // Определяем кого показывать: специалиста или заказчика, в зависимости от наличия специалиста в данных тикета
             // Если есть master - это заявка заказчика, показываем специалиста
             // Если master === null - это услуга специалиста, показываем автора (заказчика)
-            let displayUserId: number;
+            let displayUserId: string | number;
             let displayUserName: string;
             let displayUserImage: string;
             let userTypeForRating: string | null;
@@ -435,7 +427,7 @@ export function Ticket() {
         }
     };
 
-    const handleRespondClick = async (authorId: number) => {
+    const handleRespondClick = async (authorId: string | number) => {
         const token = getAuthToken();
 
         // Если пользователь не авторизован, показываем модалку авторизации
@@ -509,7 +501,7 @@ export function Ticket() {
         }
     };
 
-    const handleProfileClick = async (userId: number) => {
+    const handleProfileClick = async (userId: string | number) => {
         console.log('Profile click for user:', userId);
 
         try {
@@ -536,7 +528,7 @@ export function Ticket() {
         }
     };
 
-    const getUserInfoWithoutAuth = async (userId: number): Promise<any> => {
+    const getUserInfoWithoutAuth = async (userId: string | number): Promise<any> => {
         return universalApiRequest(API_ROUTES.USER_BY_ID(userId), { requiresAuth: false, locale: false });
     };
     
@@ -550,11 +542,11 @@ export function Ticket() {
         try {
             const chatsData = await getChatsMe();
 
-                // Helper: extract numeric id from object or IRI string "/api/xxx/123"
-                const extractId = (obj: any): number | undefined => {
-                    if (obj?.id) return typeof obj.id === 'number' ? obj.id : parseInt(String(obj.id));
+                // Helper: extract id from object or IRI string "/api/xxx/{id}" (UUID or number)
+                const extractId = (obj: any): string | number | undefined => {
+                    if (obj?.id) return obj.id;
                     const iri = obj?.['@id'];
-                    if (iri) { const m = String(iri).match(/\/(\d+)$/); if (m) return parseInt(m[1]); }
+                    if (iri) { const m = String(iri).match(/\/([^/]+)$/); if (m) return m[1]; }
                     return undefined;
                 };
 

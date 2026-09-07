@@ -8,7 +8,7 @@ import type { Ticket } from '../../api';
  * via a spread after the base mapping.
  */
 export interface TicketView {
-    id: number;
+    id: string | number;
     title: string;
     price: number;
     unit: string;
@@ -24,8 +24,8 @@ export interface TicketView {
     type?: UserRole;
     status?: string;
     master?: string;
-    authorId?: number;
-    masterId?: number;
+    authorId?: string | number;
+    masterId?: string | number;
     isInSelectedCity?: boolean;
     active?: boolean;
     /** Admin-gated visibility — only ever `false` on the owner's own tickets (`/tickets/me`); the
@@ -42,7 +42,7 @@ export interface TicketView {
     negotiableBudget?: boolean;
     // Detail-page fields (injected in Ticket.tsx)
     rating?: number;
-    categoryId?: number;
+    categoryId?: string | number;
     notice?: string;
     isService?: boolean;
     additionalComments?: string;
@@ -54,6 +54,6 @@ export interface TicketView {
 export type TicketFormData =
     Pick<Ticket, 'title' | 'unit'> &
     Required<Pick<Ticket, 'description' | 'notice'>> & {
-        id?: number;
+        id?: string | number;
         budget: string; // string input — Ticket.budget is number
     };

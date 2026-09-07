@@ -22,7 +22,7 @@ export interface AnnouncementCardProps extends Omit<TicketView, 'id' | 'price' |
   category?: string;
   timeAgo?: string;
   // ticketId / ticketType kept as aliases to avoid breaking callers
-  ticketId?: number;
+  ticketId?: string | number;
   ticketType?: string | boolean;
   // UI-only props
   userRole?: 'client' | 'master' | null;

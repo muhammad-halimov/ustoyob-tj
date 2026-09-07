@@ -3,10 +3,10 @@ import type { User } from '../User';
 import type { Ticket } from '../Ticket';
 
 export type ChatMessage = {
-    id: number;
+    id: string | number;
     description: string;
     author: User;
-    chat?: { id: number } | null;
+    chat?: { id: string | number } | null;
     readAt?: string | null;
     replyTo?: ChatMessage | null;
     /** True once PATCHed at least once — stays true forever after, never resets. */
@@ -19,7 +19,7 @@ export type ChatMessage = {
 } & Timestamps;
 
 export type Chat = {
-    id: number;
+    id: string | number;
     author: User;
     replyAuthor: User;
     // No `messages` field anymore — was a single unbounded array on the Chat entity itself,
