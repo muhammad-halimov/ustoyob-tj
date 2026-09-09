@@ -94,7 +94,7 @@ Distinguish the two formats by shape (`violations` array present vs. a flat `cod
 ### User entity
 ```ts
 interface User {
-  id: number;
+  id: string;
   email: string | null;                // BREAKING (05.09.2026): only present on GET /users/me (own profile) now — see note below
   login: string | null;
   name: string | null;
@@ -105,7 +105,7 @@ interface User {
   image: string | null;                // filename, build full URL client-side
   imageExternalUrl: string | null;     // e.g. OAuth avatar (read-only)
   description: string | null;
-  dateOfBirth: string | null;          // masters/clients/tech-support only, must be 18+
+  dateOfBirth: string | null;          // BREAKING (09.09.2026): only present on GET /users/me (own profile) now — see note below
   atHome: boolean | null;
   active: boolean;                     // read-only
   approved: boolean;                   // read-only
@@ -126,7 +126,7 @@ interface User {
 }
 
 interface Phone {
-  id: number;
+  id: string;
   phone: string;          // normalized, e.g. "+992xxxxxxxxx"
   countryCode: string;    // e.g. "+992"
   main: boolean;
@@ -134,7 +134,7 @@ interface Phone {
 }
 
 interface Education {
-  id: number;
+  id: string;
   title: string | null;
   description: string | null;
   beginning: number | null;   // year
@@ -144,13 +144,13 @@ interface Education {
 }
 
 interface SocialNetwork {
-  id: number;
+  id: string;
   network: string;   // instagram|telegram|whatsapp|facebook|vk|youtube|site|viber|imo|twitter|linkedin|google|wechat
   handle: string | null;
 }
 
 interface OAuthProvider {
-  id: number;
+  id: string;
   provider: 'google' | 'facebook' | 'instagram' | 'telegram';
   providerId: string;
 }
@@ -164,6 +164,8 @@ Registration body (`POST /api/users`): standard User writable fields — `email`
 `User.banned` — same mechanism as `Ticket.banned` (§4): never writable via the API, toggled only from EasyAdmin by ROLE_SUPER_ADMIN. Setting it forces `active=false`/`approved=false` immediately, and while `true` neither can be set back to `true` through any code path — including self-activation via `POST /confirm-account/` (token) and `POST /confirm-account-tokenless/` (resend). On top of the entity-level guard, `AccessService::check()` now hard-rejects a banned user (`403 access_denied`) on **every** authenticated endpoint that goes through `checkedUser()` — unconditionally, regardless of the `activeAndApproved` flag some endpoints pass `false` for (that flag only relaxes the "email not confirmed yet" gate, not a ban). `ROLE_SUPER_ADMIN` still bypasses everything, same as it already did for active/approved.
 
 **`User.email` — BREAKING (05.09.2026): now only visible on `GET /users/me`.** Previously `email` was serialized wherever a `User` gets embedded whole (`Ticket.author`/`Ticket.master`, `Review.master`/`Review.client`, `Chat`/`ChatMessage` participants, `Favorite`/`BlackList` targets, `TechSupport.author`) — meaning any authenticated (or even anonymous, for public `/tickets`/`/reviews`) caller could read any other user's email just by viewing a ticket, review, or chat they're part of. Fixed: `email` is gone from every one of those response shapes, including the **public single/collection profile** `GET /users/{id}` / `GET /users` (it never showed there either, before or after — only the embedded-elsewhere leak is what's new here). If any frontend code reads `ticket.master.email`, `review.client.email`, `chat.replyAuthor.email`, etc. to show a contact address, it now gets `undefined` — there's no replacement field; contacting another user is expected to go through the chat/appeal system, not raw email.
+
+**`User.dateOfBirth` — BREAKING (09.09.2026): now only visible on `GET /users/me`.** Same class of bug as `email` above, same fix, same day-late discovery: it was serialized under the `MASTERS`/`CLIENTS` groups, which are exactly the groups the **public, unauthenticated** `GET /users/{id}` and `GET /users` normalize with — meaning anyone's exact birth date was readable by anyone, no login required. It was also visible in `TechSupport`/`TechSupportMessage` embeds (admin-facing) — dropped from there too, an admin handling a support ticket doesn't need the requester's exact birth date to do so. If any frontend code reads `master.dateOfBirth`, `client.dateOfBirth`, etc. on someone else's profile, it now gets `undefined`; it's still present (and writable) on your own `GET /users/me` / `PATCH /users/{id}` as before. If a public profile needs to show an age instead of hiding it entirely, that would need a new computed `age: number` field server-side — doesn't exist yet, ask backend if the product actually wants that.
 
 ## 4. TICKETS (services/listings)
 
@@ -195,7 +197,7 @@ interface TicketPatchInput extends TicketInput {
 }
 
 interface Ticket {
-  id: number;
+  id: string;
   notice: string | null;
   budget: number | null;
   negotiableBudget: boolean | null;
@@ -236,9 +238,9 @@ GET /api/units              GET /api/units/{id}
 GET /api/occupations        GET /api/occupations/{id}
 ```
 ```ts
-interface Category { id: number; title: string; description: string|null; image: string|null; priority: number|null; occupations: Occupation[]; }
-interface Unit     { id: number; title: string; description: string|null; priority: number|null; }
-interface Occupation { id: number; title: string; description: string|null; image: string|null; priority: number|null; category: Category | null; }
+interface Category { id: string; title: string; description: string|null; image: string|null; priority: number|null; occupations: Occupation[]; }
+interface Unit     { id: string; title: string; description: string|null; priority: number|null; }
+interface Occupation { id: string; title: string; description: string|null; image: string|null; priority: number|null; category: Category | null; }
 ```
 **Breaking change**: `Occupation.categories: Category[]` → `Occupation.category: Category | null`. A subcategory belongs to exactly one category — was modeled as many-to-many (join table), now a real one-to-many (`category_id` FK on `occupation`), since nothing ever actually used a subcategory spanning multiple categories and the old shape let that happen by accident with no validation catching it. `Category.occupations` is unaffected — still an array, still every subcategory under that category.
 
@@ -275,7 +277,7 @@ interface ChatMessagePostInput  { chat: string /* Chat IRI, required */; descrip
 interface ChatMessagePatchInput { chat?: string; description?: string; images?: { image: string }[]; }
 
 interface Chat {
-  id: number;
+  id: string;
   active: boolean | null;
   author: User | null;        // read-only (set from bearer on creation)
   replyAuthor: User | null;
@@ -290,7 +292,7 @@ interface Chat {
 }
 
 interface ChatMessage {
-  id: number;
+  id: string;
   chat: Chat | null;
   author: User | null;        // read-only
   replyTo: ChatMessage | null;
@@ -319,20 +321,20 @@ GET /api/cities             GET /api/cities/{id}       filters: province.id, sub
 Suburb, Community, Settlement, Village have **no direct endpoints** — they only appear nested inside District/City/Settlement responses.
 
 ```ts
-interface Province { id: number; title: string; description: string|null; image: string|null; cities: City[]; districts: District[]; }
-interface District { id: number; title: string; description: string|null; image: string|null; province: Province; settlements: Settlement[]; communities: Community[]; }
-interface City      { id: number; title: string; description: string|null; image: string|null; province: Province; suburbs: Suburb[]; }
-interface Suburb     { id: number; title: string; description: string|null; image: string|null; }
-interface Community  { id: number; title: string; description: string|null; image: string|null; }
-interface Settlement { id: number; title: string; description: string|null; image: string|null; villages: Village[]; }
-interface Village    { id: number; title: string; description: string|null; image: string|null; }
+interface Province { id: string; title: string; description: string|null; image: string|null; cities: City[]; districts: District[]; }
+interface District { id: string; title: string; description: string|null; image: string|null; province: Province; settlements: Settlement[]; communities: Community[]; }
+interface City      { id: string; title: string; description: string|null; image: string|null; province: Province; suburbs: Suburb[]; }
+interface Suburb     { id: string; title: string; description: string|null; image: string|null; }
+interface Community  { id: string; title: string; description: string|null; image: string|null; }
+interface Settlement { id: string; title: string; description: string|null; image: string|null; villages: Village[]; }
+interface Village    { id: string; title: string; description: string|null; image: string|null; }
 ```
 `Province.PROVINCES` (labels): Душанбе, ГРРП, ГБАО, Согдийская область, Хатлонская область.
 
 **Address** (embedded, no own endpoint — attached to User/Ticket via `addresses[]`, written as raw component IRIs/objects in `TicketInput.address` / User payload):
 ```ts
 interface Address {
-  id: number;
+  id: string;
   province: Province | null;
   city: City | null;
   suburb: Suburb | null;
@@ -359,7 +361,7 @@ interface Address {
 
 ```ts
 interface GalleryPatchInput { images?: { image: string }[]; }
-interface Gallery { id: number; user: User; images: MultipleImage[]; createdAt: string; updatedAt: string|null; }
+interface Gallery { id: string; user: User; images: MultipleImage[]; createdAt: string; updatedAt: string|null; }
 ```
 
 ## 8. REVIEWS
@@ -385,7 +387,7 @@ interface ReviewPostInput  { type?: 'client'|'master'; rating: number; ticket?: 
 interface ReviewPatchInput { rating: number; description?: string; images?: { image: string }[]; }
 
 interface Review {
-  id: number;
+  id: string;
   rating: number | null;         // 0–5
   type: 'client' | 'master';     // "Отзыв клиенту" | "Отзыв мастеру"
   title: string | null;
@@ -422,7 +424,7 @@ interface AppealInput {
 }
 
 interface Appeal {   // base shape; subtype adds `chat` or `review`
-  id: number;
+  id: string;
   title: string | null;
   description: string | null;
   type: 'ticket' | 'chat' | 'review' | 'user';
@@ -445,7 +447,7 @@ GET /api/appeal-reasons          GET /api/appeal-reasons/{id}
 filters: `applicableTo`(exact), `authRequired`(bool)
 ```ts
 interface AppealReason {
-  id: number;
+  id: string;
   code: string;
   title: string;                 // localized
   applicableTo: 'chat'|'ticket'|'review'|'user'|'support'|'overall';
@@ -468,10 +470,10 @@ Self-referencing is allowed: a user can favorite their own `user` IRI or their o
 
 ```ts
 interface CollectionEntryInput { user?: string; ticket?: string; }  // IRIs, mutually exclusive
-interface Favorite  { id: number; type: string; user: User|null; ticket: Ticket|null; createdAt: string; updatedAt: string|null; }
+interface Favorite  { id: string; type: string; user: User|null; ticket: Ticket|null; createdAt: string; updatedAt: string|null; }
 
 interface BlackListInput { user: string; }  // IRI, required — no ticket option anymore
-interface BlackList { id: number; user: User; createdAt: string; updatedAt: string|null; }  // no `type`, no `ticket` — a block is always exactly one user
+interface BlackList { id: string; user: User; createdAt: string; updatedAt: string|null; }  // no `type`, no `ticket` — a block is always exactly one user
 ```
 `GET /api/favorites/me` additionally hides entries whose target `ticket` isn't `approved` yet, or whose target `user` isn't `active`+`approved` — filtered at the query level, so pagination/`totalItems` reflect only what's actually visible.
 
@@ -522,7 +524,7 @@ interface AdministrantPublic {
 }
 
 interface TechSupport {
-  id: number;
+  id: string;
   title: string | null;
   description: string | null;
   priority: number | null;              // 1 low .. 4 urgent
@@ -567,7 +569,7 @@ Photo-only messages (no text): omit `description`, send `description: ""`, or se
 interface TechSupportMessagePostInput  { techSupport?: string /* IRI */; description?: string; }
 interface TechSupportMessagePatchInput { description?: string; images?: { image: string }[]; }  // images: same syncImages() mechanism as ChatMessagePatchInput — reorder/prune by filename, either field alone is enough (400 nothing_to_update if both omitted)
 interface TechSupportMessage {
-  id: number;
+  id: string;
   author: User|null;
   techSupport: TechSupport|null;
   description: string|null;
@@ -597,7 +599,7 @@ GET /api/legals        GET /api/legals/{id}
 ```
 filters: `type`(exact), `title`, `description`(partial)
 ```ts
-interface Legal { id: number; type: 'terms_of_use'|'privacy_policy'|'public_offer'; title: string; description: string|null; }
+interface Legal { id: string; type: 'terms_of_use'|'privacy_policy'|'public_offer'; title: string; description: string|null; }
 ```
 
 ## 13. APP MESSAGES (error/message catalogue)
@@ -612,7 +614,7 @@ Use to map backend error `code` → localized display text without hardcoding st
 
 ```ts
 interface MultipleImage {
-  id: number;
+  id: string;
   author: User | null;
   image: string;        // filename — build full URL via configured storage base path
   priority: number | null;
@@ -641,16 +643,16 @@ No `POST`/`PATCH`/`DELETE` — rows are written only by server-side listeners, n
 
 ```ts
 interface EntityRevision {
-  id: number;
+  id: string;
   entityType: string;              // e.g. "ticket"
-  entityId: number;
-  parentId: number | null;         // id of the entity this one nests under — see below; null if there isn't one
+  entityId: string;
+  parentId: string | null;         // id of the entity this one nests under — see below; null if there isn't one
   entity: string | null;           // short class name of whatever parentId refers to — see below
   action: 'updated' | 'deleted';
   snapshot: Record<string, unknown>;  // shape depends on entityType/action — see per-entity notes below
   actor: User | null;              // who made the change; null if the account was since deleted
   actorLabel: string | null;       // actor's email, snapshotted at write time — survives account deletion (actor doesn't: FK is ON DELETE SET NULL)
-  actorId: number | null;          // actor's id, same snapshot (plain column, no FK — survives deletion same as actorLabel)
+  actorId: string | null;          // actor's id, same snapshot (plain column, no FK — survives deletion same as actorLabel)
   actorName: string | null;        // actor's first name, same snapshot
   actorSurname: string | null;     // actor's last name, same snapshot
   reason: string | null;           // optional, mostly for moderator deletions
@@ -667,7 +669,7 @@ interface EntityRevision {
 
 `entityType` values currently written, and what triggers each. For `action: "updated"`, `snapshot[field]` is always `{ old: <previous value>, new: <value after the edit> }` — both sides included, not just the previous one:
 
-- **`ticket`** — on every `PATCH /tickets/{id}` that changes at least one of `title`/`description`/`notice`/`budget`/`negotiableBudget`/`service`/`priority`/`category`/`subcategory`/`unit`. `snapshot` contains only the fields that actually changed (association fields like `category`/`subcategory`/`unit` are stored as their id, not the embedded object, on both `old` and `new`). Same trigger also resets `Ticket.approved` to `false` — see §4. `active` does **not** trigger this (see §4) — a PATCH that only flips `active` writes no revision at all. **`addresses`** also writes a `ticket` revision (separate code path — a collection change, not a scalar diff), shaped as `snapshot: { address: { old: AddressSnapshot[], new: AddressSnapshot[] } }` where each `AddressSnapshot` is `{ province, city, suburb, district, community, settlement, village }` and each of those is `{ id: number, title: string | null } | null` — the full attached-addresses list on each side (not a diff of individual address fields), compared as a set (order doesn't matter).
+- **`ticket`** — on every `PATCH /tickets/{id}` that changes at least one of `title`/`description`/`notice`/`budget`/`negotiableBudget`/`service`/`priority`/`category`/`subcategory`/`unit`. `snapshot` contains only the fields that actually changed (association fields like `category`/`subcategory`/`unit` are stored as their id, not the embedded object, on both `old` and `new`). Same trigger also resets `Ticket.approved` to `false` — see §4. `active` does **not** trigger this (see §4) — a PATCH that only flips `active` writes no revision at all. **`addresses`** also writes a `ticket` revision (separate code path — a collection change, not a scalar diff), shaped as `snapshot: { address: { old: AddressSnapshot[], new: AddressSnapshot[] } }` where each `AddressSnapshot` is `{ province, city, suburb, district, community, settlement, village }` and each of those is `{ id: string, title: string | null } | null` — the full attached-addresses list on each side (not a diff of individual address fields), compared as a set (order doesn't matter).
 - **`chat_message`** — on `PATCH /chat-messages/{id}` that changes `description`. `{ action: "updated", snapshot: { description: { old: "...", new: "..." } } }`.
 - **`tech_support_message`** — on `PATCH /tech-support-messages/{id}` that changes `description`. Same shape as `chat_message`.
 - **`review`** — on `PATCH /reviews/{id}` that changes `description` and/or `rating`. `snapshot` contains only whichever of the two actually changed, each as an `{ old, new }` pair.

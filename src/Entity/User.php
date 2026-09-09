@@ -484,13 +484,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     private ?string $gender = 'gender_neutral';
 
+    /**
+     * БАГФИКС (09.09.2026, тот же класс проблемы, что и с email — см. его
+     * докблок выше): было в группах MASTERS/CLIENTS — то есть точная дата
+     * рождения любого мастера/клиента светилась в ПУБЛИЧНОМ (без
+     * авторизации) GET /users/{id} и GET /users (те используют
+     * OPS_USERS_PUBLIC = MASTERS+CLIENTS+USER_PUBLIC). Единственная
+     * группа теперь — USERS_ME: видна только самому владельцу на
+     * GET /users/me. TECH_SUPPORT/TECH_SUPPORT_MESSAGES тоже убраны —
+     * админу для обработки тикета ТП точная дата рождения обратившегося
+     * не нужна, тот же довод, по которому email убрали оттуда же.
+     */
     #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
     #[Groups([
-        G::MASTERS,
-        G::CLIENTS,
-
-        G::TECH_SUPPORT,
-        G::TECH_SUPPORT_MESSAGES,
+        G::USERS_ME,
     ])]
     private ?DateTime $dateOfBirth = null;
 
