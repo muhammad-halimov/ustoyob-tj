@@ -146,15 +146,22 @@ const Feedback: React.FC<FeedbackModalProps> = ({
             : effectiveComplaintType === 'user' ? 'overall'
             : 'ticket';
         const authRequired = !!getAuthToken();
+        // Жалобы на чат — особый случай на бэке (ApiPostAppealConntroller, case 'chat'):
+        // причина с authRequired=true отклоняется БЕЗУСЛОВНО (401 auth_required_for_chat_appeals),
+        // даже у залогиненного пользователя — в отличие от ticket/review/user, где проверка
+        // `authRequired && !bearer` пропускает залогиненных. Поэтому для чата всегда запрашиваем
+        // только authRequired=false причины, не завязываясь на состояние авторизации.
+        const reasonAuthRequired = type === 'chat' ? false : authRequired;
 
         const requests: Promise<AppealReason[]>[] = [
-            getAppealReasons(locale, `applicableTo=${type}&authRequired=${authRequired}`),
+            getAppealReasons(locale, `applicableTo=${type}&authRequired=${reasonAuthRequired}`),
         ];
         if (type !== 'overall') {
-            requests.push(getAppealReasons(locale, `applicableTo=overall&authRequired=${authRequired}`));
+            requests.push(getAppealReasons(locale, `applicableTo=overall&authRequired=${reasonAuthRequired}`));
         }
         // authenticated users also get the public (non-auth-required) overall reasons
-        if (authRequired) {
+        // (no-op for chat — reasonAuthRequired is already false there)
+        if (authRequired && type !== 'chat') {
             requests.push(getAppealReasons(locale, `applicableTo=overall&authRequired=false`));
         }
         Promise.all(requests).then((arrays) => {
