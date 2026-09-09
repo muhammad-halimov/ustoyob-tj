@@ -31,8 +31,12 @@ class ApiGetMyChatsController extends AbstractApiGetCollectionController
         // фильтр тихо переставал бы работать вообще, ВСЕГДА давая null.
         $ticketId = ($v = $query?->get('ticket')) !== null && $v !== '' ? $v : null;
         $active   = ($v = $query?->get('active'))  !== null ? filter_var($v, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null;
+        // ?user= — чаты с конкретным собеседником (общий + тикет-скоуп разом),
+        // см. докблок ChatRepository::findUserChats(). Тот же паттерн, что и
+        // у $ticketId выше — просто строка с UUID, без is_numeric()/(int).
+        $userId   = ($v = $query?->get('user'))    !== null && $v !== '' ? $v : null;
 
-        return $this->chatRepository->findUserChats($user, $ticketId, $active);
+        return $this->chatRepository->findUserChats($user, $ticketId, $active, $userId);
     }
 
     protected function afterFetch(array|object $entity, ?User $user): void

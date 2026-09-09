@@ -73,6 +73,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
                 parameters: [
                     new OpenApiParameter(name: 'ticket', in: 'query', description: 'Filter by ticket ID', required: false, schema: ['type' => 'integer']),
                     new OpenApiParameter(name: 'active', in: 'query', description: 'Filter by active status (true/false or 1/0)', required: false, schema: ['type' => 'boolean']),
+                    new OpenApiParameter(name: 'user', in: 'query', description: 'Filter by counterpart user ID (chats with this specific user, general + ticket-scoped alike)', required: false, schema: ['type' => 'string', 'format' => 'uuid']),
                 ],
             ),
             normalizationContext: ['groups' => G::OPS_CHATS],

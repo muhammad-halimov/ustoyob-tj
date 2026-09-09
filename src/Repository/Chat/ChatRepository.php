@@ -22,10 +22,16 @@ class ChatRepository extends ServiceEntityRepository
     /**
      * Все чаты, где юзер является инициатором ИЛИ реципиентом.
      *
-     * @param string|null $ticketId фильтр по UUID тикета (null — без фильтра)
-     * @param bool|null   $active   фильтр по полю active (null — без фильтра)
+     * @param string|null $ticketId     фильтр по UUID тикета (null — без фильтра)
+     * @param bool|null   $active       фильтр по полю active (null — без фильтра)
+     * @param string|null $counterpartId фильтр по UUID собеседника (null — без фильтра) —
+     *                                   чаты именно с этим конкретным пользователем (в любую
+     *                                   сторону: он author или replyAuthor), общий и тикет-скоуп
+     *                                   чаты разом. Нужен фронту, чтобы перед откликом на тикет
+     *                                   проверить, нет ли уже переписки с этим человеком, не
+     *                                   вытягивая весь список чатов.
      */
-    public function findUserChats(User $user, ?string $ticketId = null, ?bool $active = null): QueryBuilder
+    public function findUserChats(User $user, ?string $ticketId = null, ?bool $active = null, ?string $counterpartId = null): QueryBuilder
     {
         $qb = $this
             ->createQueryBuilder('c')
@@ -64,6 +70,11 @@ class ChatRepository extends ServiceEntityRepository
         if ($active !== null) {
             $qb->andWhere('c.active = :active')
                ->setParameter('active', $active);
+        }
+
+        if ($counterpartId !== null) {
+            $qb->andWhere('IDENTITY(c.author) = :counterpartId OR IDENTITY(c.replyAuthor) = :counterpartId')
+               ->setParameter('counterpartId', $counterpartId);
         }
 
         return $qb;
