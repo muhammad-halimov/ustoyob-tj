@@ -108,6 +108,12 @@ function Chat() {
     const startInboxSSERef = useRef<(() => Promise<void>) | null>(null);
     const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const chatsRef = useRef<ApiChat[]>([]);
+    /** `?chatId=` from the URL should open that chat once, on the page's first load — not
+     *  keep forcing it back open on every subsequent fetchChats (including the silent 60s
+     *  background poll below), which was hijacking the user back into that chat — and
+     *  silently re-marking it read — even after they'd switched to a different one or gone
+     *  back to the list. Sentinel for "already applied it once". */
+    const appliedChatIdFromUrlRef = useRef(false);
     /** Tracks which chat is currently open so the inbox SSE can route messages to setMessages. */
     const selectedChatIdRef = useRef<string | number | null>(null);
     /** Always points to the latest processActiveChatMessage to avoid stale closures in inbox SSE. */
@@ -236,6 +242,11 @@ function Chat() {
             // NaN, и открытие чата по ссылке из URL тихо ломалось бы. Используем строку как есть.
             console.log('Chat ID from URL:', chatIdFromUrl);
             setSelectedChat(chatIdFromUrl);
+            // Новое значение chatId в URL — например, react-router-навигация на /chats?chatId=
+            // другого чата без размонтирования страницы — должно снова один раз сработать в
+            // fetchChats (см. appliedChatIdFromUrlRef), а не остаться заблокированным первым
+            // применённым значением.
+            appliedChatIdFromUrlRef.current = false;
         }
     }, [chatIdFromUrl]);
 
@@ -1145,7 +1156,13 @@ function Chat() {
                 startInboxSSERef.current?.();
             }
 
-            if (chatIdFromUrl) {
+            // Открываем чат из ?chatId= ровно один раз — на первой загрузке страницы, не на
+            // каждом fetchChats (включая молчаливый 60-секундный опрос ниже). Иначе после
+            // того как пользователь переключился на другой чат или вернулся к списку, опрос
+            // силой открывал его обратно в этот чат и тихо помечал его прочитанным — то, чего
+            // пользователь не делал.
+            if (chatIdFromUrl && !appliedChatIdFromUrlRef.current) {
+                appliedChatIdFromUrlRef.current = true;
                 // chatId теперь UUID-строка — см. комментарий выше про parseInt()/NaN.
                 const chatId = chatIdFromUrl;
                 const chatExists = chatsData.some(chat => chat.id === chatId);

@@ -5,10 +5,14 @@ import {useNavigate} from 'react-router-dom';
 import {ROUTES, API_ROUTES} from '../../app/routers/routes';
 import {
     createChatWithAuthor,
+    createTicketChat,
+    resolveTicketChat,
     getChatsMe,
     getPersistedRespondedTicketIds,
     persistRespondedTicketId
 } from "../../utils/chatUtils";
+import {ExistingChatChoice} from '../../shared/ui/Modal/ExistingChatChoice/ExistingChatChoice';
+import type {Chat} from '../../entities';
 import {textHelper} from '../../utils/textUtils';
 import {useTranslation} from 'react-i18next';
 import {useLanguageChange, useShowMore} from '../../hooks';
@@ -155,6 +159,10 @@ function Favorites() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // check-before-respond (см. chatUtils.resolveTicketChat) — только общий чат найден,
+    // нужен явный выбор пользователя (см. ExistingChatChoice ниже в рендере).
+    const [pendingGeneralChat, setPendingGeneralChat] = useState<{ chat: Chat; ticketId: string | number; authorId: string | number } | null>(null);
+
     const handleRespondCard = async (ticketId: string | number, authorId: string | number) => {
         const token = getAuthToken();
         if (!token) {
@@ -164,14 +172,14 @@ function Favorites() {
         if (respondedTickets.has(ticketId) || respondingTicketId === ticketId) return;
         setRespondingTicketId(ticketId);
         try {
-            const chat = await createChatWithAuthor(authorId, ticketId);
-            if (chat) {
-                setRespondedTickets(prev => new Set(prev).add(ticketId));
-                persistRespondedTicketId(ticketId);
-                setRespondModal({ open: true, type: 'success', message: 'Вы успешно откликнулись!' });
-            } else {
-                setRespondModal({ open: true, type: 'error', message: 'Не удалось откликнуться. Попробуйте ещё раз.' });
+            const outcome = await resolveTicketChat(authorId, ticketId);
+            if (outcome.type === 'choice') {
+                setPendingGeneralChat({ chat: outcome.generalChat, ticketId, authorId });
+                return;
             }
+            setRespondedTickets(prev => new Set(prev).add(ticketId));
+            persistRespondedTicketId(ticketId);
+            setRespondModal({ open: true, type: 'success', message: 'Вы успешно откликнулись!' });
         } catch (e) {
             const msg = e instanceof Error ? e.message : 'Не удалось откликнуться. Попробуйте ещё раз.';
             setRespondModal({ open: true, type: 'error', message: msg });
@@ -179,7 +187,36 @@ function Favorites() {
             setRespondingTicketId(null);
         }
     };
-    
+
+    /** "Продолжить в общем чате" — открываем существующий общий чат как есть. */
+    const handleContinueGeneralChat = () => {
+        if (!pendingGeneralChat) return;
+        const { chat, ticketId } = pendingGeneralChat;
+        setPendingGeneralChat(null);
+        setRespondedTickets(prev => new Set(prev).add(ticketId));
+        persistRespondedTicketId(ticketId);
+        navigate(`${ROUTES.CHATS}?chatId=${chat.id}`);
+    };
+
+    /** "Откликнуться на это объявление" — явно создаём отдельный чат по объявлению. */
+    const handleRespondAnyway = async () => {
+        if (!pendingGeneralChat) return;
+        const { ticketId, authorId } = pendingGeneralChat;
+        setRespondingTicketId(ticketId);
+        try {
+            await createTicketChat(authorId, ticketId);
+            setPendingGeneralChat(null);
+            setRespondedTickets(prev => new Set(prev).add(ticketId));
+            persistRespondedTicketId(ticketId);
+            setRespondModal({ open: true, type: 'success', message: 'Вы успешно откликнулись!' });
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : 'Не удалось откликнуться. Попробуйте ещё раз.';
+            setRespondModal({ open: true, type: 'error', message: msg });
+        } finally {
+            setRespondingTicketId(null);
+        }
+    };
+
     // Хук для реактивного обновления при смене языка
     useLanguageChange(() => {
         fetchFavoritesRef.current();
@@ -1012,6 +1049,13 @@ function Favorites() {
                 isOpen={respondModal.open}
                 onClose={() => setRespondModal(prev => ({ ...prev, open: false }))}
                 message={respondModal.message}
+            />
+            <ExistingChatChoice
+                isOpen={!!pendingGeneralChat}
+                onClose={() => setPendingGeneralChat(null)}
+                onContinueGeneral={handleContinueGeneralChat}
+                onRespond={handleRespondAnyway}
+                isLoading={pendingGeneralChat != null && respondingTicketId === pendingGeneralChat.ticketId}
             />
         </div>
     );
