@@ -141,9 +141,13 @@ const Feedback: React.FC<FeedbackModalProps> = ({
     React.useEffect(() => {
         if (!isOpen || isReview) return;
         const locale = getStorageItem('i18nextLng') || 'ru';
+        // applicableTo на бэке — 'chat'|'ticket'|'review'|'user'|'support'|'overall' (см.
+        // AppealReasonFixture) — жалоба на пользователя должна тянуть applicableTo=user
+        // (там реальные причины вроде "Поддельный профиль"/"Выдаёт себя за другого"), а не
+        // 'overall' — иначе эти причины никогда не попадают в дропдаун.
         const type = effectiveComplaintType === 'chat' ? 'chat'
             : effectiveComplaintType === 'review' ? 'review'
-            : effectiveComplaintType === 'user' ? 'overall'
+            : effectiveComplaintType === 'user' ? 'user'
             : 'ticket';
         const authRequired = !!getAuthToken();
         // Жалобы на чат — особый случай на бэке (ApiPostAppealConntroller, case 'chat'):
@@ -153,12 +157,12 @@ const Feedback: React.FC<FeedbackModalProps> = ({
         // только authRequired=false причины, не завязываясь на состояние авторизации.
         const reasonAuthRequired = type === 'chat' ? false : authRequired;
 
+        // `type` — всегда один из 'chat'|'review'|'user'|'ticket' (никогда 'overall' само по
+        // себе), так что общие overall-причины всегда домешиваем отдельным запросом.
         const requests: Promise<AppealReason[]>[] = [
             getAppealReasons(locale, `applicableTo=${type}&authRequired=${reasonAuthRequired}`),
+            getAppealReasons(locale, `applicableTo=overall&authRequired=${reasonAuthRequired}`),
         ];
-        if (type !== 'overall') {
-            requests.push(getAppealReasons(locale, `applicableTo=overall&authRequired=${reasonAuthRequired}`));
-        }
         // authenticated users also get the public (non-auth-required) overall reasons
         // (no-op for chat — reasonAuthRequired is already false there)
         if (authRequired && type !== 'chat') {
