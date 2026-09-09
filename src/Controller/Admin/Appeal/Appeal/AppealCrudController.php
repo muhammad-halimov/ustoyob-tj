@@ -92,7 +92,7 @@ class AppealCrudController extends AbstractCrudController
         /** @noinspection PhpParamsInspection */
         $url = $this->adminUrlGenerator
             ->setController($this->resolveCrud($entity))
-            ->setAction(Action::EDIT)
+            ->setAction(Action::DETAIL)
             ->setEntityId($entity->getId())
             ->generateUrl();
         return $this->redirect($url);
@@ -149,6 +149,11 @@ class AppealCrudController extends AbstractCrudController
             ->setColumns(6);
 
         yield AssociationField::new('respondent', 'Ответчик')
+            ->setQueryBuilder($this->nonAdminQb())
+            ->setRequired(false)
+            ->setColumns(6);
+
+        yield AssociationField::new('ticket', 'Объяление/услуга')
             ->setQueryBuilder($this->nonAdminQb())
             ->setRequired(false)
             ->setColumns(6);

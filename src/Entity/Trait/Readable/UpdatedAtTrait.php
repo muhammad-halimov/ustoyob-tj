@@ -11,9 +11,6 @@ trait UpdatedAtTrait
     #[ORM\Column(type: 'datetime', nullable: true)]
     #[Groups([
         G::USERS_ME,
-        G::USER_PUBLIC,
-        G::MASTERS,
-        G::CLIENTS,
 
         G::LEGALS,
         G::FAVORITES,
