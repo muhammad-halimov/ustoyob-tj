@@ -4,7 +4,7 @@ import {getAuthToken, getUserData, getUserRole} from '../../../utils/authUtils';
 import { getAuthorAvatar, formatTicketImageUrl } from '../../../utils/imageUtils';
 import { formatLocalizedDate, getTimeAgo } from '../../../utils/timeUtils';
 import styles from './Ticket.module.scss';
-import {createChatWithAuthor, initChatModals, getChatsMe} from "../../../utils/chatUtils";
+import {createTicketChat, resolveTicketChat, getChatsWithUser, initChatModals} from "../../../utils/chatUtils";
 import Auth from "../../../shared/ui/Modal/Auth/Auth";
 import {smartNameTranslator, textHelper} from "../../../utils/textUtils";
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
@@ -12,6 +12,7 @@ import {useTranslation} from 'react-i18next';
 import {getStorageItem} from '../../../utils/storageUtils';
 import Status from '../../../shared/ui/Modal/Status';
 import Feedback from '../../../shared/ui/Modal/Feedback';
+import {ExistingChatChoice} from '../../../shared/ui/Modal/ExistingChatChoice/ExistingChatChoice';
 import { Carousel } from '../../../shared/ui/Photo/Carousel';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
 import {useFavorites} from '../../../hooks/useFavorites.ts';
@@ -104,6 +105,9 @@ export function Ticket() {
     // States for chat checking
     const [existingChatId, setExistingChatId] = useState<string | number | null>(null);
     const [isCheckingChats, setIsCheckingChats] = useState(false);
+    // Check-before-respond (см. chatUtils.resolveTicketChat): только общий чат (ticket:
+    // null) с автором найден — предлагаем выбор, не создаём и не переиспользуем молча.
+    const [pendingGeneralChat, setPendingGeneralChat] = useState<{ id: string | number } | null>(null);
 
     // Social networks of the ticket author
     const [authorSocialNetworks, setAuthorSocialNetworks] = useState<{ id: string; network: string; handle: string }[]>([]);
@@ -452,21 +456,54 @@ export function Ticket() {
             return;
         }
 
-        // Если уже есть чат, переходим к нему сразу
+        // Если уже есть чат конкретно по этому объявлению, переходим к нему сразу
         if (existingChatId) {
             navigate(`${ROUTES.CHATS}?chatId=${existingChatId}`);
             return;
         }
 
+        if (!order) return;
+
         try {
             setIsResponding(true);
-            const chat = await createChatWithAuthor(authorId, order?.id);
-
-            if (chat) {
-                navigate(`${ROUTES.CHATS}?chatId=${chat.id}`);
+            // check-before-respond: отличает "чат именно по этому объявлению уже есть"
+            // (существующий чат просто уже был отфильтрован выше через existingChatId) от
+            // "есть только общий чат с этим человеком" (нужен явный выбор пользователя,
+            // не создаём и не подменяем молча) от "конфликтов нет" (можно создавать сразу).
+            const outcome = await resolveTicketChat(authorId, order.id);
+            if (outcome.type === 'choice') {
+                setPendingGeneralChat(outcome.generalChat);
+                return;
             }
+            navigate(`${ROUTES.CHATS}?chatId=${outcome.chat.id}`);
         } catch (error) {
             console.error('Error creating chat:', error);
+            setModalMessage(resolveApiError(error));
+            setShowErrorModal(true);
+        } finally {
+            setIsResponding(false);
+        }
+    };
+
+    /** "Продолжить в общем чате" — открываем существующий общий чат как есть. */
+    const handleContinueGeneralChat = () => {
+        if (!pendingGeneralChat) return;
+        const chatId = pendingGeneralChat.id;
+        setPendingGeneralChat(null);
+        navigate(`${ROUTES.CHATS}?chatId=${chatId}`);
+    };
+
+    /** "Откликнуться на это объявление" — явно создаём отдельный чат по объявлению,
+     *  несмотря на существующий общий чат. */
+    const handleRespondAnyway = async () => {
+        if (!order?.authorId) return;
+        setIsResponding(true);
+        try {
+            const chat = await createTicketChat(order.authorId, order.id);
+            setPendingGeneralChat(null);
+            navigate(`${ROUTES.CHATS}?chatId=${chat.id}`);
+        } catch (error) {
+            console.error('Error creating ticket chat:', error);
             setModalMessage(resolveApiError(error));
             setShowErrorModal(true);
         } finally {
@@ -480,14 +517,15 @@ export function Ticket() {
         if (order?.authorId) {
             const createChat = async () => {
                 try {
-                    const chat = await createChatWithAuthor(order.authorId!, order.id);
-                    if (chat && chat.id) {
-                        console.log('Navigating to chat after login:', chat.id);
-                        navigate(`${ROUTES.CHATS}?chatId=${chat.id}`);
-                    } else {
-                        console.error('Failed to create chat after login');
-                        navigate(ROUTES.CHATS);
+                    // Тот же check-before-respond, что и в handleRespondClick — вход через
+                    // логин не должен обходить проверку и создавать/подменять чат молча.
+                    const outcome = await resolveTicketChat(order.authorId!, order.id);
+                    if (outcome.type === 'choice') {
+                        setPendingGeneralChat(outcome.generalChat);
+                        return;
                     }
+                    console.log('Navigating to chat after login:', outcome.chat.id);
+                    navigate(`${ROUTES.CHATS}?chatId=${outcome.chat.id}`);
                 } catch (error) {
                     console.error('Error creating chat after login:', error);
                     setModalMessage(resolveApiError(error));
@@ -535,34 +573,22 @@ export function Ticket() {
     // Проверяем существующие чаты пользователя
     const checkExistingChats = async () => {
         const token = getAuthToken();
-        if (!token || !order) return;
+        if (!token || !order || !order.authorId) return;
 
         setIsCheckingChats(true);
-        
+
         try {
-            const chatsData = await getChatsMe();
+            // GET /api/chats/me?user={authorId} — только чаты с автором этого объявления
+            // (см. guides — check-before-respond flow), вместо разбора всех своих чатов.
+            const chatsData = await getChatsWithUser(order.authorId);
 
-                // Helper: extract id from object or IRI string "/api/xxx/{id}" (UUID or number)
-                const extractId = (obj: any): string | number | undefined => {
-                    if (obj?.id) return obj.id;
-                    const iri = obj?.['@id'];
-                    if (iri) { const m = String(iri).match(/\/([^/]+)$/); if (m) return m[1]; }
-                    return undefined;
-                };
+            // Только точное совпадение по этому объявлению — проактивно (до клика)
+            // показывает "отклик уже есть". Общий чат сам по себе тут не в счёт: он не
+            // значит, что на ЭТО объявление уже откликнулись — выбор предлагается только
+            // в момент клика (см. handleRespondClick), не молча на загрузке страницы.
+            const existingChat = chatsData.find((chat) => String(chat.ticket?.id) === String(order.id));
 
-                // Ищем чат связанный с этим тикетом (сравниваем по числовому id)
-                const existingChat = chatsData.find((chat: any) => {
-                    const ticketId = extractId(chat.ticket) ?? chat.ticket?.id;
-                    return ticketId === order.id;
-                });
-
-                if (existingChat) {
-                    const chatId = extractId(existingChat);
-                    console.log('Found existing chat for ticket:', chatId);
-                    setExistingChatId(chatId ?? null);
-                } else {
-                    setExistingChatId(null);
-                }
+            setExistingChatId(existingChat?.id ?? null);
         } catch (error) {
             console.error('Error checking existing chats:', error);
         } finally {
@@ -1218,6 +1244,14 @@ export function Ticket() {
                     onLoginSuccess={handleLoginSuccess}
                 />
             )}
+
+            <ExistingChatChoice
+                isOpen={!!pendingGeneralChat}
+                onClose={() => setPendingGeneralChat(null)}
+                onContinueGeneral={handleContinueGeneralChat}
+                onRespond={handleRespondAnyway}
+                isLoading={isResponding}
+            />
 
             <Feedback
                 mode="complaint"

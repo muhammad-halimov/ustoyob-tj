@@ -4,14 +4,17 @@ import {useLanguageChange, useTranslatedName, useTranslatedText, useFormattedDat
 import React, {useEffect, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {useFavorites} from '../../../../hooks/useFavorites.ts';
+import {useRespondToTicket} from '../../../../hooks/useRespondToTicket';
 import {ROUTES} from '../../../../app/routers/routes';
 import {truncateText} from '../../../../utils/textUtils';
+import {getUserData} from '../../../../utils/authUtils';
 
 import {Marquee} from '../../Text/Marquee';
 import {Carousel} from '../../Photo/Carousel';
 import {Toggle} from '../../Button/Toggle/Toggle';
 import {ActionsDropdown} from '../../../../widgets/ActionsDropdown';
 import Status from '../../Modal/Status';
+import {ExistingChatChoice} from '../../Modal/ExistingChatChoice/ExistingChatChoice';
 import {IoChatbubbleEllipsesOutline, IoCheckmarkCircle} from 'react-icons/io5';
 import type {TicketView} from '../../../../entities';
 import {TicketStatusBadge} from '../StatusBadge/TicketStatusBadge';
@@ -39,10 +42,16 @@ export interface AnnouncementCardProps extends Omit<TicketView, 'id' | 'price' |
   showActiveToggle?: boolean;
   isActive?: boolean;
   onActiveToggle?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  // Respond / complaint / review
+  // Respond / complaint / review — external control (used only when useManagedRespond is
+  // explicitly false, or ticketId/authorId aren't both present)
   onRespondClick?: (e: React.MouseEvent) => void;
   isResponded?: boolean;
   isRespondLoading?: boolean;
+  // Respond — internal control: check-before-respond (see hooks/useRespondToTicket) so
+  // responding never silently duplicates or hijacks an existing chat with the ticket's
+  // author. Defaults to on whenever both ticketId and authorId are present, same as
+  // useManagedFavorites — pass false to keep driving onRespondClick/isResponded yourself.
+  useManagedRespond?: boolean;
   onComplaintClick?: () => void;
   onReviewClick?: () => void;
 }
@@ -86,9 +95,10 @@ export function Card({
   photos,
   authorImage,
   negotiableBudget,
-  onRespondClick,
-  isResponded = false,
-  isRespondLoading = false,
+  onRespondClick: externalOnRespondClick,
+  isResponded: externalIsResponded = false,
+  isRespondLoading: externalIsRespondLoading = false,
+  useManagedRespond,
   onComplaintClick,
   onReviewClick,
   viewsCount,
@@ -149,7 +159,35 @@ export function Card({
           externalOnFavoriteClick(e as React.MouseEvent);
       }
   };
-  
+
+  // Автоматически включаем управляемый отклик, если переданы и ticketId, и authorId —
+  // тот же принцип, что и у useManagedFavorites выше.
+  const shouldUseManagedRespond = useManagedRespond !== undefined ? useManagedRespond : !!(ticketId && authorId);
+
+  // check-before-respond (см. hooks/useRespondToTicket) — не даёт молча наплодить
+  // дубликаты чатов или угодить не в тот тред при отклике на объявление.
+  const managedRespond = useRespondToTicket({
+    ticketId: ticketId || 0,
+    authorId: authorId || 0,
+    onError: (message) => setErrorMessage(message),
+  });
+
+  // Скрываем "Откликнуться" на собственное объявление — бэкенд всё равно отклонит
+  // (403 chat_with_self), но незачем показывать кнопку и ловить эту ошибку у пользователя.
+  const currentUserId = getUserData()?.id;
+  const isOwnTicket = authorId != null && currentUserId != null && String(authorId) === String(currentUserId);
+
+  const isResponded = shouldUseManagedRespond ? managedRespond.isResponded : externalIsResponded;
+  const isRespondLoading = shouldUseManagedRespond ? managedRespond.isResponding : externalIsRespondLoading;
+
+  const handleRespondClick = (e: React.MouseEvent) => {
+    if (shouldUseManagedRespond) {
+      void managedRespond.respond();
+    } else if (externalOnRespondClick) {
+      externalOnRespondClick(e);
+    }
+  };
+
   // Хук для реактивного обновления переводов
   useLanguageChange(() => {
     // Принудительно обновляем компонент при смене языка
@@ -189,8 +227,8 @@ export function Card({
   // masters don't respond to master-service tickets; clients don't respond to client-order tickets
   const isMasterTicket = ticketType === true || ticketType === 'master';
   const isClientTicket = ticketType === false || ticketType === 'client';
-  const shouldHideRespond = (userRole === 'master' && isMasterTicket) || (userRole === 'client' && isClientTicket);
-  const showRespond = !!onRespondClick && !shouldHideRespond;
+  const shouldHideRespond = (userRole === 'master' && isMasterTicket) || (userRole === 'client' && isClientTicket) || isOwnTicket;
+  const showRespond = (shouldUseManagedRespond || !!externalOnRespondClick) && !shouldHideRespond;
 
   const showActionsDropdown = !showEditButton && (onComplaintClick || onReviewClick);
 
@@ -202,6 +240,15 @@ export function Card({
         onClose={() => setErrorMessage(null)}
         message={errorMessage || ''}
       />
+      {shouldUseManagedRespond && (
+        <ExistingChatChoice
+          isOpen={managedRespond.choiceOpen}
+          onClose={managedRespond.closeChoice}
+          onContinueGeneral={managedRespond.continueInGeneralChat}
+          onRespond={managedRespond.respondAnyway}
+          isLoading={managedRespond.isResponding}
+        />
+      )}
       <div className={styles.card_top_controls}>
         <div className={styles.card_type_badges}>
           {displayTicketType && (
@@ -306,7 +353,7 @@ export function Card({
         {showRespond && (
           <button
             className={`${styles.card_respond_button} ${styles.card_respond_desktop} ${isResponded ? styles.card_respond_done : ''}`}
-            onClick={(e) => { e.stopPropagation(); if (!isResponded && !isRespondLoading) onRespondClick(e); }}
+            onClick={(e) => { e.stopPropagation(); if (!isResponded && !isRespondLoading) handleRespondClick(e); }}
             onTouchStart={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
             disabled={isResponded || isRespondLoading}
@@ -455,7 +502,7 @@ export function Card({
             {showRespond && (
               <button
                 className={`${styles.card_respond_button} ${styles.card_respond_mobile} ${isResponded ? styles.card_respond_done : ''}`}
-                onClick={(e) => { e.stopPropagation(); if (!isResponded && !isRespondLoading) onRespondClick(e); }}
+                onClick={(e) => { e.stopPropagation(); if (!isResponded && !isRespondLoading) handleRespondClick(e); }}
                 onTouchStart={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => e.stopPropagation()}
                 disabled={isResponded || isRespondLoading}
