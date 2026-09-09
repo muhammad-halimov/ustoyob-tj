@@ -14,7 +14,7 @@ import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
 import { MediaSidebar } from '../../shared/ui/Photo/MediaSidebar/MediaSidebar';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import { ActionsDropdown } from '../../widgets/ActionsDropdown';
-import { uploadPhotos } from '../../utils/imageUtils';
+import { uploadPhotos, getAuthorAvatar } from '../../utils/imageUtils';
 import { openMercureSource } from '../../utils/mercureUtils';
 import { Tabs } from '../../shared/ui/Tabs';
 import Grid, { PhotoItem, buildOrderedImagePayload } from '../../shared/ui/Photo/Grid';
@@ -1427,9 +1427,13 @@ function Chat() {
                             return (
                                 <div key={chat.id} className={`${styles.chatItem} ${selectedChat === chat.id ? styles.selected : ""}`} onClick={() => handleChatSelect(chat.id)}>
                                     <div className={styles.avatar}>
-                                        {interlocutor.image ? (
+                                        {/* getAuthorAvatar учитывает и загруженный image, и imageExternalUrl
+                                            (аватар из OAuth — Google/Facebook/Instagram/Telegram), а не только
+                                            локальный image — иначе у OAuth-пользователей без своей загруженной
+                                            фотки в чате всегда показывались только инициалы. */}
+                                        {getAuthorAvatar(interlocutor, '') ? (
                                             <img
-                                                src={`${API_BASE_URL}${interlocutor.image.startsWith('/') ? interlocutor.image : '/uploads/users/' + interlocutor.image}`}
+                                                src={getAuthorAvatar(interlocutor, '')}
                                                 className={styles.avatarImage}
                                                 alt={getTranslatedFullName(interlocutor)}
                                             />
@@ -1522,9 +1526,10 @@ function Chat() {
                                 </button>
                                 <Link to={ROUTES.PROFILE_BY_ID(currentInterlocutor.id)} style={{ textDecoration: 'none' }}>
                                     <div className={styles.avatar}>
-                                        {currentInterlocutor.image ? (
+                                        {/* см. комментарий у аватарки в списке чатов — учитываем imageExternalUrl */}
+                                        {getAuthorAvatar(currentInterlocutor, '') ? (
                                             <img
-                                                src={`${API_BASE_URL}${currentInterlocutor.image.startsWith('/') ? currentInterlocutor.image : '/uploads/users/' + currentInterlocutor.image}`}
+                                                src={getAuthorAvatar(currentInterlocutor, '')}
                                                 className={styles.avatarImage}
                                                 alt={getTranslatedFullName(currentInterlocutor)}
                                             />
