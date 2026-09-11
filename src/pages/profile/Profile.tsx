@@ -913,7 +913,7 @@ function Profile() {
             });
 
             // Получаем обновленные данные пользователя
-            const currentLocale = getStorageItem('i18nextLng') || 'ru';
+            const currentLocale = getStorageItem('i18nextLng') || 'tj';
             const updatedUserData: User = await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), { locale: currentLocale as any }) as User;
             const updatedAddressesFromServer = updatedUserData.addresses || [];
 
@@ -1221,7 +1221,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             }
 
             // Определяем endpoint: /api/users/me для приватного или /api/users/:id для публичного
-            const currentLocale = getStorageItem('i18nextLng') || 'ru';
+            const currentLocale = getStorageItem('i18nextLng') || 'tj';
             const userPath = userId ? API_ROUTES.USER_BY_ID(userId) : API_ROUTES.USERS_ME;
 
             // Загружаем данные пользователя + географию + профессии параллельно
@@ -1702,7 +1702,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             // order[priority] reflects the drag-reorder from handleReorderServices below —
             // matches the persisted manual order instead of the collection's default order.
             const serviceParams = new URLSearchParams({
-                locale: getStorageItem('i18nextLng') || 'ru',
+                locale: getStorageItem('i18nextLng') || 'tj',
                 service: userRole === 'client' ? 'false' : 'true',
                 'order[priority]': 'asc',
                 page: String(servicesPage),
@@ -2235,7 +2235,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
     const fetchUserAvatar = async () => {
         try {
-            const currentLocale = getStorageItem('i18nextLng') || 'ru';
+            const currentLocale = getStorageItem('i18nextLng') || 'tj';
             const userPath = userId ? API_ROUTES.USER_BY_ID(userId) : API_ROUTES.USERS_ME;
             const userData: any = await universalApiRequest(userPath, { locale: currentLocale as any });
             const avatarUrl = (userData.image || userData.imageExternalUrl)

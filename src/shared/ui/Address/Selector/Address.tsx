@@ -35,7 +35,7 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
     const selectedCommunityId = value?.communityId ?? null;
     const selectedVillageId = value?.villageId ?? null;
 
-    const locale = getStorageItem('i18nextLng') || 'ru';
+    const locale = getStorageItem('i18nextLng') || 'tj';
 
     const fetchLocationData = async () => {
         try {
