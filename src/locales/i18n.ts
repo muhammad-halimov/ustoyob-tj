@@ -107,8 +107,8 @@ i18n
                 techSupport: tjTechSupport,
             },
         },
-        fallbackLng: 'ru',
-        lng: getStorageItem('i18nextLng') || 'ru',
+        fallbackLng: 'tj',
+        lng: getStorageItem('i18nextLng') || 'tj',
         debug: import.meta.env.DEV,
         interpolation: {
             escapeValue: false,

@@ -83,7 +83,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         { code: 'ru' as Language, name: 'РУ', fullName: 'Русский', flagUrl: 'https://flagcdn.com/w20/ru.png' },
     ];
 
-    const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[1];
+    const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0];
 
     const fetchCities = async () => {
         setIsCitiesLoading(true);

@@ -140,7 +140,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
     // --- Complaint effects ---
     React.useEffect(() => {
         if (!isOpen || isReview) return;
-        const locale = getStorageItem('i18nextLng') || 'ru';
+        const locale = getStorageItem('i18nextLng') || 'tj';
         // applicableTo на бэке — 'chat'|'ticket'|'review'|'user'|'support'|'overall' (см.
         // AppealReasonFixture) — жалоба на пользователя должна тянуть applicableTo=user
         // (там реальные причины вроде "Поддельный профиль"/"Выдаёт себя за другого"), а не
