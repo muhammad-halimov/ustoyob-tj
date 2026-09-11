@@ -26,8 +26,8 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     const [loading, setLoading] = useState(true);
     const [expandedReviews, setExpandedReviews] = useState<Record<number, boolean>>({});
     const { page, skipFetchRef: skipReviewsFetchRef, applyFetch: applyReviewsFetch, showMoreProps: reviewsShowMoreProps } = useShowMore<any>(setReviews);
-    const [complaintReviewId, setComplaintReviewId] = useState<number | null>(null);
-    const [complaintAuthorId, setComplaintAuthorId] = useState<number | null>(null);
+    const [complaintReviewId, setComplaintReviewId] = useState<string | number | null>(null);
+    const [complaintAuthorId, setComplaintAuthorId] = useState<string | number | null>(null);
     const [isComplaintOpen, setIsComplaintOpen] = useState(false);
     const navigate = useNavigate();
     const { t, i18n } = useTranslation(['profile', 'components', 'common']);
@@ -101,6 +101,34 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         return `${translatedLastName} ${translatedFirstName}`.trim();
     };
 
+    // review.type — 'master' = "Отзыв мастеру" (написал клиент, оценивают мастера) |
+    // 'client' = "Отзыв клиенту" (написал МАСТЕР, оценивают клиента). Раньше это поле не
+    // учитывалось вовсе, и наверху карточки всегда показывался review.client как будто
+    // это автор — для отзывов мастера клиенту имена оказывались перепутаны местами.
+    const isAuthoredByMaster = (review: any): boolean => review.type === 'client';
+
+    // Верхний блок — реальный автор отзыва
+    const getReviewAuthorName = (review: any): string =>
+        isAuthoredByMaster(review) ? getMasterName(review) : getClientName(review);
+    const getReviewAuthorAvatarUrl = (review: any): string =>
+        getAuthorAvatar(isAuthoredByMaster(review) ? review.master : review.client);
+    const getReviewAuthorId = (review: any): string | number | undefined =>
+        isAuthoredByMaster(review) ? review.master?.id : review.client?.id;
+    const handleAuthorProfileClick = (review: any) => {
+        const id = getReviewAuthorId(review);
+        if (id == null) return;
+        if (isAuthoredByMaster(review)) handleMasterProfileClick(id); else handleClientProfileClick(id);
+    };
+
+    // Нижний блок (рядом с названием услуги) — тот, кого оценивают
+    const getReviewSubjectName = (review: any): string =>
+        isAuthoredByMaster(review) ? getClientName(review) : getMasterName(review);
+    const handleSubjectProfileClick = (review: any) => {
+        const id = isAuthoredByMaster(review) ? review.client?.id : review.master?.id;
+        if (id == null) return;
+        if (isAuthoredByMaster(review)) handleClientProfileClick(id); else handleMasterProfileClick(id);
+    };
+
     // Функция для форматирования даты
     const formatDate = (dateString?: string): string => {
         if (!dateString) return '';
@@ -123,15 +151,15 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     };
 
     // Навигация к профилям
-    const handleClientProfileClick = (clientId: number) => {
+    const handleClientProfileClick = (clientId: string | number) => {
         navigate(ROUTES.PROFILE_BY_ID(clientId));
     };
 
-    const handleMasterProfileClick = (masterId: number) => {
+    const handleMasterProfileClick = (masterId: string | number) => {
         navigate(ROUTES.PROFILE_BY_ID(masterId));
     };
 
-    const handleServiceClick = (ticketId: number) => {
+    const handleServiceClick = (ticketId: string | number) => {
         navigate(ROUTES.TICKET_BY_ID(ticketId));
     };
 
@@ -154,10 +182,6 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${base}${imagePath}`;
         return `${base}/uploads/reviews/${imagePath}`;
     };
-
-    // Аватар заказчика через общую утилиту
-    const getReviewerAvatarUrl = (review: any): string =>
-        getAuthorAvatar(review.client);
 
     const getPlainReviewText = (review: any) =>
         review.description ? review.description.replace(/<[^>]*>/g, '') : '';
@@ -237,34 +261,34 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                 items={[{
                                     icon: <IoWarningOutline />,
                                     label: t('profile:complaint'),
-                                    onClick: () => { setComplaintReviewId(review.id); setComplaintAuthorId(review.client?.id ?? 0); setIsComplaintOpen(true); },
+                                    onClick: () => { setComplaintReviewId(review.id); setComplaintAuthorId(getReviewAuthorId(review) ?? 0); setIsComplaintOpen(true); },
                                     danger: true,
                                 }]}
                             />
                             <div className={styles.reviews_naming}>
                                 <img
-                                    src={getReviewerAvatarUrl(review)}
-                                    alt={getClientName(review)}
-                                    onClick={() => handleClientProfileClick(review.client.id)}
+                                    src={getReviewAuthorAvatarUrl(review)}
+                                    alt={getReviewAuthorName(review)}
+                                    onClick={() => handleAuthorProfileClick(review)}
                                     className={styles.reviewer_avatar}
                                     onError={(e) => { e.currentTarget.src = '/img/icons/icons/default_user.png'; }}
                                 />
                                 <div className={styles.reviews_naming_title}>
-                                    <div 
-                                        onClick={() => handleClientProfileClick(review.client.id)}
+                                    <div
+                                        onClick={() => handleAuthorProfileClick(review)}
                                         className={styles.clickable_name}
                                     >
-                                        <Marquee text={getClientName(review)} alwaysScroll />
+                                        <Marquee text={getReviewAuthorName(review)} alwaysScroll />
                                     </div>
                                     <div className={styles.reviews_naming_raiting}>
-                                        {t('profile:ratedLabel')} 
+                                        {t('profile:ratedLabel')}
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" fill="#FFD700" stroke="#FFD700" strokeWidth="1"/>
                                         </svg>
                                         <span>{parseFloat(review.rating).toFixed(1)}</span>
                                     </div>
                                     <div className={styles.service_master_info}>
-                                        <div 
+                                        <div
                                             className={styles.service_title}
                                             onClick={() => {
                                                 if (review.ticket && review.ticket.id) {
@@ -274,23 +298,19 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                         >
                                             <Marquee text={getServiceTitle(review)} alwaysScroll />
                                         </div>
-                                        <div 
+                                        <div
                                             className={styles.master_name}
-                                            onClick={() => {
-                                                if (review.master && review.master.id) {
-                                                    handleMasterProfileClick(review.master.id);
-                                                }
-                                            }}
+                                            onClick={() => handleSubjectProfileClick(review)}
                                         >
-                                            <Marquee text={getMasterName(review)} alwaysScroll />
+                                            <Marquee text={getReviewSubjectName(review)} alwaysScroll />
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div className={styles.reviews_about}>
                                 {renderReviewDescription(review, 150)}
-                                
+
                                 {review.images && review.images.length > 0 && (
                                     <div className={styles.review_images}>
                                         {review.images.slice(0, 3).map((image: any, imageIndex: any) => (
@@ -342,24 +362,24 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                         items={[{
                                             icon: <IoWarningOutline />,
                                             label: t('profile:complaint'),
-                                            onClick: () => { setComplaintReviewId(review.id); setComplaintAuthorId(review.client?.id ?? 0); setIsComplaintOpen(true); },
+                                            onClick: () => { setComplaintReviewId(review.id); setComplaintAuthorId(getReviewAuthorId(review) ?? 0); setIsComplaintOpen(true); },
                                             danger: true,
                                         }]}
                                     />
                                     <div className={styles.reviews_naming}>
                                         <img
-                                            src={getReviewerAvatarUrl(review)}
-                                            alt={getClientName(review)}
-                                            onClick={() => handleClientProfileClick(review.client.id)}
+                                            src={getReviewAuthorAvatarUrl(review)}
+                                            alt={getReviewAuthorName(review)}
+                                            onClick={() => handleAuthorProfileClick(review)}
                                             className={styles.reviewer_avatar}
                                             onError={(e) => { e.currentTarget.src = '/img/icons/icons/default_user.png'; }}
                                         />
                                         <div className={styles.reviews_naming_title}>
-                                            <div 
-                                                onClick={() => handleClientProfileClick(review.client.id)}
+                                            <div
+                                                onClick={() => handleAuthorProfileClick(review)}
                                                 className={styles.clickable_name}
                                             >
-                                                <Marquee text={getClientName(review)} alwaysScroll />
+                                                <Marquee text={getReviewAuthorName(review)} alwaysScroll />
                                             </div>
                                             <div className={styles.reviews_naming_raiting}>
                                                 {t('profile:ratedLabel')}
@@ -369,7 +389,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                                 <span>{parseFloat(review.rating).toFixed(1)}</span>
                                             </div>
                                             <div className={styles.service_master_info}>
-                                                <div 
+                                                <div
                                                     className={styles.service_title}
                                                     onClick={() => {
                                                         if (review.ticket && review.ticket.id) {
@@ -379,23 +399,19 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                                 >
                                                     <Marquee text={getServiceTitle(review)} alwaysScroll />
                                                 </div>
-                                                <div 
+                                                <div
                                                     className={styles.master_name}
-                                                    onClick={() => {
-                                                        if (review.master && review.master.id) {
-                                                            handleMasterProfileClick(review.master.id);
-                                                        }
-                                                    }}
+                                                    onClick={() => handleSubjectProfileClick(review)}
                                                 >
-                                                    <Marquee text={getMasterName(review)} alwaysScroll />
+                                                    <Marquee text={getReviewSubjectName(review)} alwaysScroll />
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div className={styles.reviews_about}>
                                         {renderReviewDescription(review, 100)}
-                                        
+
                                         {review.images && review.images.length > 0 && (
                                             <div className={styles.review_images}>
                                                 {review.images.slice(0, 2).map((image: any, imageIndex: any) => (

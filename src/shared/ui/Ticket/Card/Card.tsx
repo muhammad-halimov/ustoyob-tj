@@ -353,10 +353,12 @@ export function Card({
         {showRespond && (
           <button
             className={`${styles.card_respond_button} ${styles.card_respond_desktop} ${isResponded ? styles.card_respond_done : ''}`}
-            onClick={(e) => { e.stopPropagation(); if (!isResponded && !isRespondLoading) handleRespondClick(e); }}
+            // Клик по уже "Откликнулся" не игнорируем — в managed-режиме это ведёт прямо в
+            // существующий чат (см. hooks/useRespondToTicket), а не остаётся мёртвой кнопкой.
+            onClick={(e) => { e.stopPropagation(); if (!isRespondLoading) handleRespondClick(e); }}
             onTouchStart={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
-            disabled={isResponded || isRespondLoading}
+            disabled={isRespondLoading}
           >
             {isRespondLoading
               ? <span className={styles.card_respond_spinner} />
@@ -502,10 +504,12 @@ export function Card({
             {showRespond && (
               <button
                 className={`${styles.card_respond_button} ${styles.card_respond_mobile} ${isResponded ? styles.card_respond_done : ''}`}
-                onClick={(e) => { e.stopPropagation(); if (!isResponded && !isRespondLoading) handleRespondClick(e); }}
+                // Клик по уже "Откликнулся" не игнорируем — в managed-режиме это ведёт прямо в
+            // существующий чат (см. hooks/useRespondToTicket), а не остаётся мёртвой кнопкой.
+            onClick={(e) => { e.stopPropagation(); if (!isRespondLoading) handleRespondClick(e); }}
                 onTouchStart={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => e.stopPropagation()}
-                disabled={isResponded || isRespondLoading}
+                disabled={isRespondLoading}
               >
                 {isRespondLoading
                   ? <span className={styles.card_respond_spinner} />
