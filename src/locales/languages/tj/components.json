@@ -491,7 +491,7 @@
     "instagramNoticeStep2": "Меню (☰) → Танзимот ва махфият",
     "instagramNoticeStep3": "Навъи ҳисоб ва абзорҳо → Гузариш ба ҳисоби касбӣ",
     "instagramNoticeStep4": "«Business» ё «Creator»-ро интихоб кунед ва танзимро анҷом диҳед",
-    "instagramNoticeContinue": "Фаҳмидам, идома",
+    "instagramNoticeContinue": "Фаҳмо, идома",
     "forgotPasswordTitle": "Барқарорсозии рамз",
     "sendCode": "Рамзро фиристед",
     "enterCode": "Рамзро ворид кунед",
@@ -514,13 +514,13 @@
     "step2": "Кор ва буҷаро тасвир кунед — ё «Нархи мувофиқашаванда»-ро қайд кунед",
     "step3": "Дар сурати зарурат сурат ва суроғаро илова кунед",
     "step4": "Нашр кунед — устоҳо дар чат ҷавоб медиҳанд",
-    "continue": "Фаҳмидам"
+    "continue": "Фаҳмо"
   },
   "statusModal": {
     "successTitle": "Муваффақият!",
     "errorTitle": "Хатогӣ",
     "warningTitle": "Огоҳӣ",
     "infoTitle": "Маълумот",
-    "button": "Фаҳмидам"
+    "button": "Фаҳмо"
   }
 }
