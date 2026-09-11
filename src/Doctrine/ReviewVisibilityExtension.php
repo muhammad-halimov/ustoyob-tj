@@ -14,8 +14,7 @@ use Doctrine\ORM\QueryBuilder;
  * подтверждена — то же условие (active = true AND approved = true), что
  * ApprovedTicketExtension/UserVisibilityExtension применяют к публикатору.
  * Плюс (с 26.08.2026) — отзыв скрывается, если привязанный к нему тикет
- * (объявление) сам не approved, тем же условием, что ApprovedTicketExtension
- * применяет к самому тикету в GET /tickets.
+ * (объявление) сам ни разу не был одобрен админом.
  *
  * Изначально тут проверялся только "субъект" отзыва — сторона, зависящая
  * от Review::$type (master при type='master', client при type='client').
@@ -30,6 +29,18 @@ use Doctrine\ORM\QueryBuilder;
  * Ticket у отзыва тоже nullable (onDelete: SET NULL) — если ticket IS NULL
  * (тикет удалён), тоже не скрываем по этому условию, отзыв остаётся видимым
  * по критерию сторон.
+ *
+ * БАГФИКС (11.09.2026, по жалобе "отзывы пропадают после правки
+ * объявления"): условие по тикету было on $ticketAlias.approved = true —
+ * живой approved сбрасывается в false ЛЮБОЙ содержательной правкой тикета
+ * (см. TicketListener::NOTIFIABLE_FIELDS/postUpdate) до повторной модерации
+ * админом. Из-за этого банальная правка опечатки в title временно прятала
+ * ВСЕ уже опубликованные отзывы на этот тикет, хотя отзыв про уже
+ * выполненную работу, а не про текущую редакцию текста объявления. Теперь
+ * условие — $ticketAlias.everApproved = true (см. докблок Ticket::
+ * $everApproved) — единожды одобренный тикет не теряет видимость отзывов
+ * из-за последующих правок; гасится обратно только при бане тикета
+ * (Ticket::setBanned(true) сбрасывает и его).
  *
  * Не применяется к:
  *   GET /api/reviews/me   — кастомный контроллер (ApiGetMyReviewsController),
@@ -73,7 +84,7 @@ final class ReviewVisibilityExtension implements QueryCollectionExtensionInterfa
                 AND
                 ($alias.client IS NULL OR ($clientAlias.active = true AND $clientAlias.approved = true))
                 AND
-                ($alias.ticket IS NULL OR $ticketAlias.approved = true)"
+                ($alias.ticket IS NULL OR $ticketAlias.everApproved = true)"
             );
     }
 }

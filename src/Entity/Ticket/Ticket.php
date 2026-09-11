@@ -229,6 +229,46 @@ class Ticket implements HasImagesInterface
     private bool $approved = false;
 
     /**
+     * БАГФИКС (11.09.2026, по жалобе "отзывы пропадают после правки
+     * объявления"): "хоть раз одобрен админом" — В ОТЛИЧИЕ от $approved
+     * НИКОГДА не сбрасывается правкой контента (TicketListener::postUpdate()/
+     * onFlush() гасят обратно в false именно $approved, а не это поле — тикет
+     * с уже одобренным контентом требует повторной модерации КАЖДОЙ правки,
+     * но это не значит, что его прошлое одобрение аннулируется).
+     *
+     * Раньше видимость Review (ReviewVisibilityExtension/
+     * ReviewLocalizationProvider) была завязана на живой $approved — из-за
+     * этого банальная правка опечатки в title/description (см.
+     * TicketListener::NOTIFIABLE_FIELDS) сбрасывала $approved в false до
+     * повторной проверки админом, и ВСЕ уже опубликованные отзывы на этот
+     * тикет на всё это время пропадали из публичного профиля мастера —
+     * хотя отзыв про уже выполненную работу, а не про текущую редакцию
+     * текста объявления. Теперь видимость отзывов проверяется по
+     * $everApproved — единожды одобренный тикет её не теряет из-за
+     * последующих правок, отзывы остаются на месте, пока админ решает
+     * судьбу новой редакции. Сама коллекция /tickets по-прежнему фильтруется
+     * по живому $approved (ApprovedTicketExtension) — до одобрения новой
+     * редакции публично показывать её как проверенную по-прежнему нельзя,
+     * это осознанно не меняется, меняется только видимость отзывов.
+     *
+     * Проставляется единственно в setApproved() (единая точка записи —
+     * её же вызывает каскад из TicketApproval::setApproved(true), см. её
+     * докблок) и сбрасывается обратно в setBanned(true): бан — это реальное
+     * модераторское решение "с тикетом что-то не так" (а не рутинная правка
+     * контента), отзывы на забаненный тикет по-прежнему должны прятаться.
+     *
+     * writable: false — не должно быть доступно на запись даже теоретически,
+     * выставляется только изнутри setApproved()/setBanned().
+     */
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    #[Groups([
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+    ])]
+    #[ApiProperty(writable: false)]
+    private bool $everApproved = false;
+
+    /**
      * Блокировка тикета администратором. Переключается только из EasyAdmin
      * (writable: false — недостижимо через PATCH DTO ни при каких условиях).
      * Пока true — автор/мастер не может изменить ни одно поле тикета
@@ -810,7 +850,22 @@ class Ticket implements HasImagesInterface
         }
 
         $this->approved = $approved;
+
+        // $everApproved — только "включаем", никогда не гасим здесь при
+        // $approved === false (правка контента сбрасывает именно $approved,
+        // см. TicketListener — это не должно аннулировать факт прошлого
+        // одобрения). См. докблок поля $everApproved — единственное место,
+        // где оно гасится обратно, это setBanned(true) ниже.
+        if ($approved) {
+            $this->everApproved = true;
+        }
+
         return $this;
+    }
+
+    public function getEverApproved(): bool
+    {
+        return $this->everApproved;
     }
 
     public function getBanned(): bool
@@ -825,10 +880,15 @@ class Ticket implements HasImagesInterface
         // При включении бана сразу гасим active/approved — тикет не должен
         // висеть в БД как "активный"/"одобрённый", будучи забаненным
         // (и, как следствие, пропадает из публичных /tickets — approved=false
-        // уже гейтит видимость на уровне TicketRepository).
+        // уже гейтит видимость на уровне TicketRepository). $everApproved
+        // тоже гасим — бан отменяет прошлое одобрение по сути (реальное
+        // модераторское решение "с тикетом что-то не так"), а не только
+        // текущую редакцию: отзывы на забаненный тикет должны прятаться
+        // так же, как и сам тикет (см. докблок $everApproved).
         if ($banned) {
-            $this->active   = false;
-            $this->approved = false;
+            $this->active       = false;
+            $this->approved     = false;
+            $this->everApproved = false;
         }
 
         return $this;

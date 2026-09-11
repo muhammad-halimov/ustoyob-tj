@@ -13,10 +13,13 @@ readonly class ReviewLocalizationProvider extends AbstractLocalizationProvider
      * Для одиночного GET /reviews/{id} — тот же критерий видимости, что
      * ReviewVisibilityExtension применяет к коллекции GET /reviews: ОБЕ
      * стороны отзыва (master и client, каждая если заполнена) должны быть
-     * active = true AND approved = true. Плюс (с 26.08.2026) — тикет
-     * (объявление), к которому привязан отзыв, если заполнен, должен быть
-     * approved = true, тем же условием, что ReviewVisibilityExtension
-     * применяет к коллекции.
+     * active = true AND approved = true. Плюс (с 26.08.2026, поправлено
+     * 11.09.2026 — см. докблок Ticket::$everApproved и
+     * ReviewVisibilityExtension) — тикет (объявление), к которому привязан
+     * отзыв, если заполнен, должен быть хоть раз одобрен (everApproved =
+     * true), а не обязательно одобрен ПРЯМО СЕЙЧАС — иначе временный сброс
+     * approved рутинной правкой контента тикета прятал бы отзыв до
+     * повторной модерации, хотя отзыв не про текущую редакцию текста.
      *
      * Раньше здесь проверялся только "субъект" (сторона, соответствующая
      * Review::$type) — этого было недостаточно, потому что master и client
@@ -47,7 +50,7 @@ readonly class ReviewLocalizationProvider extends AbstractLocalizationProvider
 
             $masterHidden = $master !== null && (!$master->getActive() || !$master->getApproved());
             $clientHidden = $client !== null && (!$client->getActive() || !$client->getApproved());
-            $ticketHidden = $ticket !== null && !$ticket->getApproved();
+            $ticketHidden = $ticket !== null && !$ticket->getEverApproved();
 
             if ($masterHidden || $clientHidden || $ticketHidden) {
                 return null;

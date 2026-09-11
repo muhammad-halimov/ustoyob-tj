@@ -55,6 +55,18 @@ class TicketCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->hideOnForm();
 
+        // Read-only справочное поле — не переключается руками, проставляется
+        // само в Ticket::setApproved()/setBanned() (см. её докблок).
+        // "Одобрено" выше — живой статус ТЕКУЩЕЙ редакции (сбрасывается
+        // каждой правкой контента до повторной модерации); это поле — было
+        // ли одобрение хоть раз, от него зависит, остаются ли видны уже
+        // опубликованные отзывы на тикет, пока новая редакция ждёт проверки.
+        yield BooleanField::new('everApproved', 'Одобрялся хоть раз')
+            ->addCssClass("form-switch")
+            ->setColumns(12)
+            ->setFormTypeOption('disabled', true)
+            ->hideOnIndex();
+
         yield BooleanField::new('approved', 'Одобрено')
             ->addCssClass("form-switch")
             ->setColumns(2);
