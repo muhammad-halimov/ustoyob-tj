@@ -5,6 +5,7 @@ import { resolveApiError } from '../utils/appMessagesUtils';
 import {
     resolveTicketChat,
     createTicketChat,
+    getChatsMe,
     persistRespondedTicketId,
     getPersistedRespondedTicketIds,
 } from '../utils/chatUtils';
@@ -33,14 +34,51 @@ interface UseRespondToTicketProps {
 export const useRespondToTicket = ({ ticketId, authorId, onError }: UseRespondToTicketProps) => {
     const navigate = useNavigate();
     const [isResponded, setIsResponded] = useState(false);
+    // The ticket-scoped chat backing `isResponded` — lets a second click on an already-
+    // "Откликнулся" button jump straight into that chat instead of being a dead end.
+    const [respondedChatId, setRespondedChatId] = useState<string | number | null>(null);
     const [isResponding, setIsResponding] = useState(false);
     const [pendingGeneralChat, setPendingGeneralChat] = useState<Chat | null>(null);
 
-    // Optimistic "already responded" hint — same sessionStorage-persisted, client-only
-    // tracker the pages used before (not authoritative, just avoids re-showing "Откликнуться"
-    // after a page reload within the same tab session).
+    // Optimistic "already responded" hint — sessionStorage, instant, no network. Just a
+    // first-paint guess; the effect below is the real source of truth and can upgrade it.
+    // Gated on being logged in: the marker isn't scoped per-account (see authUtils'
+    // clearAuthData, which clears it on logout) — without this guard, a stray/pre-fix
+    // marker could show "Откликнулся" to an anonymous visitor or a different logged-in
+    // user in the same tab, who never actually responded themselves.
     useEffect(() => {
-        setIsResponded(getPersistedRespondedTicketIds().has(ticketId));
+        if (getAuthToken() && getPersistedRespondedTicketIds().has(ticketId)) {
+            setIsResponded(true);
+        }
+    }, [ticketId]);
+
+    // Real check, against `getChatsMe()` (module-level cached + deduped, 15s TTL — many
+    // Cards on one page share a single request, not one each). sessionStorage alone was
+    // wrong across tabs/after a restart: a new tab has no sessionStorage entry, so a ticket
+    // genuinely already responded to would show the plain "Откликнуться" button again.
+    useEffect(() => {
+        let cancelled = false;
+        if (!ticketId || !getAuthToken()) return;
+
+        (async () => {
+            try {
+                const chats = await getChatsMe();
+                if (cancelled) return;
+                const existing = chats.find(c => {
+                    const chatTicketId = (c as any).ticket?.id;
+                    return chatTicketId != null && String(chatTicketId) === String(ticketId);
+                });
+                if (existing) {
+                    setIsResponded(true);
+                    setRespondedChatId(existing.id);
+                    persistRespondedTicketId(ticketId);
+                }
+            } catch {
+                // Not critical — falls back to the sessionStorage-only hint above.
+            }
+        })();
+
+        return () => { cancelled = true; };
     }, [ticketId]);
 
     const goToChat = useCallback((chatId: string | number) => {
@@ -50,12 +88,19 @@ export const useRespondToTicket = ({ ticketId, authorId, onError }: UseRespondTo
     const markResponded = useCallback((chat: Chat) => {
         persistRespondedTicketId(ticketId);
         setIsResponded(true);
+        setRespondedChatId(chat.id);
         goToChat(chat.id);
     }, [ticketId, goToChat]);
 
-    /** Entry point — wire to the "Откликнуться" button. */
+    /** Entry point — wire to the "Откликнуться" button. Clicking again once already
+     *  responded just opens that chat, same as Ticket.tsx's own respond button does. */
     const respond = useCallback(async () => {
-        if (isResponded || isResponding) return;
+        if (isResponding) return;
+
+        if (isResponded) {
+            if (respondedChatId != null) goToChat(respondedChatId);
+            return;
+        }
 
         const token = getAuthToken();
         if (!token) {
@@ -76,7 +121,7 @@ export const useRespondToTicket = ({ ticketId, authorId, onError }: UseRespondTo
         } finally {
             setIsResponding(false);
         }
-    }, [authorId, ticketId, isResponded, isResponding, markResponded, onError]);
+    }, [authorId, ticketId, isResponded, isResponding, respondedChatId, goToChat, markResponded, onError]);
 
     /** "Продолжить в общем чате" — open the existing general chat as-is; it's never
      *  retargeted to this ticket (PATCH /chats/{id} can't change `ticket`, only `active`). */

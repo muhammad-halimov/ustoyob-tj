@@ -1465,9 +1465,16 @@ function Chat() {
                                         <div className={styles.name}>
                                             <Marquee text={getTranslatedFullName(interlocutor)} alwaysScroll />
                                         </div>
-                                        <div className={styles.specialty}>
-                                            <Marquee text={chat.ticket?.title || interlocutor.email || ''} alwaysScroll />
-                                        </div>
+                                        {/* Общий чат (ticket: null) и без видимого email собеседника (email
+                                            теперь виден только владельцу — см. память dateofbirth-not-public,
+                                            тот же паттерн) — эту строку тогда просто не рендерим, а не оставляем
+                                            пустой: иначе она всё равно занимает место (line-height + margin),
+                                            и в списке появляется пустой зазор между именем и последним сообщением. */}
+                                        {(chat.ticket?.title || interlocutor.email) && (
+                                            <div className={styles.specialty}>
+                                                <Marquee text={chat.ticket?.title || interlocutor.email || ''} alwaysScroll />
+                                            </div>
+                                        )}
                                         <div className={styles.lastMessage}><Marquee text={getLastMessageText(chat)} alwaysScroll /></div>
                                     </div>
                                     <div className={styles.chatMeta}>

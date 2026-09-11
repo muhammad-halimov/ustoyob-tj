@@ -9,6 +9,7 @@ import {
     getStorageJSON,
     setStorageJSON,
     isClientSide,
+    removeSessionItem,
 } from './storageUtils';
 
 // Константы для хранения ключей в localStorage
@@ -138,6 +139,12 @@ export const clearAuthData = (): void => {
     );
     _mePromise = null;
     _meCachedAt = 0;
+    // "responded to this ticket" sessionStorage hint (chatUtils.ts's RESPONDED_IDS_KEY —
+    // duplicated as a literal here rather than imported, to avoid authUtils ↔ chatUtils
+    // circularity) isn't scoped per-account: without clearing it on logout, a respond
+    // button could keep showing "Откликнулся" for a DIFFERENT (or no) logged-in user in
+    // the same tab, just because someone else responded to that ticket here earlier.
+    removeSessionItem('respondedTicketIds');
 };
 
 // ============ Работа с ролью пользователя ============
