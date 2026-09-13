@@ -79,9 +79,9 @@ export default function Category() {
         return () => window.removeEventListener("resize", checkMobile);
     }, []);
 
-    const handleCategoryClick = (categoryId: string | number, categoryTitle: string) => {
+    const handleCategoryClick = (categoryId: string | number, categoryTitle: string, categoryDescription?: string) => {
         console.log('Category clicked:', categoryId);
-        navigate(ROUTES.CATEGORY_TICKETS_BY_ID(categoryId), { state: { categoryName: categoryTitle } });
+        navigate(ROUTES.CATEGORY_TICKETS_BY_ID(categoryId), { state: { categoryName: categoryTitle, categoryDescription } });
     };
 
     // Reset visibleCount when screen size changes
@@ -181,13 +181,13 @@ export default function Category() {
                         <div
                             key={item.id}
                             className={styles.category_item_step}
-                            onClick={() => handleCategoryClick(item.id, item.title)}
+                            onClick={() => handleCategoryClick(item.id, item.title, item.description)}
                             style={{ cursor: 'pointer' }}
                             role="button"
                             tabIndex={0}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter' || e.key === ' ') {
-                                    handleCategoryClick(item.id, item.title);
+                                    handleCategoryClick(item.id, item.title, item.description);
                                 }
                             }}
                         >

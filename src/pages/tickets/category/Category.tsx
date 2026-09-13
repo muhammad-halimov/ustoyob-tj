@@ -71,11 +71,29 @@ function Category() {
         const cached = getSessionItem(`cat-name-${id}`);
         if (cached) return cached;
         try {
-            const list = getSessionJSON<{ id: number; title: string }[]>('categories-list') ?? [];
+            const list = getSessionJSON<{ id: number; title: string; description?: string }[]>('categories-list') ?? [];
             const found = list.find(c => String(c.id) === String(id));
             if (found?.title) {
                 setSessionItem(`cat-name-${id}`, found.title);
                 return found.title;
+            }
+        } catch { /* empty */ }
+        return '';
+    });
+    // Подзаголовок под названием категории — тот же приём кеширования, что и у имени
+    // (state → sessionStorage-кеш → список категорий с главной), чтобы не мигать пустотой
+    // при переходе, пока не пришёл ответ fetchCategoryName.
+    const [categoryDescription, setCategoryDescription] = useState<string>(() => {
+        const fromState = (location.state as any)?.categoryDescription;
+        if (fromState) return fromState;
+        const cached = getSessionItem(`cat-desc-${id}`);
+        if (cached) return cached;
+        try {
+            const list = getSessionJSON<{ id: number; description?: string }[]>('categories-list') ?? [];
+            const found = list.find(c => String(c.id) === String(id));
+            if (found?.description) {
+                setSessionItem(`cat-desc-${id}`, found.description);
+                return found.description;
             }
         } catch { /* empty */ }
         return '';
@@ -155,6 +173,12 @@ function Category() {
         setCategoryName(name);
     };
 
+    const setAndCacheCategoryDescription = (description: string) => {
+        if (!description) return;
+        if (id) setSessionItem(`cat-desc-${id}`, description);
+        setCategoryDescription(description);
+    };
+
     useLanguageChange(() => {
         // При смене языка переполучаем данные для обновления локализованного контента
         if (id) {
@@ -213,12 +237,13 @@ function Category() {
     const fetchCategoryName = async () => {
         try {
             const categoryData = await universalApiRequest(API_ROUTES.CATEGORY_BY_ID(id!));
-            const title =
-                categoryData?.title ||
-                (Array.isArray(categoryData) ? categoryData[0]?.title : null) ||
-                categoryData?.['hydra:member']?.[0]?.title ||
-                '';
+            const record = Array.isArray(categoryData)
+                ? categoryData[0]
+                : (categoryData?.['hydra:member']?.[0] ?? categoryData);
+            const title = record?.title || '';
+            const description = record?.description || '';
             if (title) setAndCacheCategoryName(title);
+            if (description) setAndCacheCategoryDescription(description);
         } catch (error) {
             console.error('Error fetching category name:', error);
         }
@@ -520,6 +545,9 @@ function Category() {
         <div className={styles.container}>
             <div className={styles.header}>
                 <h1>{getPageTitle()}</h1>
+                {categoryDescription && (
+                    <p className={styles.description}>{categoryDescription}</p>
+                )}
             </div>
 
             {/* Сетка подкатегорий */}
