@@ -15,29 +15,31 @@ readonly class ProvinceLocalizationProvider extends AbstractLocalizationProvider
     protected function localize(object $entity, string $locale): void
     {
         /** @var Province $entity */
-        $this->localizationService->localizeEntity($entity, $locale);
+        // localizeEntityFull() — description гео-справочников тоже per-locale
+        // теперь (см. докблок LocalizationService::localizeGeography()).
+        $this->localizationService->localizeEntityFull($entity, $locale);
 
         foreach ($entity->getCities() as $city) {
-            $this->localizationService->localizeEntity($city, $locale);
+            $this->localizationService->localizeEntityFull($city, $locale);
 
             foreach ($city->getSuburbs() as $suburb) {
-                $this->localizationService->localizeEntity($suburb, $locale);
+                $this->localizationService->localizeEntityFull($suburb, $locale);
             }
         }
 
         foreach ($entity->getDistricts() as $district) {
-            $this->localizationService->localizeEntity($district, $locale);
+            $this->localizationService->localizeEntityFull($district, $locale);
 
             foreach ($district->getSettlements() as $settlement) {
-                $this->localizationService->localizeEntity($settlement, $locale);
+                $this->localizationService->localizeEntityFull($settlement, $locale);
 
                 foreach ($settlement->getVillages() as $village) {
-                    $this->localizationService->localizeEntity($village, $locale);
+                    $this->localizationService->localizeEntityFull($village, $locale);
                 }
             }
 
             foreach ($district->getCommunities() as $community) {
-                $this->localizationService->localizeEntity($community, $locale);
+                $this->localizationService->localizeEntityFull($community, $locale);
             }
         }
     }

@@ -37,19 +37,27 @@ readonly class FavoriteStateProvider extends AbstractCollectionEntryStateProvide
             if ($ticket = $entry->getTicket()) {
                 $this->localizationService->localizeGeography($ticket, $locale);
 
+                // localizeEntityFull() — та же причина, что в
+                // LocalizationService::localizeTicket() (см. её докблок):
+                // Category::description теперь per-locale, а не localizeEntity()
+                // просто оставил бы значение по умолчанию из фикстуры.
                 if ($ticket->getCategory())
-                    $this->localizationService->localizeEntity($ticket->getCategory(), $locale);
+                    $this->localizationService->localizeEntityFull($ticket->getCategory(), $locale);
 
+                // localizeEntityFull() — БАГФИКС (13.09.2026): Unit::description
+                // per-locale (см. докблок UnitTitleLocalizationProvider).
                 if ($ticket->getUnit())
-                    $this->localizationService->localizeEntity($ticket->getUnit(), $locale);
+                    $this->localizationService->localizeEntityFull($ticket->getUnit(), $locale);
 
+                // localizeEntityFull() — Occupation::description тоже
+                // per-locale, см. докблок OccupationTitleLocalizationProvider.
                 if ($ticket->getSubcategory())
-                    $this->localizationService->localizeEntity($ticket->getSubcategory(), $locale);
+                    $this->localizationService->localizeEntityFull($ticket->getSubcategory(), $locale);
             }
 
             if ($user = $entry->getUser()) {
                 foreach ($user->getOccupation() as $occupation)
-                    $this->localizationService->localizeEntity($occupation, $locale);
+                    $this->localizationService->localizeEntityFull($occupation, $locale);
             }
 
             $result[] = $entry;

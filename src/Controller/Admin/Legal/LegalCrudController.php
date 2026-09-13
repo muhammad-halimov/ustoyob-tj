@@ -10,7 +10,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use App\Controller\Admin\Traits\AdminActionsTrait;
 use App\Controller\Admin\Traits\TimestampFieldsTrait;
 
@@ -57,10 +56,6 @@ class LegalCrudController extends AbstractCrudController
             ->allowMultipleChoices(false)
             ->setChoices(Legal::TYPES)
             ->setColumns(6);
-
-        yield TextEditorField::new('description', 'Описание')
-            ->setRequired(true)
-            ->setColumns(12);
 
         yield from $this->timestampFields();
     }

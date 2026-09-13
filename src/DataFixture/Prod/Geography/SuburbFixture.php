@@ -20,45 +20,128 @@ class SuburbFixture extends Fixture implements DependentFixtureInterface, Fixtur
         return ['prod'];
     }
 
+    /**
+     * БАГФИКС (13.09.2026, тот же класс проблемы, что и у City/Province/
+     * District — см. их докблоки): $desc было одной русской строкой
+     * независимо от локали. Теперь per-locale, через Translation.
+     */
     public function load(ObjectManager $manager): void
     {
-        // [$ref, $cityRef, $translations, $desc]
+        // [$ref, $cityRef, $translations (title+description по локали)]
         $suburbsData = [
             // ── Душанбе ──
-            ['dshanbe_shohmansur', 'dushanbe', ['tj' => 'Шоҳмансур',        'ru' => 'Шохмансур',           'eng' => 'Shohmansur'],       'ПГТ Шохмансур, Душанбе'],
-            ['dshanbe_zarnisor',   'dushanbe', ['tj' => 'Зарнисор',          'ru' => 'Зарнисор',            'eng' => 'Zarnisor'],         'ПГТ Зарнисор, Душанбе'],
-            ['dshanbe_ismoil',     'dushanbe', ['tj' => 'Исмоили Сомонӣ',   'ru' => 'Исмоил Сомони',      'eng' => 'Ismoil Somoni'],    'Квартал Исмоил Сомони, Душанбе'],
-            ['dshanbe_sino',       'dushanbe', ['tj' => 'Микрорайони Сино',  'ru' => 'Микрорайон Сино',    'eng' => 'Sino Microdistrict'],'Микрорайон Сино, Душанбе'],
-            ['dshanbe_behzod',     'dushanbe', ['tj' => 'Беҳзод',            'ru' => 'Бехзод',              'eng' => 'Behzod'],           'Квартал Бехзод, Душанбе'],
-            ['dshanbe_shah',       'dushanbe', ['tj' => 'Шаҳринав',          'ru' => 'Шахринав',            'eng' => 'Shahrinav'],        'ПГТ Шахринав, Душанбе'],
+            ['dshanbe_shohmansur', 'dushanbe', [
+                'tj'  => ['title' => 'Шоҳмансур', 'description' => 'Шаҳраки Шоҳмансур, Душанбе'],
+                'ru'  => ['title' => 'Шохмансур', 'description' => 'ПГТ Шохмансур, Душанбе'],
+                'eng' => ['title' => 'Shohmansur', 'description' => 'Shohmansur urban settlement, Dushanbe'],
+            ]],
+            ['dshanbe_zarnisor', 'dushanbe', [
+                'tj'  => ['title' => 'Зарнисор', 'description' => 'Шаҳраки Зарнисор, Душанбе'],
+                'ru'  => ['title' => 'Зарнисор', 'description' => 'ПГТ Зарнисор, Душанбе'],
+                'eng' => ['title' => 'Zarnisor', 'description' => 'Zarnisor urban settlement, Dushanbe'],
+            ]],
+            ['dshanbe_ismoil', 'dushanbe', [
+                'tj'  => ['title' => 'Исмоили Сомонӣ', 'description' => 'Маҳаллаи Исмоили Сомонӣ, Душанбе'],
+                'ru'  => ['title' => 'Исмоил Сомони', 'description' => 'Квартал Исмоил Сомони, Душанбе'],
+                'eng' => ['title' => 'Ismoil Somoni', 'description' => 'Ismoil Somoni neighbourhood, Dushanbe'],
+            ]],
+            ['dshanbe_sino', 'dushanbe', [
+                'tj'  => ['title' => 'Микрорайони Сино', 'description' => 'Микрорайони Сино, Душанбе'],
+                'ru'  => ['title' => 'Микрорайон Сино', 'description' => 'Микрорайон Сино, Душанбе'],
+                'eng' => ['title' => 'Sino Microdistrict', 'description' => 'Sino microdistrict, Dushanbe'],
+            ]],
+            ['dshanbe_behzod', 'dushanbe', [
+                'tj'  => ['title' => 'Беҳзод', 'description' => 'Маҳаллаи Беҳзод, Душанбе'],
+                'ru'  => ['title' => 'Бехзод', 'description' => 'Квартал Бехзод, Душанбе'],
+                'eng' => ['title' => 'Behzod', 'description' => 'Behzod neighbourhood, Dushanbe'],
+            ]],
+            ['dshanbe_shah', 'dushanbe', [
+                'tj'  => ['title' => 'Шаҳринав', 'description' => 'Шаҳраки Шаҳринав, Душанбе'],
+                'ru'  => ['title' => 'Шахринав', 'description' => 'ПГТ Шахринав, Душанбе'],
+                'eng' => ['title' => 'Shahrinav', 'description' => 'Shahrinav urban settlement, Dushanbe'],
+            ]],
             // ── Ходжент ──
-            ['hujand_khoja',       'hujand',   ['tj' => 'Хоҷа Аъло',         'ru' => 'Ходжа Ало',           'eng' => 'Khoja Alo'],        'Квартал Ходжа Ало, Ходжент'],
-            ['hujand_bogh',        'hujand',   ['tj' => 'Боғи Ширин',        'ru' => 'Баги Ширин',          'eng' => 'Bogi Shirin'],      'Квартал Баги Ширин, Ходжент'],
-            ['hujand_kkh',         'hujand',   ['tj' => 'Кӯчаи Хушёр',      'ru' => 'Улица Хушьёр',        'eng' => 'Khushyor St. Area'],'Квартал Хушьёр, Ходжент'],
+            ['hujand_khoja', 'hujand', [
+                'tj'  => ['title' => 'Хоҷа Аъло', 'description' => 'Маҳаллаи Хоҷа Аъло, Хуҷанд'],
+                'ru'  => ['title' => 'Ходжа Ало', 'description' => 'Квартал Ходжа Ало, Ходжент'],
+                'eng' => ['title' => 'Khoja Alo', 'description' => 'Khoja Alo neighbourhood, Hujand'],
+            ]],
+            ['hujand_bogh', 'hujand', [
+                'tj'  => ['title' => 'Боғи Ширин', 'description' => 'Маҳаллаи Боғи Ширин, Хуҷанд'],
+                'ru'  => ['title' => 'Баги Ширин', 'description' => 'Квартал Баги Ширин, Ходжент'],
+                'eng' => ['title' => 'Bogi Shirin', 'description' => 'Bogi Shirin neighbourhood, Hujand'],
+            ]],
+            ['hujand_kkh', 'hujand', [
+                'tj'  => ['title' => 'Кӯчаи Хушёр', 'description' => 'Маҳаллаи Кӯчаи Хушёр, Хуҷанд'],
+                'ru'  => ['title' => 'Улица Хушьёр', 'description' => 'Квартал Хушьёр, Ходжент'],
+                'eng' => ['title' => 'Khushyor St. Area', 'description' => 'Khushyor Street area, Hujand'],
+            ]],
             // ── Бохтар ──
-            ['bohtar_markaz',      'bohtar',   ['tj' => 'Марказ',             'ru' => 'Центральный',         'eng' => 'Center'],           'Центральный квартал, Бохтар'],
-            ['bohtar_nav',         'bohtar',   ['tj' => 'Нав',               'ru' => 'Новый',               'eng' => 'New District'],     'Новый квартал, Бохтар'],
+            ['bohtar_markaz', 'bohtar', [
+                'tj'  => ['title' => 'Марказ', 'description' => 'Маҳаллаи марказӣ, Бохтар'],
+                'ru'  => ['title' => 'Центральный', 'description' => 'Центральный квартал, Бохтар'],
+                'eng' => ['title' => 'Center', 'description' => 'Central neighbourhood, Bohtar'],
+            ]],
+            ['bohtar_nav', 'bohtar', [
+                'tj'  => ['title' => 'Нав', 'description' => 'Маҳаллаи нав, Бохтар'],
+                'ru'  => ['title' => 'Новый', 'description' => 'Новый квартал, Бохтар'],
+                'eng' => ['title' => 'New District', 'description' => 'New neighbourhood, Bohtar'],
+            ]],
             // ── Хорог ──
-            ['khorog_markaz',      'khorog',   ['tj' => 'Марказ',             'ru' => 'Центр',               'eng' => 'Center'],           'Центр города, Хорог'],
-            ['khorog_porshev',     'khorog',   ['tj' => 'Поршнев',           'ru' => 'Поршнев',             'eng' => 'Porshnev'],         'Квартал Поршнев, Хорог'],
+            ['khorog_markaz', 'khorog', [
+                'tj'  => ['title' => 'Марказ', 'description' => 'Маркази шаҳр, Хоруғ'],
+                'ru'  => ['title' => 'Центр', 'description' => 'Центр города, Хорог'],
+                'eng' => ['title' => 'Center', 'description' => 'City centre, Khorog'],
+            ]],
+            ['khorog_porshev', 'khorog', [
+                'tj'  => ['title' => 'Поршнев', 'description' => 'Маҳаллаи Поршнев, Хоруғ'],
+                'ru'  => ['title' => 'Поршнев', 'description' => 'Квартал Поршнев, Хорог'],
+                'eng' => ['title' => 'Porshnev', 'description' => 'Porshnev neighbourhood, Khorog'],
+            ]],
             // ── Исфара ──
-            ['isfara_markaz',      'isfara',   ['tj' => 'Марказ',             'ru' => 'Центральный',         'eng' => 'Center'],           'Центральный квартал, Исфара'],
-            ['isfara_chorku_q',    'isfara',   ['tj' => 'Чоркӯҳӣ',          'ru' => 'Чоркухский',          'eng' => 'Chorku Area'],      'Квартал Чоркухский, Исфара'],
+            ['isfara_markaz', 'isfara', [
+                'tj'  => ['title' => 'Марказ', 'description' => 'Маҳаллаи марказӣ, Исфара'],
+                'ru'  => ['title' => 'Центральный', 'description' => 'Центральный квартал, Исфара'],
+                'eng' => ['title' => 'Center', 'description' => 'Central neighbourhood, Isfara'],
+            ]],
+            ['isfara_chorku_q', 'isfara', [
+                'tj'  => ['title' => 'Чоркӯҳӣ', 'description' => 'Маҳаллаи Чоркӯҳӣ, Исфара'],
+                'ru'  => ['title' => 'Чоркухский', 'description' => 'Квартал Чоркухский, Исфара'],
+                'eng' => ['title' => 'Chorku Area', 'description' => 'Chorku neighbourhood, Isfara'],
+            ]],
             // ── Гиссар ──
-            ['hisor_markaz',       'hisor',    ['tj' => 'Марказ',             'ru' => 'Центр',               'eng' => 'Center'],           'Центр города, Гиссар'],
+            ['hisor_markaz', 'hisor', [
+                'tj'  => ['title' => 'Марказ', 'description' => 'Маркази шаҳр, Ҳисор'],
+                'ru'  => ['title' => 'Центр', 'description' => 'Центр города, Гиссар'],
+                'eng' => ['title' => 'Center', 'description' => 'City centre, Hisor'],
+            ]],
             // ── Турсунзаде ──
-            ['tursunzoda_markaz',  'tursunzoda',['tj' => 'Марказ',            'ru' => 'Центр',               'eng' => 'Center'],           'Центр города, Турсунзаде'],
+            ['tursunzoda_markaz', 'tursunzoda', [
+                'tj'  => ['title' => 'Марказ', 'description' => 'Маркази шаҳр, Турсунзода'],
+                'ru'  => ['title' => 'Центр', 'description' => 'Центр города, Турсунзаде'],
+                'eng' => ['title' => 'Center', 'description' => 'City centre, Tursunzoda'],
+            ]],
             // ── Нурек ──
-            ['norak_markaz',       'norak',    ['tj' => 'Марказ',             'ru' => 'Центр',               'eng' => 'Center'],           'Центр города, Нурек'],
+            ['norak_markaz', 'norak', [
+                'tj'  => ['title' => 'Марказ', 'description' => 'Маркази шаҳр, Норак'],
+                'ru'  => ['title' => 'Центр', 'description' => 'Центр города, Нурек'],
+                'eng' => ['title' => 'Center', 'description' => 'City centre, Norak'],
+            ]],
         ];
 
-        foreach ($suburbsData as [$ref, $cityRef, $translations, $desc]) {
+        foreach ($suburbsData as [$ref, $cityRef, $translations]) {
             $suburb = new Suburb();
-            $suburb->setDescription($desc);
 
-            foreach ($translations as $locale => $title) {
+            // Фолбэк на самой сущности — тот же паттерн, что у City/Province/District.
+            $suburb->setDescription($translations['ru']['description']);
+
+            foreach ($translations as $locale => $trans) {
                 $suburb->addTranslation(
-                    (new Translation())->setTitle($title)->setLocale($locale)->setAddress($suburb)
+                    (new Translation())
+                        ->setTitle($trans['title'])
+                        ->setDescription($trans['description'])
+                        ->setLocale($locale)
+                        ->setAddress($suburb)
                 );
             }
 

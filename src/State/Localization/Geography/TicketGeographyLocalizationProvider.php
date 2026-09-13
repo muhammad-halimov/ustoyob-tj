@@ -106,15 +106,22 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
         $this->localizationService->localizeGeography($entity, $locale);
 
         if ($entity->getCategory()) {
-            $this->localizationService->localizeEntity($entity->getCategory(), $locale);
+            // localizeEntityFull() — та же причина, что в
+            // LocalizationService::localizeTicket() (см. её докблок):
+            // Category::description теперь per-locale.
+            $this->localizationService->localizeEntityFull($entity->getCategory(), $locale);
         }
 
         if ($entity->getUnit()) {
-            $this->localizationService->localizeEntity($entity->getUnit(), $locale);
+            // localizeEntityFull() — БАГФИКС (13.09.2026): Unit::description
+            // per-locale (см. докблок UnitTitleLocalizationProvider).
+            $this->localizationService->localizeEntityFull($entity->getUnit(), $locale);
         }
 
         if ($entity->getSubcategory()) {
-            $this->localizationService->localizeEntity($entity->getSubcategory(), $locale);
+            // localizeEntityFull() — Occupation::description тоже per-locale,
+            // см. докблок OccupationTitleLocalizationProvider.
+            $this->localizationService->localizeEntityFull($entity->getSubcategory(), $locale);
         }
     }
 }

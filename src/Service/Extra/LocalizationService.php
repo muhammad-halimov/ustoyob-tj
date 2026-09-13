@@ -29,8 +29,14 @@ readonly class LocalizationService
 {
     /**
      * Локализует всю адресную иерархию сущности (тикет, юзер и т.д.).
-     * Обходит все адреса и вызывает localizeEntity() для каждой части:
+     * Обходит все адреса и вызывает localizeEntityFull() для каждой части:
      * вилаят → шахр → район → [махалла, дехот, община] → город → [молокан]
+     *
+     * localizeEntityFull() (не localizeEntity()) — БАГФИКС (13.09.2026,
+     * тот же класс проблемы, что и у Category/Occupation — см. их
+     * докблоки): у геосправочников (Province/City/Suburb/District/
+     * Settlement/Village/Community) description теперь тоже per-locale
+     * (см. соответствующие Fixture), а не одна русская строка на всех.
      */
     public function localizeGeography(object $entity, string $locale): void
     {
@@ -42,52 +48,52 @@ readonly class LocalizationService
 
             // Province
             if ($province = $address->getProvince()) {
-                $this->localizeEntity($province, $locale);
+                $this->localizeEntityFull($province, $locale);
             }
 
             // City
             if ($city = $address->getCity()) {
-                $this->localizeEntity($city, $locale);
+                $this->localizeEntityFull($city, $locale);
             }
 
             // Suburb
             if ($suburb = $address->getSuburb()) {
-                $this->localizeEntity($suburb, $locale);
+                $this->localizeEntityFull($suburb, $locale);
             }
 
             // District
             if ($district = $address->getDistrict()) {
-                $this->localizeEntity($district, $locale);
+                $this->localizeEntityFull($district, $locale);
 
                 // Settlements
                 foreach ($district->getSettlements() as $settlement) {
-                    $this->localizeEntity($settlement, $locale);
+                    $this->localizeEntityFull($settlement, $locale);
 
                     // Villages
                     foreach ($settlement->getVillages() as $village) {
-                        $this->localizeEntity($village, $locale);
+                        $this->localizeEntityFull($village, $locale);
                     }
                 }
 
                 // Communities
                 foreach ($district->getCommunities() as $community) {
-                    $this->localizeEntity($community, $locale);
+                    $this->localizeEntityFull($community, $locale);
                 }
             }
 
             // Settlement (direct)
             if ($settlement = $address->getSettlement()) {
-                $this->localizeEntity($settlement, $locale);
+                $this->localizeEntityFull($settlement, $locale);
             }
 
             // Community (direct)
             if ($community = $address->getCommunity()) {
-                $this->localizeEntity($community, $locale);
+                $this->localizeEntityFull($community, $locale);
             }
 
             // Village (direct)
             if ($village = $address->getVillage()) {
-                $this->localizeEntity($village, $locale);
+                $this->localizeEntityFull($village, $locale);
             }
         }
     }
@@ -171,15 +177,29 @@ readonly class LocalizationService
         $this->localizeGeography($ticket, $locale);
 
         if (method_exists($ticket, 'getCategory') && $ticket->getCategory()) {
-            $this->localizeEntity($ticket->getCategory(), $locale);
+            // localizeEntityFull() (не localizeEntity()) — БАГФИКС
+            // (13.09.2026): Category::description теперь per-locale (см.
+            // CategoryTitleLocalizationProvider), а Category сериализуется
+            // ВЛОЖЕННОЙ в тикет почти во всех группах (MASTER_TICKETS/
+            // CLIENT_TICKETS/REVIEWS/CHATS/... — см. DescriptionTrait) —
+            // без этого тикет продолжал бы показывать description категории
+            // не по локали текущего запроса, а как есть на сущности
+            // (значение по умолчанию из фикстуры).
+            $this->localizeEntityFull($ticket->getCategory(), $locale);
         }
 
         if (method_exists($ticket, 'getUnit') && $ticket->getUnit()) {
-            $this->localizeEntity($ticket->getUnit(), $locale);
+            // localizeEntityFull() — БАГФИКС (13.09.2026): Unit::description
+            // per-locale (см. докблок UnitTitleLocalizationProvider).
+            $this->localizeEntityFull($ticket->getUnit(), $locale);
         }
 
         if (method_exists($ticket, 'getSubcategory') && $ticket->getSubcategory()) {
-            $this->localizeEntity($ticket->getSubcategory(), $locale);
+            // localizeEntityFull() — Occupation::description тоже per-locale
+            // (та же причина, что у Category выше — см. докблок
+            // OccupationTitleLocalizationProvider). Subcategory тикета — это
+            // Occupation (Ticket::$subcategory), не отдельная сущность.
+            $this->localizeEntityFull($ticket->getSubcategory(), $locale);
         }
 
         if (method_exists($ticket, 'getAuthor') && $ticket->getAuthor()) {
@@ -203,14 +223,16 @@ readonly class LocalizationService
 
         if (method_exists($user, 'getOccupation')) {
             foreach ($user->getOccupation() as $occupation) {
-                $this->localizeEntity($occupation, $locale);
+                // localizeEntityFull() — Occupation::description per-locale,
+                // см. докблок OccupationTitleLocalizationProvider.
+                $this->localizeEntityFull($occupation, $locale);
             }
         }
 
         if (method_exists($user, 'getEducation')) {
             foreach ($user->getEducation() as $education) {
                 $occupation = $education->getOccupation();
-                if ($occupation !== null) $this->localizeEntity($occupation, $locale);
+                if ($occupation !== null) $this->localizeEntityFull($occupation, $locale);
             }
         }
     }

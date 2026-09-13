@@ -38,18 +38,15 @@ class UnitCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->hideOnForm();
 
+        yield IntegerField::new('priority', 'Порядок')
+            ->setColumns(1)
+            ->setRequired(false);
+
         yield CollectionField::new('translations', 'Название')
             ->useEntryCrudForm(TranslationCrudController::class)
             ->setFormTypeOptions(['by_reference' => false])
-            ->setColumns(6)
+            ->setColumns(12)
             ->setRequired(false);
-
-        yield IntegerField::new('priority', 'Порядок')
-            ->setColumns(2)
-            ->setRequired(false);
-
-        yield TextEditorField::new('description', 'Описание')
-            ->setColumns(4);
 
         yield from $this->timestampFields();
     }

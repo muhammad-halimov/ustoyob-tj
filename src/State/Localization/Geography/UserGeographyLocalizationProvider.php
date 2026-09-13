@@ -49,13 +49,15 @@ readonly class UserGeographyLocalizationProvider extends AbstractLocalizationPro
         /** @var User $entity */
         $this->localizationService->localizeGeography($entity, $locale);
 
+        // localizeEntityFull() — Occupation::description тоже per-locale,
+        // см. докблок OccupationTitleLocalizationProvider.
         foreach ($entity->getOccupation() as $occupation) {
-            $this->localizationService->localizeEntity($occupation, $locale);
+            $this->localizationService->localizeEntityFull($occupation, $locale);
         }
 
         foreach ($entity->getEducation() as $education) {
             $occupation = $education->getOccupation();
-            if ($occupation !== null) $this->localizationService->localizeEntity($occupation, $locale);
+            if ($occupation !== null) $this->localizationService->localizeEntityFull($occupation, $locale);
         }
     }
 }

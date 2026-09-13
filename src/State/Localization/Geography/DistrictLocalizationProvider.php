@@ -15,22 +15,24 @@ readonly class DistrictLocalizationProvider extends AbstractLocalizationProvider
     protected function localize(object $entity, string $locale): void
     {
         /** @var District $entity */
-        $this->localizationService->localizeEntity($entity, $locale);
+        // localizeEntityFull() — description гео-справочников тоже per-locale
+        // теперь (см. докблок LocalizationService::localizeGeography()).
+        $this->localizationService->localizeEntityFull($entity, $locale);
 
         if ($entity->getProvince()) {
-            $this->localizationService->localizeEntity($entity->getProvince(), $locale);
+            $this->localizationService->localizeEntityFull($entity->getProvince(), $locale);
         }
 
         foreach ($entity->getSettlements() as $settlement) {
-            $this->localizationService->localizeEntity($settlement, $locale);
+            $this->localizationService->localizeEntityFull($settlement, $locale);
 
             foreach ($settlement->getVillages() as $village) {
-                $this->localizationService->localizeEntity($village, $locale);
+                $this->localizationService->localizeEntityFull($village, $locale);
             }
         }
 
         foreach ($entity->getCommunities() as $community) {
-            $this->localizationService->localizeEntity($community, $locale);
+            $this->localizationService->localizeEntityFull($community, $locale);
         }
     }
 }

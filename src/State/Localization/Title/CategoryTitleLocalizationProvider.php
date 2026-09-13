@@ -15,10 +15,21 @@ readonly class CategoryTitleLocalizationProvider extends AbstractLocalizationPro
     protected function localize(object $entity, string $locale): void
     {
         /** @var Category $entity */
-        $this->localizationService->localizeEntity($entity, $locale);
+        // localizeEntityFull() (не localizeEntity()) — БАГФИКС (13.09.2026):
+        // раньше Category::$description не был per-locale вообще — фикстуры
+        // просто склеивали все 3 языка в одну строку через \n (см. старый
+        // CategoryFixture), и отдавался этот "трёхъязычный винегрет" любому
+        // клиенту независимо от ?locale=. Теперь description лежит в
+        // Translation (как title), и localizeEntityFull() резолвит и title,
+        // и description по текущей локали — тот же паттерн, что уже
+        // применяется к Legal (см. LegalLocalizationProvider).
+        $this->localizationService->localizeEntityFull($entity, $locale);
 
         foreach ($entity->getOccupations() as $occupation) {
-            $this->localizationService->localizeEntity($occupation, $locale);
+            // localizeEntityFull() — та же причина, что выше у самой
+            // Category: Occupation::description тоже теперь per-locale
+            // (см. OccupationTitleLocalizationProvider).
+            $this->localizationService->localizeEntityFull($occupation, $locale);
         }
     }
 }

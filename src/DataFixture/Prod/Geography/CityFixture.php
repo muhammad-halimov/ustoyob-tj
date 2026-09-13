@@ -17,114 +17,193 @@ class CityFixture extends Fixture implements FixtureGroupInterface
         return ['prod'];
     }
 
+    /**
+     * БАГФИКС (13.09.2026, тот же класс проблемы, что и у Category/Occupation
+     * — см. их докблоки): 'description' было ОДНОЙ русской строкой
+     * ("Вахдат, ГРРП") независимо от локали. Теперь — per-locale перевод
+     * через Translation, тем же способом, что и title.
+     */
     public function load(ObjectManager $manager): void
     {
         $citiesData = [
             // ── ГРРП (CDRS) ──
             'Vahdat' => [
-                'translations' => ['tj' => 'Ваҳдат', 'ru' => 'Вахдат', 'eng' => 'Vahdat'],
-                'description'  => 'Вахдат, ГРРП',
+                'translations' => [
+                    'tj'  => ['title' => 'Ваҳдат', 'description' => 'Ваҳдат, НТМ'],
+                    'ru'  => ['title' => 'Вахдат', 'description' => 'Вахдат, ГРРП'],
+                    'eng' => ['title' => 'Vahdat', 'description' => 'Vahdat, DRS'],
+                ],
             ],
             'Rogun' => [
-                'translations' => ['tj' => 'Роғун', 'ru' => 'Рогун', 'eng' => 'Rogun'],
-                'description'  => 'Рогун, ГРРП',
+                'translations' => [
+                    'tj'  => ['title' => 'Роғун', 'description' => 'Роғун, НТМ'],
+                    'ru'  => ['title' => 'Рогун', 'description' => 'Рогун, ГРРП'],
+                    'eng' => ['title' => 'Rogun', 'description' => 'Rogun, DRS'],
+                ],
             ],
             'Faizobod' => [
-                'translations' => ['tj' => 'Файзобод', 'ru' => 'Файзабад', 'eng' => 'Faizobod'],
-                'description'  => 'Файзабад, ГРРП',
+                'translations' => [
+                    'tj'  => ['title' => 'Файзобод', 'description' => 'Файзобод, НТМ'],
+                    'ru'  => ['title' => 'Файзабад', 'description' => 'Файзабад, ГРРП'],
+                    'eng' => ['title' => 'Faizobod', 'description' => 'Faizobod, DRS'],
+                ],
             ],
             'Vakhsh' => [
-                'translations' => ['tj' => 'Вахш', 'ru' => 'Вахш', 'eng' => 'Vakhsh'],
-                'description'  => 'Вахш, Хатлонская область',
+                'translations' => [
+                    'tj'  => ['title' => 'Вахш', 'description' => 'Вахш, Вилояти Хатлон'],
+                    'ru'  => ['title' => 'Вахш', 'description' => 'Вахш, Хатлонская область'],
+                    'eng' => ['title' => 'Vakhsh', 'description' => 'Vakhsh, Khatlon Province'],
+                ],
             ],
             // ── Душанбе ──
             'Dushanbe' => [
-                'translations' => ['tj' => 'Душанбе', 'ru' => 'Душанбе', 'eng' => 'Dushanbe'],
-                'description'  => 'Душанбе, республиканская столица',
+                'translations' => [
+                    'tj'  => ['title' => 'Душанбе', 'description' => 'Душанбе, пойтахти ҷумҳурӣ'],
+                    'ru'  => ['title' => 'Душанбе', 'description' => 'Душанбе, республиканская столица'],
+                    'eng' => ['title' => 'Dushanbe', 'description' => 'Dushanbe, the republican capital'],
+                ],
             ],
             // ── Согдийская область ──
             'Hujand' => [
-                'translations' => ['tj' => 'Хуҷанд', 'ru' => 'Ходжент', 'eng' => 'Hujand'],
-                'description'  => 'Ходжент, Согдийская область',
+                'translations' => [
+                    'tj'  => ['title' => 'Хуҷанд', 'description' => 'Хуҷанд, Вилояти Суғд'],
+                    'ru'  => ['title' => 'Ходжент', 'description' => 'Ходжент, Согдийская область'],
+                    'eng' => ['title' => 'Hujand', 'description' => 'Hujand, Sughd Province'],
+                ],
             ],
             'Istaravshan' => [
-                'translations' => ['tj' => 'Истаравшан', 'ru' => 'Истаравшан', 'eng' => 'Istaravshan'],
-                'description'  => 'Истаравшан, Согдийская область',
+                'translations' => [
+                    'tj'  => ['title' => 'Истаравшан', 'description' => 'Истаравшан, Вилояти Суғд'],
+                    'ru'  => ['title' => 'Истаравшан', 'description' => 'Истаравшан, Согдийская область'],
+                    'eng' => ['title' => 'Istaravshan', 'description' => 'Istaravshan, Sughd Province'],
+                ],
             ],
             'Konibodom' => [
-                'translations' => ['tj' => 'Конибодом', 'ru' => 'Канибадам', 'eng' => 'Konibodom'],
-                'description'  => 'Канибадам, Согдийская область',
+                'translations' => [
+                    'tj'  => ['title' => 'Конибодом', 'description' => 'Конибодом, Вилояти Суғд'],
+                    'ru'  => ['title' => 'Канибадам', 'description' => 'Канибадам, Согдийская область'],
+                    'eng' => ['title' => 'Konibodom', 'description' => 'Konibodom, Sughd Province'],
+                ],
             ],
             'Panjakent' => [
-                'translations' => ['tj' => 'Панҷакент', 'ru' => 'Пенджикент', 'eng' => 'Panjakent'],
-                'description'  => 'Пенджикент, Согдийская область',
+                'translations' => [
+                    'tj'  => ['title' => 'Панҷакент', 'description' => 'Панҷакент, Вилояти Суғд'],
+                    'ru'  => ['title' => 'Пенджикент', 'description' => 'Пенджикент, Согдийская область'],
+                    'eng' => ['title' => 'Panjakent', 'description' => 'Panjakent, Sughd Province'],
+                ],
             ],
             'Buston' => [
-                'translations' => ['tj' => 'Бустон', 'ru' => 'Бустон', 'eng' => 'Buston'],
-                'description'  => 'Бустон (Чкаловск), Согдийская область',
+                'translations' => [
+                    'tj'  => ['title' => 'Бустон', 'description' => 'Бустон (Чкаловск), Вилояти Суғд'],
+                    'ru'  => ['title' => 'Бустон', 'description' => 'Бустон (Чкаловск), Согдийская область'],
+                    'eng' => ['title' => 'Buston', 'description' => 'Buston (Chkalovsk), Sughd Province'],
+                ],
             ],
             // ── Хатлонская область ──
             'Bohtar' => [
-                'translations' => ['tj' => 'Бохтар', 'ru' => 'Бохтар', 'eng' => 'Bohtar'],
-                'description'  => 'Бохтар (Курган-Тюбе), Хатлонская область',
+                'translations' => [
+                    'tj'  => ['title' => 'Бохтар', 'description' => 'Бохтар (Қӯрғонтеппа), Вилояти Хатлон'],
+                    'ru'  => ['title' => 'Бохтар', 'description' => 'Бохтар (Курган-Тюбе), Хатлонская область'],
+                    'eng' => ['title' => 'Bohtar', 'description' => 'Bohtar (Qurghonteppa), Khatlon Province'],
+                ],
             ],
             'Kulob' => [
-                'translations' => ['tj' => 'Кӯлоб', 'ru' => 'Куляб', 'eng' => 'Kulob'],
-                'description'  => 'Куляб, Хатлонская область',
+                'translations' => [
+                    'tj'  => ['title' => 'Кӯлоб', 'description' => 'Кӯлоб, Вилояти Хатлон'],
+                    'ru'  => ['title' => 'Куляб', 'description' => 'Куляб, Хатлонская область'],
+                    'eng' => ['title' => 'Kulob', 'description' => 'Kulob, Khatlon Province'],
+                ],
             ],
             'Qurghonteppa' => [
-                'translations' => ['tj' => 'Қӯрғонтеппа', 'ru' => 'Курган-Тюбе', 'eng' => 'Qurghonteppa'],
-                'description'  => 'Курган-Тюбе (старое название), Хатлонская область',
+                'translations' => [
+                    'tj'  => ['title' => 'Қӯрғонтеппа', 'description' => 'Қӯрғонтеппа (номи қаблӣ), Вилояти Хатлон'],
+                    'ru'  => ['title' => 'Курган-Тюбе', 'description' => 'Курган-Тюбе (старое название), Хатлонская область'],
+                    'eng' => ['title' => 'Qurghonteppa', 'description' => 'Qurghonteppa (former name), Khatlon Province'],
+                ],
             ],
             'Vose' => [
-                'translations' => ['tj' => 'Восеъ', 'ru' => 'Восеъ', 'eng' => 'Vose'],
-                'description'  => 'Восеъ, Хатлонская область',
+                'translations' => [
+                    'tj'  => ['title' => 'Восеъ', 'description' => 'Восеъ, Вилояти Хатлон'],
+                    'ru'  => ['title' => 'Восеъ', 'description' => 'Восеъ, Хатлонская область'],
+                    'eng' => ['title' => 'Vose', 'description' => 'Vose, Khatlon Province'],
+                ],
             ],
             'Danghara' => [
-                'translations' => ['tj' => 'Дангара', 'ru' => 'Дангара', 'eng' => 'Danghara'],
-                'description'  => 'Дангара, Хатлонская область',
+                'translations' => [
+                    'tj'  => ['title' => 'Дангара', 'description' => 'Данғара, Вилояти Хатлон'],
+                    'ru'  => ['title' => 'Дангара', 'description' => 'Дангара, Хатлонская область'],
+                    'eng' => ['title' => 'Danghara', 'description' => 'Danghara, Khatlon Province'],
+                ],
             ],
             // ── ГБАО ──
             'Murghob' => [
-                'translations' => ['tj' => 'Мурғоб', 'ru' => 'Мургаб', 'eng' => 'Murghob'],
-                'description'  => 'Мургаб, ГБАО',
+                'translations' => [
+                    'tj'  => ['title' => 'Мурғоб', 'description' => 'Мурғоб, ВМКБ'],
+                    'ru'  => ['title' => 'Мургаб', 'description' => 'Мургаб, ГБАО'],
+                    'eng' => ['title' => 'Murghob', 'description' => 'Murghob, GBAO'],
+                ],
             ],
             'Khorog' => [
-                'translations' => ['tj' => 'Хоруғ', 'ru' => 'Хорог', 'eng' => 'Khorog'],
-                'description'  => 'Хорог, ГБАО — административный центр',
+                'translations' => [
+                    'tj'  => ['title' => 'Хоруғ', 'description' => 'Хоруғ, ВМКБ — маркази маъмурӣ'],
+                    'ru'  => ['title' => 'Хорог', 'description' => 'Хорог, ГБАО — административный центр'],
+                    'eng' => ['title' => 'Khorog', 'description' => 'Khorog, GBAO — administrative centre'],
+                ],
             ],
             'Ishkoshim' => [
-                'translations' => ['tj' => 'Ишкошим', 'ru' => 'Ишкашим', 'eng' => 'Ishkoshim'],
-                'description'  => 'Ишкашим, ГБАО',
+                'translations' => [
+                    'tj'  => ['title' => 'Ишкошим', 'description' => 'Ишкошим, ВМКБ'],
+                    'ru'  => ['title' => 'Ишкашим', 'description' => 'Ишкашим, ГБАО'],
+                    'eng' => ['title' => 'Ishkoshim', 'description' => 'Ishkoshim, GBAO'],
+                ],
             ],
             // ── ГРРП ──
             'Hisor' => [
-                'translations' => ['tj' => 'Ҳисор', 'ru' => 'Гиссар', 'eng' => 'Hisor'],
-                'description'  => 'Гиссар, ГРРП',
+                'translations' => [
+                    'tj'  => ['title' => 'Ҳисор', 'description' => 'Ҳисор, НТМ'],
+                    'ru'  => ['title' => 'Гиссар', 'description' => 'Гиссар, ГРРП'],
+                    'eng' => ['title' => 'Hisor', 'description' => 'Hisor, DRS'],
+                ],
             ],
             'Tursunzoda' => [
-                'translations' => ['tj' => 'Турсунзода', 'ru' => 'Турсунзаде', 'eng' => 'Tursunzoda'],
-                'description'  => 'Турсунзаде, ГРРП',
+                'translations' => [
+                    'tj'  => ['title' => 'Турсунзода', 'description' => 'Турсунзода, НТМ'],
+                    'ru'  => ['title' => 'Турсунзаде', 'description' => 'Турсунзаде, ГРРП'],
+                    'eng' => ['title' => 'Tursunzoda', 'description' => 'Tursunzoda, DRS'],
+                ],
             ],
             'Norak' => [
-                'translations' => ['tj' => 'Норак', 'ru' => 'Нурек', 'eng' => 'Norak'],
-                'description'  => 'Нурек, Хатлонская область',
+                'translations' => [
+                    'tj'  => ['title' => 'Норак', 'description' => 'Норак, Вилояти Хатлон'],
+                    'ru'  => ['title' => 'Нурек', 'description' => 'Нурек, Хатлонская область'],
+                    'eng' => ['title' => 'Norak', 'description' => 'Norak, Khatlon Province'],
+                ],
             ],
             // ── Согдийская область ──
             'Isfara' => [
-                'translations' => ['tj' => 'Исфара', 'ru' => 'Исфара', 'eng' => 'Isfara'],
-                'description'  => 'Исфара, Согдийская область',
+                'translations' => [
+                    'tj'  => ['title' => 'Исфара', 'description' => 'Исфара, Вилояти Суғд'],
+                    'ru'  => ['title' => 'Исфара', 'description' => 'Исфара, Согдийская область'],
+                    'eng' => ['title' => 'Isfara', 'description' => 'Isfara, Sughd Province'],
+                ],
             ],
             // ── Хатлонская область ──
             'Farkhor' => [
-                'translations' => ['tj' => 'Фарҳор', 'ru' => 'Фархор', 'eng' => 'Farkhor'],
-                'description'  => 'Фархор, Хатлонская область',
+                'translations' => [
+                    'tj'  => ['title' => 'Фарҳор', 'description' => 'Фарҳор, Вилояти Хатлон'],
+                    'ru'  => ['title' => 'Фархор', 'description' => 'Фархор, Хатлонская область'],
+                    'eng' => ['title' => 'Farkhor', 'description' => 'Farkhor, Khatlon Province'],
+                ],
             ],
         ];
 
         foreach ($citiesData as $key => $data) {
             $city = new City();
-            $city->setDescription($data['description']);
+
+            // Фолбэк на самой сущности — тот же паттерн, что у Category/
+            // Legal/Occupation (см. их докблоки): реальное per-locale
+            // значение резолвится на чтение через localizeEntityFull().
+            $city->setDescription($data['translations']['ru']['description']);
 
             $reflection = new ReflectionClass($city);
             /** @noinspection PhpStatementHasEmptyBodyInspection */
@@ -132,9 +211,10 @@ class CityFixture extends Fixture implements FixtureGroupInterface
             $property = $reflection->getProperty('translations');
             $property->setValue($city, new ArrayCollection());
 
-            foreach ($data['translations'] as $locale => $title) {
+            foreach ($data['translations'] as $locale => $trans) {
                 $translation = (new Translation())
-                    ->setTitle($title)
+                    ->setTitle($trans['title'])
+                    ->setDescription($trans['description'])
                     ->setLocale($locale)
                     ->setAddress($city);
 

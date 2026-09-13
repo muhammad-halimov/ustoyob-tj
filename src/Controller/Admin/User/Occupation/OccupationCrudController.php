@@ -11,7 +11,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use App\Controller\Admin\Traits\AdminActionsTrait;
 use App\Controller\Admin\Traits\TimestampFieldsTrait;
 use App\Controller\Admin\Traits\VichImageHelpTrait;
@@ -47,22 +46,24 @@ class OccupationCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->hideOnForm();
 
-        yield CollectionField::new('translations', 'Название')
+        // БАГФИКС (13.09.2026): раньше рядом было ещё одно, отдельное поле
+        // "Описание" — редактировало Occupation::$description НАПРЯМУЮ, в
+        // отрыве от какого-либо конкретного языка/title (тот же случай, что
+        // и у CategoryCrudController — см. её докблок). Реальный, видимый по
+        // ?locale= текст редактируется здесь, в "Переводы", по одной
+        // карточке на язык.
+        yield CollectionField::new('translations', 'Переводы (название + описание по языкам)')
             ->useEntryCrudForm(TranslationCrudController::class)
             ->setFormTypeOptions(['by_reference' => false])
             ->setColumns(5)
             ->setRequired(false);
 
         yield AssociationField::new('category', 'Категория')
-            ->setColumns(5);
+            ->setColumns(4);
 
         yield IntegerField::new('priority', 'Порядок')
-            ->setColumns(2)
+            ->setColumns(1)
             ->setRequired(false);
-
-        yield TextEditorField::new('description', 'Описание')
-            ->setColumns(10)
-            ->setRequired(true);
 
         yield VichImageField::new('imageFile', 'Фото')
             ->setHelp($this->vichImageBadgeHelp())

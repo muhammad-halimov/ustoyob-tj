@@ -15,14 +15,16 @@ readonly class CityLocalizationProvider extends AbstractLocalizationProvider
     protected function localize(object $entity, string $locale): void
     {
         /** @var City $entity */
-        $this->localizationService->localizeEntity($entity, $locale);
+        // localizeEntityFull() — description гео-справочников тоже per-locale
+        // теперь (см. докблок LocalizationService::localizeGeography()).
+        $this->localizationService->localizeEntityFull($entity, $locale);
 
         if ($entity->getProvince()) {
-            $this->localizationService->localizeEntity($entity->getProvince(), $locale);
+            $this->localizationService->localizeEntityFull($entity->getProvince(), $locale);
         }
 
         foreach ($entity->getSuburbs() as $suburb) {
-            $this->localizationService->localizeEntity($suburb, $locale);
+            $this->localizationService->localizeEntityFull($suburb, $locale);
         }
     }
 }

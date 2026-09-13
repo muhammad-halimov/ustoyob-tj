@@ -19,19 +19,68 @@ class ProvinceFixture extends Fixture implements DependentFixtureInterface, Fixt
         return ['prod'];
     }
 
+    /**
+     * БАГФИКС (13.09.2026, тот же класс проблемы, что и у Category/
+     * Occupation/City — см. их докблоки): $desc было одной русской строкой
+     * независимо от локали. Теперь per-locale, через Translation.
+     */
     public function load(ObjectManager $manager): void
     {
+        // [$ref, $translations (title+description по локали), $citiesRefs]
         $provincesData = [
-            ['drs',       ['tj' => 'НТМ',               'ru' => 'РРП',                 'eng' => 'DRS'],             'РРП, Районы республиканского подчинения, западный Таджикистан',           ['vahdat', 'rogun', 'faizobod']],
-            ['sughd',     ['tj' => 'Вилояти Суғд',      'ru' => 'Согдийская область',  'eng' => 'Sughd Province'],  'Согдийская область, северный Таджикистан',                                ['hujand', 'istaravshan', 'konibodom', 'panjakent', 'buston']],
-            ['hatlon',    ['tj' => 'Вилояти Хатлон',    'ru' => 'Хатлонская область',  'eng' => 'Hatlon Province'], 'Хатлонская область, южный Таджикистан',                                   ['bohtar', 'kulob', 'qurghonteppa', 'vose', 'danghara', 'vakhsh']],
-            ['bmap',      ['tj' => 'ВМКБ',              'ru' => 'ГБАО',                'eng' => 'BMAP'],            'ГБАО, Горно-Бадахшанская Автономная область, восточный Таджикистан',      ['murghob', 'khorog', 'ishkoshim']],
-            ['dushanbe',  ['tj' => 'Душанбе',           'ru' => 'Душанбе',             'eng' => 'Dushanbe'],        'Душанбе, республиканская столица, западный Таджикистан',                  ['dushanbe']],
+            [
+                'drs',
+                [
+                    'tj'  => ['title' => 'НТМ',              'description' => 'НТМ, Ноҳияҳои тобеи ҷумҳурӣ, ғарби Тоҷикистон'],
+                    'ru'  => ['title' => 'РРП',               'description' => 'РРП, Районы республиканского подчинения, западный Таджикистан'],
+                    'eng' => ['title' => 'DRS',                'description' => 'DRS, Districts of Republican Subordination, western Tajikistan'],
+                ],
+                ['vahdat', 'rogun', 'faizobod'],
+            ],
+            [
+                'sughd',
+                [
+                    'tj'  => ['title' => 'Вилояти Суғд',      'description' => 'Вилояти Суғд, шимоли Тоҷикистон'],
+                    'ru'  => ['title' => 'Согдийская область', 'description' => 'Согдийская область, северный Таджикистан'],
+                    'eng' => ['title' => 'Sughd Province',     'description' => 'Sughd Province, northern Tajikistan'],
+                ],
+                ['hujand', 'istaravshan', 'konibodom', 'panjakent', 'buston'],
+            ],
+            [
+                'hatlon',
+                [
+                    'tj'  => ['title' => 'Вилояти Хатлон',    'description' => 'Вилояти Хатлон, ҷануби Тоҷикистон'],
+                    'ru'  => ['title' => 'Хатлонская область', 'description' => 'Хатлонская область, южный Таджикистан'],
+                    'eng' => ['title' => 'Hatlon Province',    'description' => 'Khatlon Province, southern Tajikistan'],
+                ],
+                ['bohtar', 'kulob', 'qurghonteppa', 'vose', 'danghara', 'vakhsh'],
+            ],
+            [
+                'bmap',
+                [
+                    'tj'  => ['title' => 'ВМКБ', 'description' => 'ВМКБ, Вилояти Мухтори Кӯҳистони Бадахшон, шарқи Тоҷикистон'],
+                    'ru'  => ['title' => 'ГБАО', 'description' => 'ГБАО, Горно-Бадахшанская Автономная область, восточный Таджикистан'],
+                    'eng' => ['title' => 'BMAP', 'description' => 'GBAO, Gorno-Badakhshan Autonomous Province, eastern Tajikistan'],
+                ],
+                ['murghob', 'khorog', 'ishkoshim'],
+            ],
+            [
+                'dushanbe',
+                [
+                    'tj'  => ['title' => 'Душанбе', 'description' => 'Душанбе, пойтахти ҷумҳурӣ, ғарби Тоҷикистон'],
+                    'ru'  => ['title' => 'Душанбе', 'description' => 'Душанбе, республиканская столица, западный Таджикистан'],
+                    'eng' => ['title' => 'Dushanbe', 'description' => 'Dushanbe, the republican capital, western Tajikistan'],
+                ],
+                ['dushanbe'],
+            ],
         ];
 
-        foreach ($provincesData as [$ref, $translations, $desc, $citiesRefs]) {
+        foreach ($provincesData as [$ref, $translations, $citiesRefs]) {
             $province = new Province();
-            $province->setDescription($desc);
+
+            // Фолбэк на самой сущности — тот же паттерн, что у Category/
+            // Legal/Occupation/City (см. их докблоки).
+            $province->setDescription($translations['ru']['description']);
 
             $reflection = new ReflectionClass($province);
             /** @noinspection PhpStatementHasEmptyBodyInspection */
@@ -39,9 +88,10 @@ class ProvinceFixture extends Fixture implements DependentFixtureInterface, Fixt
             $property = $reflection->getProperty('translations');
             $property->setValue($province, new ArrayCollection());
 
-            foreach ($translations as $locale => $title) {
+            foreach ($translations as $locale => $trans) {
                 $translation = (new Translation())
-                    ->setTitle($title)
+                    ->setTitle($trans['title'])
+                    ->setDescription($trans['description'])
                     ->setLocale($locale)
                     ->setAddress($province);
 

@@ -10,7 +10,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use App\Controller\Admin\Traits\AdminActionsTrait;
 use App\Controller\Admin\Traits\TimestampFieldsTrait;
 use App\Controller\Admin\Traits\VichImageHelpTrait;
@@ -46,7 +45,7 @@ class CityCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->hideOnForm();
 
-        yield CollectionField::new('translations', 'Название')
+        yield CollectionField::new('translations', 'Переводы (название + описание по языкам)')
             ->useEntryCrudForm(TranslationCrudController::class)
             ->setFormTypeOptions(['by_reference' => false])
             ->setColumns(6)
@@ -54,9 +53,6 @@ class CityCrudController extends AbstractCrudController
 
         yield AssociationField::new('province', 'Провинция')
             ->setColumns(6);
-
-        yield TextEditorField::new('description', 'Описание')
-            ->setColumns(12);
 
         yield VichImageField::new('imageFile', 'Фото')
             ->setHelp($this->vichImageBadgeHelp())

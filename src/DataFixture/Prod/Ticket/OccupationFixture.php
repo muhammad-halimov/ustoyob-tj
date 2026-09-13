@@ -24,6 +24,19 @@ use ReflectionClass;
  * 'grafik_dizayner') и на CategoryFixture (тикеты и occupations[] там же).
  * Новые записи ниже дописаны рядом, сгруппированы по категориям для
  * читаемости (реальная привязка к категории — в CategoryFixture::occupations).
+ *
+ * БАГФИКС (13.09.2026, тот же класс проблемы, что и у CategoryFixture — см.
+ * её докблок): раньше 'description' было ОДНОЙ строкой на три языка через
+ * \n ("Кори сантехникӣ\nСантехнические работы\nPlumbing works") — набор
+ * коротких синонимов title, слепленных вместе, и не per-locale вообще.
+ * Теперь description — такой же per-locale перевод, как title (тот же
+ * Translation), и это отдельное предложение о том, чем конкретно занимается
+ * специалист, а не синоним заголовка. Локализация на чтение — см.
+ * OccupationTitleLocalizationProvider::localize() (localizeEntityFull()) и
+ * все места, где Occupation встраивается в Category/Ticket/User
+ * (CategoryTitleLocalizationProvider, LocalizationService::localizeTicket()/
+ * localizeUser(), TicketGeographyLocalizationProvider, FavoriteStateProvider,
+ * UserGeographyLocalizationProvider).
  */
 class OccupationFixture extends Fixture implements FixtureGroupInterface
 {
@@ -37,567 +50,945 @@ class OccupationFixture extends Fixture implements FixtureGroupInterface
         $occupationsData = [
             // ── Сантехника ──────────────────────────────────────────────
             'santexnik' => [
-                'translations' => ['tj' => 'Сантехник', 'ru' => 'Сантехник', 'eng' => 'Plumber'],
-                'description'  => "Кори сантехникӣ\nСантехнические работы\nPlumbing works",
+                'translations' => [
+                    'tj'  => ['title' => 'Сантехник', 'description' => 'Ништи обро бартараф мекунад, асбобҳои сантехникиро насб ва пайваст мекунад.'],
+                    'ru'  => ['title' => 'Сантехник', 'description' => 'Устраняет засоры и протечки, устанавливает и подключает сантехнические приборы.'],
+                    'eng' => ['title' => 'Plumber',   'description' => 'Fixes clogs and leaks, installs and connects plumbing fixtures.'],
+                ],
             ],
             'truboprovodchik' => [
-                'translations' => ['tj' => 'Қубурсоз', 'ru' => 'Трубопроводчик', 'eng' => 'Pipefitter'],
-                'description'  => "Насби қубурҳо\nМонтаж трубопроводов\nPipe installation",
+                'translations' => [
+                    'tj'  => ['title' => 'Қубурсоз', 'description' => 'Қубурҳои обтаъминкунӣ ва гармидиҳиро насб ва иваз мекунад.'],
+                    'ru'  => ['title' => 'Трубопроводчик', 'description' => 'Монтирует и заменяет трубопроводы водоснабжения и отопления.'],
+                    'eng' => ['title' => 'Pipefitter', 'description' => 'Installs and replaces water supply and heating pipelines.'],
+                ],
             ],
             'svarshik' => [
-                'translations' => ['tj' => 'Пайвандгар', 'ru' => 'Сварщик', 'eng' => 'Welder'],
-                'description'  => "Пайвандкории металл ва қубурҳо\nСварка металла и труб\nMetal and pipe welding",
+                'translations' => [
+                    'tj'  => ['title' => 'Пайвандгар', 'description' => 'Сохторҳои металлӣ ва қубурҳоро барои корҳои сантехникӣ ва сохтмонӣ пайванд мекунад.'],
+                    'ru'  => ['title' => 'Сварщик', 'description' => 'Сваривает металлические конструкции и трубы для сантехнических и строительных работ.'],
+                    'eng' => ['title' => 'Welder', 'description' => 'Welds metal structures and pipes for plumbing and construction work.'],
+                ],
             ],
             'montazhnik_otopleniya' => [
-                'translations' => ['tj' => 'Насбкунандаи гармидиҳӣ', 'ru' => 'Монтажник отопления', 'eng' => 'Heating Systems Installer'],
-                'description'  => "Насб ва хизматрасонии системаи гармидиҳӣ\nМонтаж и обслуживание систем отопления\nHeating system installation and service",
+                'translations' => [
+                    'tj'  => ['title' => 'Насбкунандаи гармидиҳӣ', 'description' => 'Системаҳои гармидиҳӣ ва таҷҳизоти дегро насб ва танзим мекунад.'],
+                    'ru'  => ['title' => 'Монтажник отопления', 'description' => 'Устанавливает и настраивает системы отопления и котельное оборудование.'],
+                    'eng' => ['title' => 'Heating Systems Installer', 'description' => 'Installs and configures heating systems and boiler equipment.'],
+                ],
             ],
 
             // ── IT ───────────────────────────────────────────────────────
             'programmer' => [
-                'translations' => ['tj' => 'Барномасоз', 'ru' => 'Программист', 'eng' => 'Programmer'],
-                'description'  => "Барномасозӣ\nПрограммирование\nProgramming",
+                'translations' => [
+                    'tj'  => ['title' => 'Барномасоз', 'description' => 'Барои сомонаҳо, барномаҳо ва хидматрасониҳо код менависад ва такмил медиҳад.'],
+                    'ru'  => ['title' => 'Программист', 'description' => 'Пишет и дорабатывает код для сайтов, приложений и сервисов.'],
+                    'eng' => ['title' => 'Programmer', 'description' => 'Writes and refines code for websites, applications and services.'],
+                ],
             ],
             'sysadmin' => [
-                'translations' => ['tj' => 'Маъмури система', 'ru' => 'Системный администратор', 'eng' => 'System Administrator'],
-                'description'  => "Идоракунии системаҳо\nАдминистрирование систем\nSystems administration",
+                'translations' => [
+                    'tj'  => ['title' => 'Маъмури система', 'description' => 'Серверҳо, шабакаҳо ва компютерҳои кории ширкатро танзим ва нигоҳдорӣ мекунад.'],
+                    'ru'  => ['title' => 'Системный администратор', 'description' => 'Настраивает и поддерживает серверы, сети и рабочие компьютеры компании.'],
+                    'eng' => ['title' => 'System Administrator', 'description' => 'Configures and maintains company servers, networks and workstations.'],
+                ],
             ],
             'network_engineer' => [
-                'translations' => ['tj' => 'Муҳандиси шабака', 'ru' => 'Сетевой инженер', 'eng' => 'Network Engineer'],
-                'description'  => "Шабакаҳои компютерӣ\nКомпьютерные сети\nComputer networking",
+                'translations' => [
+                    'tj'  => ['title' => 'Муҳандиси шабака', 'description' => 'Шабакаҳои компютерӣ ва таҷҳизоти алоқаро лоиҳакашӣ ва танзим мекунад.'],
+                    'ru'  => ['title' => 'Сетевой инженер', 'description' => 'Проектирует и настраивает компьютерные сети и оборудование связи.'],
+                    'eng' => ['title' => 'Network Engineer', 'description' => 'Designs and configures computer networks and communication equipment.'],
+                ],
             ],
             'mobile_developer' => [
-                'translations' => ['tj' => 'Барномасози мобилӣ', 'ru' => 'Разработчик мобильных приложений', 'eng' => 'Mobile App Developer'],
-                'description'  => "Таҳияи барномаҳои мобилӣ барои iOS ва Android\nРазработка мобильных приложений для iOS и Android\niOS and Android mobile app development",
+                'translations' => [
+                    'tj'  => ['title' => 'Барномасози мобилӣ', 'description' => 'Барномаҳои мобилиро барои iOS ва Android таҳия мекунад.'],
+                    'ru'  => ['title' => 'Разработчик мобильных приложений', 'description' => 'Разрабатывает мобильные приложения для iOS и Android.'],
+                    'eng' => ['title' => 'Mobile App Developer', 'description' => 'Develops mobile applications for iOS and Android.'],
+                ],
             ],
             'qa_engineer' => [
-                'translations' => ['tj' => 'Санҷишгари сифат', 'ru' => 'Тестировщик (QA)', 'eng' => 'QA Engineer'],
-                'description'  => "Санҷиши сифати барномаҳо\nТестирование качества программного обеспечения\nSoftware quality testing",
+                'translations' => [
+                    'tj'  => ['title' => 'Санҷишгари сифат', 'description' => 'Барномаҳо ва сомонаҳоро пеш аз баровардан аз хатогиҳо санҷиш мекунад.'],
+                    'ru'  => ['title' => 'Тестировщик (QA)', 'description' => 'Тестирует программы и сайты на ошибки перед выпуском.'],
+                    'eng' => ['title' => 'QA Engineer', 'description' => 'Tests software and websites for bugs before release.'],
+                ],
             ],
             'data_analyst' => [
-                'translations' => ['tj' => 'Таҳлилгари маълумот', 'ru' => 'Аналитик данных', 'eng' => 'Data Analyst'],
-                'description'  => "Таҳлил ва коркарди маълумот\nАнализ и обработка данных\nData analysis and processing",
+                'translations' => [
+                    'tj'  => ['title' => 'Таҳлилгари маълумот', 'description' => 'Маълумотро таҳлил мекунад ва барои қабули қарор ҳисобот тайёр мекунад.'],
+                    'ru'  => ['title' => 'Аналитик данных', 'description' => 'Анализирует данные и готовит отчёты для принятия решений.'],
+                    'eng' => ['title' => 'Data Analyst', 'description' => 'Analyses data and prepares reports for decision-making.'],
+                ],
             ],
 
             // ── Красота и здоровье ──────────────────────────────────────
             'parikmakher' => [
-                'translations' => ['tj' => 'Сартарош', 'ru' => 'Парикмахер', 'eng' => 'Hairdresser'],
-                'description'  => "Сартарошӣ\nПарикмахерские услуги\nHairdressing",
+                'translations' => [
+                    'tj'  => ['title' => 'Сартарош', 'description' => 'Мӯйсартарошӣ, ороиш ва рангуборкунии мӯйро иҷро мекунад.'],
+                    'ru'  => ['title' => 'Парикмахер', 'description' => 'Делает стрижки, укладки и окрашивание волос.'],
+                    'eng' => ['title' => 'Hairdresser', 'description' => 'Provides haircuts, styling and hair colouring.'],
+                ],
             ],
             'kosmetolog' => [
-                'translations' => ['tj' => 'Косметолог', 'ru' => 'Косметолог', 'eng' => 'Cosmetologist'],
-                'description'  => "Хизматҳои косметологӣ\nКосметологические услуги\nCosmetology services",
+                'translations' => [
+                    'tj'  => ['title' => 'Косметолог', 'description' => 'Расмиёти косметологиро барои нигоҳубини пӯсти рӯй ва бадан анҷом медиҳад.'],
+                    'ru'  => ['title' => 'Косметолог', 'description' => 'Проводит косметические процедуры по уходу за кожей лица и тела.'],
+                    'eng' => ['title' => 'Cosmetologist', 'description' => 'Performs cosmetic treatments for facial and body skin care.'],
+                ],
             ],
             'masseur' => [
-                'translations' => ['tj' => 'Массажист', 'ru' => 'Массажист', 'eng' => 'Masseur'],
-                'description'  => "Массаж\nМассаж\nMassage",
+                'translations' => [
+                    'tj'  => ['title' => 'Массажист', 'description' => 'Массажи табобатӣ ва оромкунандаи баданро иҷро мекунад.'],
+                    'ru'  => ['title' => 'Массажист', 'description' => 'Делает лечебный и расслабляющий массаж тела.'],
+                    'eng' => ['title' => 'Masseur', 'description' => 'Provides therapeutic and relaxing body massage.'],
+                ],
             ],
             'manikyurshitsa' => [
-                'translations' => ['tj' => 'Устои маникюр', 'ru' => 'Мастер маникюра', 'eng' => 'Manicurist'],
-                'description'  => "Маникюр ва педикюр\nМаникюр и педикюр\nManicure and pedicure",
+                'translations' => [
+                    'tj'  => ['title' => 'Устои маникюр', 'description' => 'Маникюр, педикюр ва дарозкунии нохунро иҷро мекунад.'],
+                    'ru'  => ['title' => 'Мастер маникюра', 'description' => 'Делает маникюр, педикюр и наращивание ногтей.'],
+                    'eng' => ['title' => 'Manicurist', 'description' => 'Provides manicure, pedicure and nail extensions.'],
+                ],
             ],
             'vizazhist' => [
-                'translations' => ['tj' => 'Ороишгар', 'ru' => 'Визажист', 'eng' => 'Makeup Artist'],
-                'description'  => "Ороиши рӯй барои чорабиниҳо ва аксбардорӣ\nМакияж для мероприятий и фотосъёмки\nMakeup for events and photoshoots",
+                'translations' => [
+                    'tj'  => ['title' => 'Ороишгар', 'description' => 'Барои чорабиниҳо, аксбардорӣ ва рӯйдодҳои махсус ороиши рӯй мекунад.'],
+                    'ru'  => ['title' => 'Визажист', 'description' => 'Делает макияж для мероприятий, съёмок и особых случаев.'],
+                    'eng' => ['title' => 'Makeup Artist', 'description' => 'Does makeup for events, photoshoots and special occasions.'],
+                ],
             ],
             'brovist' => [
-                'translations' => ['tj' => 'Устои абрувон', 'ru' => 'Мастер бровей и ресниц', 'eng' => 'Brow and Lash Specialist'],
-                'description'  => "Ороиш ва рангубори абрувону мижгонҳо\nОформление и окрашивание бровей и ресниц\nBrow and lash shaping and tinting",
+                'translations' => [
+                    'tj'  => ['title' => 'Устои абрувон', 'description' => 'Абрувону мижгонҳоро ороиш ва рангубор мекунад.'],
+                    'ru'  => ['title' => 'Мастер бровей и ресниц', 'description' => 'Оформляет и окрашивает брови и ресницы.'],
+                    'eng' => ['title' => 'Brow and Lash Specialist', 'description' => 'Shapes and tints eyebrows and eyelashes.'],
+                ],
             ],
 
             // ── Ремонт и строительство ──────────────────────────────────
             'stroitel' => [
-                'translations' => ['tj' => 'Сохтмончӣ', 'ru' => 'Строитель', 'eng' => 'Builder'],
-                'description'  => "Кори сохтмонӣ\nСтроительные работы\nConstruction works",
+                'translations' => [
+                    'tj'  => ['title' => 'Сохтмончӣ', 'description' => 'Корҳои умумии сохтмониро иҷро мекунад: деворчинӣ, пойдевор, скелет.'],
+                    'ru'  => ['title' => 'Строитель', 'description' => 'Выполняет общестроительные работы: кладку, фундамент, каркас.'],
+                    'eng' => ['title' => 'Builder', 'description' => 'Performs general construction work: masonry, foundation, framing.'],
+                ],
             ],
             'plitochnik' => [
-                'translations' => ['tj' => 'Плиточник', 'ru' => 'Плиточник', 'eng' => 'Tiler'],
-                'description'  => "Гузоштани кафпӯш\nУкладка плитки\nTile laying",
+                'translations' => [
+                    'tj'  => ['title' => 'Плиточник', 'description' => 'Кошинкории сафолиро дар фарш ва девор мегузорад.'],
+                    'ru'  => ['title' => 'Плиточник', 'description' => 'Укладывает керамическую плитку на пол и стены.'],
+                    'eng' => ['title' => 'Tiler', 'description' => 'Lays ceramic tiles on floors and walls.'],
+                ],
             ],
             'maljar' => [
-                'translations' => ['tj' => 'Наққош', 'ru' => 'Маляр', 'eng' => 'Painter'],
-                'description'  => "Рангубор\nМалярные работы\nPainting works",
+                'translations' => [
+                    'tj'  => ['title' => 'Наққош', 'description' => 'Девор, шифт ва рӯйи биноро ранг мекунад.'],
+                    'ru'  => ['title' => 'Маляр', 'description' => 'Красит стены, потолки и фасады.'],
+                    'eng' => ['title' => 'Painter', 'description' => 'Paints walls, ceilings and building facades.'],
+                ],
             ],
             'metalist' => [
-                'translations' => ['tj' => 'Слесар', 'ru' => 'Слесарь', 'eng' => 'Metalworker'],
-                'description'  => "Кор бо металл ва механизмҳо\nРаботы с металлом и механизмами\nMetal and mechanical works",
+                'translations' => [
+                    'tj'  => ['title' => 'Слесар', 'description' => 'Сохторҳо ва маснуоти металлиро месозад ва таъмир мекунад.'],
+                    'ru'  => ['title' => 'Слесарь', 'description' => 'Изготавливает и ремонтирует металлические конструкции и изделия.'],
+                    'eng' => ['title' => 'Metalworker', 'description' => 'Makes and repairs metal structures and products.'],
+                ],
             ],
             'shtukatur' => [
-                'translations' => ['tj' => 'Сувоккор', 'ru' => 'Штукатур', 'eng' => 'Plasterer'],
-                'description'  => "Сувоккорӣ ва ҳамворкунии девор\nШтукатурные и выравнивающие работы\nPlastering and wall levelling",
+                'translations' => [
+                    'tj'  => ['title' => 'Сувоккор', 'description' => 'Девор ва шифтро сувоккорӣ ва ҳамвор мекунад.'],
+                    'ru'  => ['title' => 'Штукатур', 'description' => 'Выравнивает и штукатурит стены и потолки.'],
+                    'eng' => ['title' => 'Plasterer', 'description' => 'Plasters and levels walls and ceilings.'],
+                ],
             ],
             'krovelshik' => [
-                'translations' => ['tj' => 'Бомсоз', 'ru' => 'Кровельщик', 'eng' => 'Roofer'],
-                'description'  => "Гузоштан ва таъмири бом\nУстройство и ремонт кровли\nRoof installation and repair",
+                'translations' => [
+                    'tj'  => ['title' => 'Бомсоз', 'description' => 'Боми биноро насб ва таъмир мекунад.'],
+                    'ru'  => ['title' => 'Кровельщик', 'description' => 'Устанавливает и ремонтирует кровлю зданий.'],
+                    'eng' => ['title' => 'Roofer', 'description' => 'Installs and repairs building roofs.'],
+                ],
             ],
             'okonshik' => [
-                'translations' => ['tj' => 'Устои тирезаҳои ПХВ', 'ru' => 'Мастер по установке окон', 'eng' => 'Window Installer'],
-                'description'  => "Насби тирезаву дарҳои ПХВ\nУстановка пластиковых окон и дверей\nPVC window and door installation",
+                'translations' => [
+                    'tj'  => ['title' => 'Устои тирезаҳои ПХВ', 'description' => 'Тирезаву дарҳои пластикиро насб мекунад.'],
+                    'ru'  => ['title' => 'Мастер по установке окон', 'description' => 'Устанавливает пластиковые окна и двери.'],
+                    'eng' => ['title' => 'Window Installer', 'description' => 'Installs plastic (PVC) windows and doors.'],
+                ],
             ],
 
             // ── Электрика ────────────────────────────────────────────────
             'elektrik' => [
-                'translations' => ['tj' => 'Барқкаш', 'ru' => 'Электрик', 'eng' => 'Electrician'],
-                'description'  => "Кори барқкашӣ\nЭлектромонтажные работы\nElectrical works",
+                'translations' => [
+                    'tj'  => ['title' => 'Барқкаш', 'description' => 'Симкашии барқ ва асбобҳои барқиро насб ва таъмир мекунад.'],
+                    'ru'  => ['title' => 'Электрик', 'description' => 'Монтирует и ремонтирует электропроводку и электроприборы.'],
+                    'eng' => ['title' => 'Electrician', 'description' => 'Installs and repairs electrical wiring and appliances.'],
+                ],
             ],
             'energetik' => [
-                'translations' => ['tj' => 'Муҳандиси барқ', 'ru' => 'Инженер-энергетик', 'eng' => 'Power Systems Engineer'],
-                'description'  => "Лоиҳакашӣ ва хизматрасонии таҷҳизоти барқӣ\nПроектирование и обслуживание электрооборудования\nElectrical equipment design and service",
+                'translations' => [
+                    'tj'  => ['title' => 'Муҳандиси барқ', 'description' => 'Таҷҳизоти энергетикии объектҳоро лоиҳакашӣ ва хизматрасонӣ мекунад.'],
+                    'ru'  => ['title' => 'Инженер-энергетик', 'description' => 'Проектирует и обслуживает энергетическое оборудование объектов.'],
+                    'eng' => ['title' => 'Power Systems Engineer', 'description' => 'Designs and maintains power equipment for facilities.'],
+                ],
             ],
             'liftyor' => [
-                'translations' => ['tj' => 'Устои лифт', 'ru' => 'Специалист по лифтам', 'eng' => 'Elevator Technician'],
-                'description'  => "Насб ва таъмири лифт\nМонтаж и ремонт лифтового оборудования\nElevator installation and repair",
+                'translations' => [
+                    'tj'  => ['title' => 'Устои лифт', 'description' => 'Таҷҳизоти лифтро хизматрасонӣ, танзим ва таъмир мекунад.'],
+                    'ru'  => ['title' => 'Специалист по лифтам', 'description' => 'Обслуживает, настраивает и ремонтирует лифтовое оборудование.'],
+                    'eng' => ['title' => 'Elevator Technician', 'description' => 'Services, adjusts and repairs elevator equipment.'],
+                ],
             ],
 
             // ── Уборка ───────────────────────────────────────────────────
             'kliner' => [
-                'translations' => ['tj' => 'Тозакунанда', 'ru' => 'Клинер', 'eng' => 'Cleaner'],
-                'description'  => "Тозакунии хона\nУборка помещений\nCleaning services",
+                'translations' => [
+                    'tj'  => ['title' => 'Тозакунанда', 'description' => 'Хона, манзил ва идораҳоро дар ҳар андоза тоза мекунад.'],
+                    'ru'  => ['title' => 'Клинер', 'description' => 'Убирает квартиры, дома и офисы любой площади.'],
+                    'eng' => ['title' => 'Cleaner', 'description' => 'Cleans apartments, houses and offices of any size.'],
+                ],
             ],
             'himchistka' => [
-                'translations' => ['tj' => 'Устои хушкшӯӣ', 'ru' => 'Мастер химчистки', 'eng' => 'Dry Cleaning Specialist'],
-                'description'  => "Хушкшӯии мебел ва гилем\nХимчистка мебели и ковров\nUpholstery and carpet dry cleaning",
+                'translations' => [
+                    'tj'  => ['title' => 'Устои хушкшӯӣ', 'description' => 'Мебели мулоим, гилем ва матрасро аз ифлосӣ тоза мекунад.'],
+                    'ru'  => ['title' => 'Мастер химчистки', 'description' => 'Чистит мягкую мебель, ковры и матрасы от загрязнений.'],
+                    'eng' => ['title' => 'Dry Cleaning Specialist', 'description' => 'Dry-cleans upholstered furniture, carpets and mattresses.'],
+                ],
             ],
             'moyshik_okon' => [
-                'translations' => ['tj' => 'Тозакунандаи тирезаҳо', 'ru' => 'Мойщик окон', 'eng' => 'Window Cleaner'],
-                'description'  => "Тозакунии тирезаву фасад\nМытьё окон и фасадов\nWindow and facade cleaning",
+                'translations' => [
+                    'tj'  => ['title' => 'Тозакунандаи тирезаҳо', 'description' => 'Тиреза, витраж ва рӯйи биноро мешӯяд.'],
+                    'ru'  => ['title' => 'Мойщик окон', 'description' => 'Моет окна, витражи и фасады зданий.'],
+                    'eng' => ['title' => 'Window Cleaner', 'description' => 'Washes windows, glass panels and building facades.'],
+                ],
             ],
             'domrabotnitsa' => [
-                'translations' => ['tj' => 'Хизматгори хона', 'ru' => 'Домработница', 'eng' => 'Housekeeper'],
-                'description'  => "Хизматрасонии рӯзонаи хонагӣ\nЕжедневная помощь по хозяйству\nDaily household help",
+                'translations' => [
+                    'tj'  => ['title' => 'Хизматгори хона', 'description' => 'Дар корҳои хонагӣ кӯмак мекунад: тозакунӣ, шустушӯй, пухтупаз.'],
+                    'ru'  => ['title' => 'Домработница', 'description' => 'Помогает по хозяйству: уборка, стирка, готовка.'],
+                    'eng' => ['title' => 'Housekeeper', 'description' => 'Helps with housework: cleaning, laundry, cooking.'],
+                ],
             ],
 
             // ── Транспорт ────────────────────────────────────────────────
             'voditel' => [
-                'translations' => ['tj' => 'Ронанда', 'ru' => 'Водитель', 'eng' => 'Driver'],
-                'description'  => "Хизматрасонии нақлиётӣ\nВодительские услуги\nDriver services",
+                'translations' => [
+                    'tj'  => ['title' => 'Ронанда', 'description' => 'Мусофирон ва борро бо нақлиёти шахсӣ ё хидматӣ интиқол медиҳад.'],
+                    'ru'  => ['title' => 'Водитель', 'description' => 'Перевозит пассажиров и грузы на личном или служебном транспорте.'],
+                    'eng' => ['title' => 'Driver', 'description' => 'Transports passengers and goods using a private or company vehicle.'],
+                ],
             ],
             'gruzchik' => [
-                'translations' => ['tj' => 'Борбардор', 'ru' => 'Грузчик', 'eng' => 'Loader'],
-                'description'  => "Бордошт ва интиқол\nПогрузка и перевозка\nLoading and transport",
+                'translations' => [
+                    'tj'  => ['title' => 'Борбардор', 'description' => 'Ҳангоми кӯчидан чизҳои вазнинро бор мекунад, фаро мекунад ва мебарорад.'],
+                    'ru'  => ['title' => 'Грузчик', 'description' => 'Грузит, разгружает и переносит тяжёлые вещи при переезде.'],
+                    'eng' => ['title' => 'Loader', 'description' => 'Loads, unloads and carries heavy items during a move.'],
+                ],
             ],
             'kurier' => [
-                'translations' => ['tj' => 'Қосид', 'ru' => 'Курьер', 'eng' => 'Courier'],
-                'description'  => "Расонидани бастаҳо ва фармоишҳо\nДоставка посылок и заказов\nPackage and order delivery",
+                'translations' => [
+                    'tj'  => ['title' => 'Қосид', 'description' => 'Фармоишу бастаҳоро ба суроғаи нишондодашуда мерасонад.'],
+                    'ru'  => ['title' => 'Курьер', 'description' => 'Доставляет заказы и посылки по указанному адресу.'],
+                    'eng' => ['title' => 'Courier', 'description' => 'Delivers orders and parcels to the specified address.'],
+                ],
             ],
             'ekspeditor' => [
-                'translations' => ['tj' => 'Экспедитор', 'ru' => 'Экспедитор', 'eng' => 'Freight Forwarder'],
-                'description'  => "Ташкили боркашонии молҳо\nОрганизация грузоперевозок\nCargo transport organisation",
+                'translations' => [
+                    'tj'  => ['title' => 'Экспедитор', 'description' => 'Боркашониро байни шаҳру кишварҳо ташкил ва ҳамроҳӣ мекунад.'],
+                    'ru'  => ['title' => 'Экспедитор', 'description' => 'Организует и сопровождает грузоперевозки между городами и странами.'],
+                    'eng' => ['title' => 'Freight Forwarder', 'description' => 'Organises and accompanies cargo transport between cities and countries.'],
+                ],
             ],
             'taksist' => [
-                'translations' => ['tj' => 'Таксӣ ронанда', 'ru' => 'Таксист', 'eng' => 'Taxi Driver'],
-                'description'  => "Интиқоли мусофирон бо нархи мувофиқашуда\nПеревозка пассажиров по договорной цене\nPassenger transport at an agreed price",
+                'translations' => [
+                    'tj'  => ['title' => 'Таксӣ ронанда', 'description' => 'Мусофиронро дар дохили шаҳр бо мошини сабукрав интиқол медиҳад.'],
+                    'ru'  => ['title' => 'Таксист', 'description' => 'Перевозит пассажиров по городу на легковом автомобиле.'],
+                    'eng' => ['title' => 'Taxi Driver', 'description' => 'Drives passengers around the city in a private car.'],
+                ],
             ],
 
             // ── Образование ──────────────────────────────────────────────
             'repetitor' => [
-                'translations' => ['tj' => 'Омӯзгор-роҳбар', 'ru' => 'Репетитор', 'eng' => 'Tutor'],
-                'description'  => "Дарсҳои хусусӣ\nЧастные уроки\nPrivate tutoring",
+                'translations' => [
+                    'tj'  => ['title' => 'Омӯзгор-роҳбар', 'description' => 'Аз фанҳои мактабӣ ва донишгоҳӣ дарсҳои инфиродӣ мегузаронад.'],
+                    'ru'  => ['title' => 'Репетитор', 'description' => 'Проводит индивидуальные занятия по школьным и вузовским предметам.'],
+                    'eng' => ['title' => 'Tutor', 'description' => 'Gives one-on-one lessons in school and university subjects.'],
+                ],
             ],
             'language_trainer' => [
-                'translations' => ['tj' => 'Омӯзгори забон', 'ru' => 'Преподаватель языков', 'eng' => 'Language Teacher'],
-                'description'  => "Таълими забонҳо\nОбучение языкам\nLanguage teaching",
+                'translations' => [
+                    'tj'  => ['title' => 'Омӯзгори забон', 'description' => 'Кӯдакон ва калонсолонро ба забонҳои хориҷӣ таълим медиҳад.'],
+                    'ru'  => ['title' => 'Преподаватель языков', 'description' => 'Обучает иностранным языкам детей и взрослых.'],
+                    'eng' => ['title' => 'Language Teacher', 'description' => 'Teaches foreign languages to children and adults.'],
+                ],
             ],
             'muzykalny_pedagog' => [
-                'translations' => ['tj' => 'Омӯзгори мусиқӣ', 'ru' => 'Педагог по музыке', 'eng' => 'Music Teacher'],
-                'description'  => "Таълими навохтани асбобҳои мусиқӣ ва суруд\nОбучение игре на музыкальных инструментах и вокалу\nMusic instrument and vocal lessons",
+                'translations' => [
+                    'tj'  => ['title' => 'Омӯзгори мусиқӣ', 'description' => 'Навохтани асбобҳои мусиқӣ ва сурудхониро таълим медиҳад.'],
+                    'ru'  => ['title' => 'Педагог по музыке', 'description' => 'Учит играть на музыкальных инструментах и петь.'],
+                    'eng' => ['title' => 'Music Teacher', 'description' => 'Teaches playing musical instruments and singing.'],
+                ],
             ],
             'logoped' => [
-                'translations' => ['tj' => 'Логопед', 'ru' => 'Логопед', 'eng' => 'Speech Therapist'],
-                'description'  => "Ислоҳи нутқи кӯдакон ва калонсолон\nКоррекция речи у детей и взрослых\nSpeech correction for children and adults",
+                'translations' => [
+                    'tj'  => ['title' => 'Логопед', 'description' => 'Вайроншавии нутқи кӯдакон ва калонсолонро ислоҳ мекунад.'],
+                    'ru'  => ['title' => 'Логопед', 'description' => 'Исправляет нарушения речи у детей и взрослых.'],
+                    'eng' => ['title' => 'Speech Therapist', 'description' => 'Corrects speech disorders in children and adults.'],
+                ],
             ],
             'trener_shakhmat' => [
-                'translations' => ['tj' => 'Мураббии шоҳмот', 'ru' => 'Тренер по шахматам', 'eng' => 'Chess Coach'],
-                'description'  => "Таълими шоҳмот барои кӯдакон ва калонсолон\nОбучение шахматам для детей и взрослых\nChess lessons for children and adults",
+                'translations' => [
+                    'tj'  => ['title' => 'Мураббии шоҳмот', 'description' => 'Бозии шоҳматро таълим медиҳад ва барои мусобиқаҳо омода мекунад.'],
+                    'ru'  => ['title' => 'Тренер по шахматам', 'description' => 'Обучает игре в шахматы и готовит к турнирам.'],
+                    'eng' => ['title' => 'Chess Coach', 'description' => 'Teaches chess and prepares players for tournaments.'],
+                ],
             ],
 
             // ── Авто ─────────────────────────────────────────────────────
             'avtomehanik' => [
-                'translations' => ['tj' => 'Автомеханик', 'ru' => 'Автомеханик', 'eng' => 'Car Mechanic'],
-                'description'  => "Таъмири автомобил\nРемонт автомобилей\nCar repair",
+                'translations' => [
+                    'tj'  => ['title' => 'Автомеханик', 'description' => 'Муҳаррик, қисми ҳаракат ва узвҳои мошинро ташхис ва таъмир мекунад.'],
+                    'ru'  => ['title' => 'Автомеханик', 'description' => 'Диагностирует и ремонтирует двигатель, ходовую часть и узлы автомобиля.'],
+                    'eng' => ['title' => 'Car Mechanic', 'description' => 'Diagnoses and repairs engine, suspension and other car parts.'],
+                ],
             ],
             'avtoelektrik' => [
-                'translations' => ['tj' => 'Автобарқкаш', 'ru' => 'Автоэлектрик', 'eng' => 'Auto Electrician'],
-                'description'  => "Ташхис ва таъмири барқи автомобил\nДиагностика и ремонт автомобильной электрики\nCar electrical diagnostics and repair",
+                'translations' => [
+                    'tj'  => ['title' => 'Автобарқкаш', 'description' => 'Хароботии барқи мошинро муайян ва бартараф мекунад.'],
+                    'ru'  => ['title' => 'Автоэлектрик', 'description' => 'Находит и устраняет неисправности в электрике автомобиля.'],
+                    'eng' => ['title' => 'Auto Electrician', 'description' => 'Finds and fixes faults in car electrical systems.'],
+                ],
             ],
             'shinomontazhnik' => [
-                'translations' => ['tj' => 'Шиномонтажник', 'ru' => 'Шиномонтажник', 'eng' => 'Tyre Fitter'],
-                'description'  => "Иваз ва мувозинати чархҳо\nЗамена и балансировка колёс\nTyre change and wheel balancing",
+                'translations' => [
+                    'tj'  => ['title' => 'Шиномонтажник', 'description' => 'Чарх ва дискҳои мошинро иваз ва мувозинат мекунад.'],
+                    'ru'  => ['title' => 'Шиномонтажник', 'description' => 'Меняет и балансирует автомобильные шины и диски.'],
+                    'eng' => ['title' => 'Tyre Fitter', 'description' => 'Replaces and balances car tyres and wheels.'],
+                ],
             ],
             'avtomoyshik' => [
-                'translations' => ['tj' => 'Автошӯянда', 'ru' => 'Мойщик автомобилей', 'eng' => 'Car Washer'],
-                'description'  => "Шустушӯи автомобил дар хона\nМойка автомобиля с выездом на дом\nMobile car washing service",
+                'translations' => [
+                    'tj'  => ['title' => 'Автошӯянда', 'description' => 'Мошинро аз берун ва дарун мешӯяд, аз ҷумла бо ташриф ба ҷои муштарӣ.'],
+                    'ru'  => ['title' => 'Мойщик автомобилей', 'description' => 'Моет автомобиль снаружи и внутри, в том числе с выездом.'],
+                    'eng' => ['title' => 'Car Washer', 'description' => 'Washes cars inside and out, including mobile on-site service.'],
+                ],
             ],
 
             // ── Дизайн ───────────────────────────────────────────────────
             'grafik_dizayner' => [
-                'translations' => ['tj' => 'Дизайнери графикӣ', 'ru' => 'Графический дизайнер', 'eng' => 'Graphic Designer'],
-                'description'  => "Дизайни графикӣ\nГрафический дизайн\nGraphic design",
+                'translations' => [
+                    'tj'  => ['title' => 'Дизайнери графикӣ', 'description' => 'Лого, баннер ва макетҳои рекламиро эҷод мекунад.'],
+                    'ru'  => ['title' => 'Графический дизайнер', 'description' => 'Создаёт логотипы, баннеры и рекламные макеты.'],
+                    'eng' => ['title' => 'Graphic Designer', 'description' => 'Creates logos, banners and advertising layouts.'],
+                ],
             ],
             'veb_dizayner' => [
-                'translations' => ['tj' => 'Дизайнери веб', 'ru' => 'Веб-дизайнер', 'eng' => 'Web Designer'],
-                'description'  => "Дизайни веб-сайтҳо\nДизайн веб-сайтов\nWeb design",
+                'translations' => [
+                    'tj'  => ['title' => 'Дизайнери веб', 'description' => 'Дизайни сомона ва интерфейси барномаҳои мобилиро таҳия мекунад.'],
+                    'ru'  => ['title' => 'Веб-дизайнер', 'description' => 'Разрабатывает дизайн сайтов и мобильных интерфейсов.'],
+                    'eng' => ['title' => 'Web Designer', 'description' => 'Designs websites and mobile app interfaces.'],
+                ],
             ],
             'interior_dizayner' => [
-                'translations' => ['tj' => 'Дизайнери дохилӣ', 'ru' => 'Дизайнер интерьера', 'eng' => 'Interior Designer'],
-                'description'  => "Лоиҳакашии дизайни дохилии хона\nПроектирование дизайна интерьера\nInterior design planning",
+                'translations' => [
+                    'tj'  => ['title' => 'Дизайнери дохилӣ', 'description' => 'Дизайни дохилии манзил, хона ва идораҳоро лоиҳакашӣ мекунад.'],
+                    'ru'  => ['title' => 'Дизайнер интерьера', 'description' => 'Проектирует дизайн интерьера квартир, домов и офисов.'],
+                    'eng' => ['title' => 'Interior Designer', 'description' => 'Designs interiors for apartments, houses and offices.'],
+                ],
             ],
             'illustrator' => [
-                'translations' => ['tj' => 'Тасвиргар', 'ru' => 'Иллюстратор', 'eng' => 'Illustrator'],
-                'description'  => "Расмкашии дигиталӣ ва дастӣ\nЦифровая и ручная иллюстрация\nDigital and hand-drawn illustration",
+                'translations' => [
+                    'tj'  => ['title' => 'Тасвиргар', 'description' => 'Барои китоб, бренд ва реклама расм мекашад.'],
+                    'ru'  => ['title' => 'Иллюстратор', 'description' => 'Рисует иллюстрации для книг, брендов и рекламы.'],
+                    'eng' => ['title' => 'Illustrator', 'description' => 'Draws illustrations for books, brands and advertising.'],
+                ],
             ],
             'modelyer' => [
-                'translations' => ['tj' => 'Дӯзандаи либос', 'ru' => 'Модельер', 'eng' => 'Fashion Designer'],
-                'description'  => "Тарроҳӣ ва дӯхтани либоси фармоишӣ\nПроектирование и пошив одежды на заказ\nCustom clothing design and tailoring",
+                'translations' => [
+                    'tj'  => ['title' => 'Дӯзандаи либос', 'description' => 'Тарҳи либосро таҳия карда, онро бо фармоиш медӯзад.'],
+                    'ru'  => ['title' => 'Модельер', 'description' => 'Разрабатывает модели и шьёт одежду на заказ.'],
+                    'eng' => ['title' => 'Fashion Designer', 'description' => 'Designs and sews custom-made clothing.'],
+                ],
             ],
 
             // ── Юридические услуги ───────────────────────────────────────
             'yurist' => [
-                'translations' => ['tj' => 'Ҳуқуқшинос', 'ru' => 'Юрист', 'eng' => 'Lawyer'],
-                'description'  => "Машваратҳои ҳуқуқӣ\nЮридические консультации\nLegal consultations",
+                'translations' => [
+                    'tj'  => ['title' => 'Ҳуқуқшинос', 'description' => 'Оид ба масъалаҳои ҳуқуқӣ машварат медиҳад ва ҳуҷҷат тартиб медиҳад.'],
+                    'ru'  => ['title' => 'Юрист', 'description' => 'Консультирует по правовым вопросам и составляет документы.'],
+                    'eng' => ['title' => 'Lawyer', 'description' => 'Advises on legal matters and drafts documents.'],
+                ],
             ],
             'advokat' => [
-                'translations' => ['tj' => 'Адвокат', 'ru' => 'Адвокат', 'eng' => 'Advocate'],
-                'description'  => "Ҳимоя дар суд\nПредставительство и защита в суде\nCourt representation and defence",
+                'translations' => [
+                    'tj'  => ['title' => 'Адвокат', 'description' => 'Манфиати мизоҷро дар суд намояндагӣ ва ҳимоя мекунад.'],
+                    'ru'  => ['title' => 'Адвокат', 'description' => 'Представляет и защищает интересы клиента в суде.'],
+                    'eng' => ['title' => 'Advocate', 'description' => "Represents and defends the client's interests in court."],
+                ],
             ],
             'nalogovy_konsultant' => [
-                'translations' => ['tj' => 'Мушовири андоз', 'ru' => 'Налоговый консультант', 'eng' => 'Tax Consultant'],
-                'description'  => "Машварат оид ба масъалаҳои андоз\nКонсультации по налоговым вопросам\nTax-related consulting",
+                'translations' => [
+                    'tj'  => ['title' => 'Мушовири андоз', 'description' => 'Оид ба ҳисоботи андоз ва беҳинасозии андоз машварат медиҳад.'],
+                    'ru'  => ['title' => 'Налоговый консультант', 'description' => 'Консультирует по налоговой отчётности и оптимизации налогов.'],
+                    'eng' => ['title' => 'Tax Consultant', 'description' => 'Advises on tax reporting and tax optimisation.'],
+                ],
             ],
 
             // ── Бухгалтерия ──────────────────────────────────────────────
             'buhgalter' => [
-                'translations' => ['tj' => 'Ҳисобдор', 'ru' => 'Бухгалтер', 'eng' => 'Accountant'],
-                'description'  => "Ҳисобдорӣ\nБухгалтерия\nAccounting",
+                'translations' => [
+                    'tj'  => ['title' => 'Ҳисобдор', 'description' => 'Баҳисобгирии бухгалтериро пеш мебарад ва ҳисоботи молиявӣ тайёр мекунад.'],
+                    'ru'  => ['title' => 'Бухгалтер', 'description' => 'Ведёт бухгалтерский учёт и готовит финансовую отчётность.'],
+                    'eng' => ['title' => 'Accountant', 'description' => 'Maintains bookkeeping and prepares financial statements.'],
+                ],
             ],
             'auditor' => [
-                'translations' => ['tj' => 'Аудитор', 'ru' => 'Аудитор', 'eng' => 'Auditor'],
-                'description'  => "Санҷиши ҳисоботи молиявӣ\nПроверка финансовой отчётности\nFinancial statement auditing",
+                'translations' => [
+                    'tj'  => ['title' => 'Аудитор', 'description' => 'Ҳисоботи молиявии ширкатро аз рӯи мутобиқат бо талабот месанҷад.'],
+                    'ru'  => ['title' => 'Аудитор', 'description' => 'Проверяет финансовую отчётность компании на соответствие требованиям.'],
+                    'eng' => ['title' => 'Auditor', 'description' => "Checks a company's financial statements for compliance."],
+                ],
             ],
             'kadrovik' => [
-                'translations' => ['tj' => 'Мутахассиси кадрҳо', 'ru' => 'Специалист по кадрам', 'eng' => 'HR Specialist'],
-                'description'  => "Идоракунии ҳуҷҷатҳои кадрӣ\nВедение кадрового делопроизводства\nHR records and personnel administration",
+                'translations' => [
+                    'tj'  => ['title' => 'Мутахассиси кадрҳо', 'description' => 'Коргузории кадриро пеш бурда, кормандонро ба кор мегирад.'],
+                    'ru'  => ['title' => 'Специалист по кадрам', 'description' => 'Ведёт кадровое делопроизводство и оформляет сотрудников.'],
+                    'eng' => ['title' => 'HR Specialist', 'description' => 'Manages HR records and handles employee onboarding.'],
+                ],
             ],
 
             // ── Фото и видео ─────────────────────────────────────────────
             'fotograf' => [
-                'translations' => ['tj' => 'Аксбардор', 'ru' => 'Фотограф', 'eng' => 'Photographer'],
-                'description'  => "Аксбардорӣ\nФотография\nPhotography",
+                'translations' => [
+                    'tj'  => ['title' => 'Аксбардор', 'description' => 'Дар чорабиниҳо акс мегирад, портрет ва аксбардории предметиро иҷро мекунад.'],
+                    'ru'  => ['title' => 'Фотограф', 'description' => 'Снимает фотографии на мероприятиях, портреты и предметную съёмку.'],
+                    'eng' => ['title' => 'Photographer', 'description' => 'Shoots event photography, portraits and product photos.'],
+                ],
             ],
             'videograf' => [
-                'translations' => ['tj' => 'Видеограф', 'ru' => 'Видеограф', 'eng' => 'Videographer'],
-                'description'  => "Видеогирӣ\nВидеосъёмка\nVideography",
+                'translations' => [
+                    'tj'  => ['title' => 'Видеограф', 'description' => 'Видеои чорабинӣ, клип ва роликҳои рекламиро мегирад.'],
+                    'ru'  => ['title' => 'Видеограф', 'description' => 'Снимает видео мероприятий, клипов и рекламных роликов.'],
+                    'eng' => ['title' => 'Videographer', 'description' => 'Films events, music videos and advertising clips.'],
+                ],
             ],
             'montazher_video' => [
-                'translations' => ['tj' => 'Монтажёри видео', 'ru' => 'Видеомонтажёр', 'eng' => 'Video Editor'],
-                'description'  => "Монтаж ва коркарди видео\nМонтаж и обработка видеоматериала\nVideo editing and post-production",
+                'translations' => [
+                    'tj'  => ['title' => 'Монтажёри видео', 'description' => 'Маводи видеоии гирифташударо монтаж ва коркард мекунад.'],
+                    'ru'  => ['title' => 'Видеомонтажёр', 'description' => 'Монтирует и обрабатывает отснятый видеоматериал.'],
+                    'eng' => ['title' => 'Video Editor', 'description' => 'Edits and processes recorded video footage.'],
+                ],
             ],
             'retusher' => [
-                'translations' => ['tj' => 'Ретушгар', 'ru' => 'Ретушёр', 'eng' => 'Photo Retoucher'],
-                'description'  => "Коркарди дигиталии аксҳо\nЦифровая обработка фотографий\nDigital photo retouching",
+                'translations' => [
+                    'tj'  => ['title' => 'Ретушгар', 'description' => 'Аксҳоро дар муҳаррирони графикӣ коркард ва беҳтар мекунад.'],
+                    'ru'  => ['title' => 'Ретушёр', 'description' => 'Обрабатывает и улучшает фотографии в графических редакторах.'],
+                    'eng' => ['title' => 'Photo Retoucher', 'description' => 'Edits and enhances photos using graphic editing software.'],
+                ],
             ],
 
             // ── Медицина ─────────────────────────────────────────────────
             'vrach' => [
-                'translations' => ['tj' => 'Духтур', 'ru' => 'Врач', 'eng' => 'Doctor'],
-                'description'  => "Хизматҳои тиббӣ\nМедицинские услуги\nMedical services",
+                'translations' => [
+                    'tj'  => ['title' => 'Духтур', 'description' => 'Беморонро аз рӯи ихтисоси худ машварат ва табобат мекунад.'],
+                    'ru'  => ['title' => 'Врач', 'description' => 'Консультирует и лечит пациентов по своему профилю.'],
+                    'eng' => ['title' => 'Doctor', 'description' => 'Consults and treats patients within their medical specialty.'],
+                ],
             ],
             'medsestra' => [
-                'translations' => ['tj' => 'Ҳамшираи тиббӣ', 'ru' => 'Медсестра', 'eng' => 'Nurse'],
-                'description'  => "Ёрии тиббӣ\nМедицинская помощь\nNursing care",
+                'translations' => [
+                    'tj'  => ['title' => 'Ҳамшираи тиббӣ', 'description' => 'Расмиёти тиббӣ ва нигоҳубини бемор дар хонаро иҷро мекунад.'],
+                    'ru'  => ['title' => 'Медсестра', 'description' => 'Выполняет медицинские процедуры и уход за пациентом на дому.'],
+                    'eng' => ['title' => 'Nurse', 'description' => 'Performs medical procedures and patient care at home.'],
+                ],
             ],
             'stomatolog' => [
-                'translations' => ['tj' => 'Дандонпизишк', 'ru' => 'Стоматолог', 'eng' => 'Dentist'],
-                'description'  => "Табобат ва нигоҳубини дандон\nЛечение и уход за зубами\nDental treatment and care",
+                'translations' => [
+                    'tj'  => ['title' => 'Дандонпизишк', 'description' => 'Дандонҳоро табобат ва протез мекунад.'],
+                    'ru'  => ['title' => 'Стоматолог', 'description' => 'Лечит и протезирует зубы.'],
+                    'eng' => ['title' => 'Dentist', 'description' => 'Treats teeth and provides dental prosthetics.'],
+                ],
             ],
             'farmatsevt' => [
-                'translations' => ['tj' => 'Дорусоз', 'ru' => 'Фармацевт', 'eng' => 'Pharmacist'],
-                'description'  => "Машварат оид ба доруворӣ\nКонсультации по лекарственным препаратам\nMedication consulting",
+                'translations' => [
+                    'tj'  => ['title' => 'Дорусоз', 'description' => 'Доруворро интихоб карда, оид ба истифодаи он машварат медиҳад.'],
+                    'ru'  => ['title' => 'Фармацевт', 'description' => 'Подбирает и консультирует по применению лекарственных препаратов.'],
+                    'eng' => ['title' => 'Pharmacist', 'description' => 'Selects medications and advises on their proper use.'],
+                ],
             ],
 
             // ── Фитнес ───────────────────────────────────────────────────
             'personal_trainer' => [
-                'translations' => ['tj' => 'Мураббии шахсӣ', 'ru' => 'Персональный тренер', 'eng' => 'Personal Trainer'],
-                'description'  => "Машқҳои варзишӣ\nФитнес-тренировки\nFitness training",
+                'translations' => [
+                    'tj'  => ['title' => 'Мураббии шахсӣ', 'description' => 'Барномаи машқро тартиб дода, бо мизоҷ ба таври инфиродӣ кор мекунад.'],
+                    'ru'  => ['title' => 'Персональный тренер', 'description' => 'Составляет программу тренировок и занимается индивидуально с клиентом.'],
+                    'eng' => ['title' => 'Personal Trainer', 'description' => 'Designs a training programme and coaches clients one-on-one.'],
+                ],
             ],
             'yoga_instruktor' => [
-                'translations' => ['tj' => 'Омӯзгори йога', 'ru' => 'Инструктор йоги', 'eng' => 'Yoga Instructor'],
-                'description'  => "Дарсҳои йога барои ҳама сатҳҳо\nЗанятия йогой для всех уровней\nYoga classes for all levels",
+                'translations' => [
+                    'tj'  => ['title' => 'Омӯзгори йога', 'description' => 'Барои ҳар сатҳи омодагӣ дарсҳои йога мегузаронад.'],
+                    'ru'  => ['title' => 'Инструктор йоги', 'description' => 'Проводит занятия йогой для любого уровня подготовки.'],
+                    'eng' => ['title' => 'Yoga Instructor', 'description' => 'Runs yoga classes for any level of experience.'],
+                ],
             ],
             'trener_plavaniya' => [
-                'translations' => ['tj' => 'Мураббии шиноварӣ', 'ru' => 'Тренер по плаванию', 'eng' => 'Swimming Coach'],
-                'description'  => "Таълими шиноварӣ барои кӯдакон ва калонсолон\nОбучение плаванию для детей и взрослых\nSwimming lessons for children and adults",
+                'translations' => [
+                    'tj'  => ['title' => 'Мураббии шиноварӣ', 'description' => 'Кӯдакон ва калонсолонро дар ҳар сатҳ ба шиноварӣ таълим медиҳад.'],
+                    'ru'  => ['title' => 'Тренер по плаванию', 'description' => 'Обучает плаванию детей и взрослых любого уровня.'],
+                    'eng' => ['title' => 'Swimming Coach', 'description' => 'Teaches swimming to children and adults of any level.'],
+                ],
             ],
             'dietolog' => [
-                'translations' => ['tj' => 'Диетолог', 'ru' => 'Диетолог', 'eng' => 'Nutritionist'],
-                'description'  => "Тартиб додани реҷаи ғизо\nСоставление плана питания\nMeal and nutrition planning",
+                'translations' => [
+                    'tj'  => ['title' => 'Диетолог', 'description' => 'Барои ҳадафҳои мизоҷ реҷаи ғизои инфиродӣ тартиб медиҳад.'],
+                    'ru'  => ['title' => 'Диетолог', 'description' => 'Составляет индивидуальный план питания под цели клиента.'],
+                    'eng' => ['title' => 'Nutritionist', 'description' => "Creates a personalised nutrition plan for the client's goals."],
+                ],
             ],
 
             // ── Мероприятия ──────────────────────────────────────────────
             'event_manager' => [
-                'translations' => ['tj' => 'Ташкилотчии чорабинӣ', 'ru' => 'Ивент-менеджер', 'eng' => 'Event Manager'],
-                'description'  => "Ташкили чорабиниҳо\nОрганизация мероприятий\nEvent planning",
+                'translations' => [
+                    'tj'  => ['title' => 'Ташкилотчии чорабинӣ', 'description' => 'Ҷашну чорабиниҳоро аз оғоз то анҷом ташкил мекунад.'],
+                    'ru'  => ['title' => 'Ивент-менеджер', 'description' => 'Организует праздники и мероприятия под ключ.'],
+                    'eng' => ['title' => 'Event Manager', 'description' => 'Organises celebrations and events from start to finish.'],
+                ],
             ],
             'toastmaster' => [
-                'translations' => ['tj' => 'Тамада', 'ru' => 'Тамада', 'eng' => 'Toastmaster'],
-                'description'  => "Идораи тӯйхонаҳо\nВедение торжеств\nWedding host",
+                'translations' => [
+                    'tj'  => ['title' => 'Тамада', 'description' => 'Тӯй, солгард ва дигар маросимҳоро идора мекунад.'],
+                    'ru'  => ['title' => 'Тамада', 'description' => 'Ведёт свадьбы, юбилеи и другие торжества.'],
+                    'eng' => ['title' => 'Toastmaster', 'description' => 'Hosts weddings, anniversaries and other celebrations.'],
+                ],
             ],
             'dj' => [
-                'translations' => ['tj' => 'Диҷей', 'ru' => 'Диджей', 'eng' => 'DJ'],
-                'description'  => "Пахши мусиқӣ дар чорабиниҳо\nМузыкальное сопровождение мероприятий\nMusic entertainment for events",
+                'translations' => [
+                    'tj'  => ['title' => 'Диҷей', 'description' => 'Ҳамроҳии мусиқии чорабиниҳоро таъмин мекунад.'],
+                    'ru'  => ['title' => 'Диджей', 'description' => 'Обеспечивает музыкальное сопровождение мероприятий.'],
+                    'eng' => ['title' => 'DJ', 'description' => 'Provides musical entertainment for events.'],
+                ],
             ],
             'dekorator' => [
-                'translations' => ['tj' => 'Ороишгари чорабинӣ', 'ru' => 'Декоратор мероприятий', 'eng' => 'Event Decorator'],
-                'description'  => "Ороиши толор ва чорабинӣ\nОформление зала и мероприятий\nVenue and event decoration",
+                'translations' => [
+                    'tj'  => ['title' => 'Ороишгари чорабинӣ', 'description' => 'Толор ва фазои маросимро бо ороиш ва тӯб ороиш медиҳад.'],
+                    'ru'  => ['title' => 'Декоратор мероприятий', 'description' => 'Оформляет зал и пространство для торжеств декором и шарами.'],
+                    'eng' => ['title' => 'Event Decorator', 'description' => 'Decorates event venues and spaces with décor and balloons.'],
+                ],
             ],
             'animator' => [
-                'translations' => ['tj' => 'Аниматори кӯдакон', 'ru' => 'Детский аниматор', 'eng' => "Children's Entertainer"],
-                'description'  => "Бозиву чорабинӣ барои кӯдакон\nИгровые программы для детей\nEntertainment programmes for children",
+                'translations' => [
+                    'tj'  => ['title' => 'Аниматори кӯдакон', 'description' => 'Дар ҷашнҳо барномаҳои бозигарӣ барои кӯдакон мегузаронад.'],
+                    'ru'  => ['title' => 'Детский аниматор', 'description' => 'Проводит игровые программы для детей на праздниках.'],
+                    'eng' => ['title' => "Children's Entertainer", 'description' => 'Runs game and play programmes for children at parties.'],
+                ],
             ],
 
             // ── Охрана и безопасность ────────────────────────────────────
             'ohrannik' => [
-                'translations' => ['tj' => 'Посбон', 'ru' => 'Охранник', 'eng' => 'Security Guard'],
-                'description'  => "Хизмати посбонӣ\nОхранные услуги\nSecurity services",
+                'translations' => [
+                    'tj'  => ['title' => 'Посбон', 'description' => 'Муҳофизати объект ва назорати воридшавиро таъмин мекунад.'],
+                    'ru'  => ['title' => 'Охранник', 'description' => 'Обеспечивает охрану объекта и контроль доступа.'],
+                    'eng' => ['title' => 'Security Guard', 'description' => 'Provides site security and access control.'],
+                ],
             ],
             'telohranitel' => [
-                'translations' => ['tj' => 'Мӯҳофиз', 'ru' => 'Телохранитель', 'eng' => 'Bodyguard'],
-                'description'  => "Ҳимояи шахсии мизоҷ\nЛичная охрана клиента\nPersonal client protection",
+                'translations' => [
+                    'tj'  => ['title' => 'Мӯҳофиз', 'description' => 'Бехатарии ҷисмонии шахсии мизоҷро таъмин мекунад.'],
+                    'ru'  => ['title' => 'Телохранитель', 'description' => 'Обеспечивает личную физическую безопасность клиента.'],
+                    'eng' => ['title' => 'Bodyguard', 'description' => 'Provides personal physical protection for the client.'],
+                ],
             ],
             'montazhnik_signalizacii' => [
-                'translations' => ['tj' => 'Насбкунандаи сигнализатсия', 'ru' => 'Монтажник сигнализации', 'eng' => 'Alarm and CCTV Installer'],
-                'description'  => "Насби сигнализатсия ва камераҳои назорат\nУстановка сигнализации и камер видеонаблюдения\nAlarm and CCTV camera installation",
+                'translations' => [
+                    'tj'  => ['title' => 'Насбкунандаи сигнализатсия', 'description' => 'Сигнализатсия ва камераҳои назоратро насб мекунад.'],
+                    'ru'  => ['title' => 'Монтажник сигнализации', 'description' => 'Устанавливает сигнализацию и камеры видеонаблюдения.'],
+                    'eng' => ['title' => 'Alarm and CCTV Installer', 'description' => 'Installs alarm systems and CCTV cameras.'],
+                ],
             ],
             'master_zamkov' => [
-                'translations' => ['tj' => 'Қулфсоз', 'ru' => 'Мастер по замкам', 'eng' => 'Locksmith'],
-                'description'  => "Кушодан ва иваз кардани қулфҳо\nВскрытие и замена замков\nLock opening and replacement",
+                'translations' => [
+                    'tj'  => ['title' => 'Қулфсоз', 'description' => 'Қулфи дарро мекушояд, насб мекунад ва иваз мекунад.'],
+                    'ru'  => ['title' => 'Мастер по замкам', 'description' => 'Вскрывает, устанавливает и меняет дверные замки.'],
+                    'eng' => ['title' => 'Locksmith', 'description' => 'Opens, installs and replaces door locks.'],
+                ],
             ],
 
             // ── Уход за животными ────────────────────────────────────────
             'veterinar' => [
-                'translations' => ['tj' => 'Ветеринар', 'ru' => 'Ветеринар', 'eng' => 'Veterinarian'],
-                'description'  => "Табобати ҳайвонот\nВетеринарная помощь\nVeterinary care",
+                'translations' => [
+                    'tj'  => ['title' => 'Ветеринар', 'description' => 'Ҳайвоноти хонагиро муоина ва табобат мекунад ва машварат медиҳад.'],
+                    'ru'  => ['title' => 'Ветеринар', 'description' => 'Осматривает, лечит и консультирует по здоровью домашних животных.'],
+                    'eng' => ['title' => 'Veterinarian', 'description' => 'Examines, treats and advises on the health of pets.'],
+                ],
             ],
             'groomer' => [
-                'translations' => ['tj' => 'Грумер', 'ru' => 'Грумер', 'eng' => 'Groomer'],
-                'description'  => "Нигоҳубини ҳайвонот\nУход за животными\nPet grooming",
+                'translations' => [
+                    'tj'  => ['title' => 'Грумер', 'description' => 'Мӯйи ҳайвоноти хонагиро сартарошӣ ва тартиб медиҳад.'],
+                    'ru'  => ['title' => 'Грумер', 'description' => 'Стрижёт и приводит в порядок шерсть домашних животных.'],
+                    'eng' => ['title' => 'Groomer', 'description' => "Trims and grooms pets' fur and coat."],
+                ],
             ],
             'dog_trainer' => [
-                'translations' => ['tj' => 'Мураббии саг', 'ru' => 'Кинолог', 'eng' => 'Dog Trainer'],
-                'description'  => "Тарбия ва омӯзиши сагҳо\nДрессировка и воспитание собак\nDog training and behaviour correction",
+                'translations' => [
+                    'tj'  => ['title' => 'Мураббии саг', 'description' => 'Сагҳоро тарбия мекунад ва мушкилоти рафториро ислоҳ мекунад.'],
+                    'ru'  => ['title' => 'Кинолог', 'description' => 'Дрессирует собак и исправляет поведенческие проблемы.'],
+                    'eng' => ['title' => 'Dog Trainer', 'description' => 'Trains dogs and corrects behavioural issues.'],
+                ],
             ],
             'petsitter' => [
-                'translations' => ['tj' => 'Нигоҳубини ҳайвонот', 'ru' => 'Петситтер', 'eng' => 'Pet Sitter'],
-                'description'  => "Нигоҳубин ва гардиши ҳайвонот дар вақти набудани соҳиб\nПрисмотр и выгул животных в отсутствие хозяина\nPet sitting and walking while owner is away",
+                'translations' => [
+                    'tj'  => ['title' => 'Нигоҳубини ҳайвонот', 'description' => 'Дар набудани соҳиб ба ҳайвони хонагӣ нигоҳубин ва гардиш мекунад.'],
+                    'ru'  => ['title' => 'Петситтер', 'description' => 'Присматривает за питомцем и выгуливает его в отсутствие хозяина.'],
+                    'eng' => ['title' => 'Pet Sitter', 'description' => 'Looks after and walks a pet while the owner is away.'],
+                ],
             ],
 
             // ── Ремонт бытовой техники (новая категория) ──────────────────
             'master_holodilnikov' => [
-                'translations' => ['tj' => 'Устои яхдон', 'ru' => 'Мастер по ремонту холодильников', 'eng' => 'Refrigerator Repair Technician'],
-                'description'  => "Таъмири яхдон ва фризер\nРемонт холодильников и морозильных камер\nRefrigerator and freezer repair",
+                'translations' => [
+                    'tj'  => ['title' => 'Устои яхдон', 'description' => 'Яхдон ва фризерро дар хона таъмир мекунад.'],
+                    'ru'  => ['title' => 'Мастер по ремонту холодильников', 'description' => 'Ремонтирует холодильники и морозильные камеры на дому.'],
+                    'eng' => ['title' => 'Refrigerator Repair Technician', 'description' => 'Repairs refrigerators and freezers at home.'],
+                ],
             ],
             'master_stiralnyh_mashin' => [
-                'translations' => ['tj' => 'Устои мошини либосшӯӣ', 'ru' => 'Мастер по ремонту стиральных машин', 'eng' => 'Washing Machine Repair Technician'],
-                'description'  => "Таъмири мошини либосшӯӣ\nРемонт стиральных машин\nWashing machine repair",
+                'translations' => [
+                    'tj'  => ['title' => 'Устои мошини либосшӯӣ', 'description' => 'Мошини либосшӯии ҳар маркаро таъмир мекунад.'],
+                    'ru'  => ['title' => 'Мастер по ремонту стиральных машин', 'description' => 'Ремонтирует стиральные машины любых марок.'],
+                    'eng' => ['title' => 'Washing Machine Repair Technician', 'description' => 'Repairs washing machines of any brand.'],
+                ],
             ],
             'master_konditsionerov' => [
-                'translations' => ['tj' => 'Устои кондитсионер', 'ru' => 'Мастер по ремонту кондиционеров', 'eng' => 'Air Conditioner Repair Technician'],
-                'description'  => "Насб, тозакунӣ ва таъмири кондитсионер\nУстановка, чистка и ремонт кондиционеров\nAC installation, cleaning and repair",
+                'translations' => [
+                    'tj'  => ['title' => 'Устои кондитсионер', 'description' => 'Кондитсионерро насб, тоза ва таъмир мекунад.'],
+                    'ru'  => ['title' => 'Мастер по ремонту кондиционеров', 'description' => 'Устанавливает, чистит и ремонтирует кондиционеры.'],
+                    'eng' => ['title' => 'Air Conditioner Repair Technician', 'description' => 'Installs, cleans and repairs air conditioners.'],
+                ],
             ],
             'master_televizorov' => [
-                'translations' => ['tj' => 'Устои телевизор', 'ru' => 'Мастер по ремонту телевизоров', 'eng' => 'TV Repair Technician'],
-                'description'  => "Таъмири телевизор ва техникаи рӯзгор\nРемонт телевизоров и бытовой техники\nTV and home appliance repair",
+                'translations' => [
+                    'tj'  => ['title' => 'Устои телевизор', 'description' => 'Телевизор ва дигар электроникаи рӯзғорро таъмир мекунад.'],
+                    'ru'  => ['title' => 'Мастер по ремонту телевизоров', 'description' => 'Ремонтирует телевизоры и другую бытовую электронику.'],
+                    'eng' => ['title' => 'TV Repair Technician', 'description' => 'Repairs TVs and other household electronics.'],
+                ],
             ],
 
             // ── Мебель (новая категория) ───────────────────────────────────
             'sborshik_mebeli' => [
-                'translations' => ['tj' => 'Ҷамъкунандаи мебел', 'ru' => 'Сборщик мебели', 'eng' => 'Furniture Assembler'],
-                'description'  => "Ҷамъоварии мебели нав\nСборка новой мебели\nNew furniture assembly",
+                'translations' => [
+                    'tj'  => ['title' => 'Ҷамъкунандаи мебел', 'description' => 'Мебели навро мувофиқи дастури истеҳсолкунанда ҷамъоварӣ мекунад.'],
+                    'ru'  => ['title' => 'Сборщик мебели', 'description' => "Собирает новую мебель по инструкции производителя."],
+                    'eng' => ['title' => 'Furniture Assembler', 'description' => "Assembles new furniture according to the manufacturer's instructions."],
+                ],
             ],
             'obivshik_mebeli' => [
-                'translations' => ['tj' => 'Рӯйпӯшкунандаи мебел', 'ru' => 'Обивщик мебели', 'eng' => 'Furniture Upholsterer'],
-                'description'  => "Иваз кардани матои курсиву диван\nПеретяжка мягкой мебели\nFurniture reupholstering",
+                'translations' => [
+                    'tj'  => ['title' => 'Рӯйпӯшкунандаи мебел', 'description' => 'Рӯйпӯши мебели мулоимро иваз ва нав мекунад.'],
+                    'ru'  => ['title' => 'Обивщик мебели', 'description' => 'Перетягивает и обновляет обивку мягкой мебели.'],
+                    'eng' => ['title' => 'Furniture Upholsterer', 'description' => 'Reupholsters and refreshes soft furniture covers.'],
+                ],
             ],
             'stolyar' => [
-                'translations' => ['tj' => 'Дуредгар', 'ru' => 'Столяр', 'eng' => 'Carpenter'],
-                'description'  => "Кор бо чӯб ва сохтани мебел\nРаботы по дереву и изготовление мебели\nWoodwork and furniture making",
+                'translations' => [
+                    'tj'  => ['title' => 'Дуредгар', 'description' => 'Маснуоти чӯбӣ ва мебели фармоишӣ месозад.'],
+                    'ru'  => ['title' => 'Столяр', 'description' => 'Изготавливает изделия из дерева и мебель на заказ.'],
+                    'eng' => ['title' => 'Carpenter', 'description' => 'Makes wooden items and custom furniture.'],
+                ],
             ],
             'mebelshik_na_zakaz' => [
-                'translations' => ['tj' => 'Мебелсози фармоишӣ', 'ru' => 'Мебельщик на заказ', 'eng' => 'Custom Furniture Maker'],
-                'description'  => "Сохтани мебели фармоишӣ мувофиқи андоза\nИзготовление мебели на заказ по размерам\nCustom-sized furniture making",
+                'translations' => [
+                    'tj'  => ['title' => 'Мебелсози фармоишӣ', 'description' => 'Мебелро мувофиқи андозаи инфиродӣ лоиҳакашӣ ва месозад.'],
+                    'ru'  => ['title' => 'Мебельщик на заказ', 'description' => 'Проектирует и изготавливает мебель по индивидуальным размерам.'],
+                    'eng' => ['title' => 'Custom Furniture Maker', 'description' => 'Designs and builds furniture to custom sizes.'],
+                ],
             ],
 
             // ── Няни и уход за детьми (новая категория) ────────────────────
             'nyanya' => [
-                'translations' => ['tj' => 'Дояи бача', 'ru' => 'Няня', 'eng' => 'Nanny'],
-                'description'  => "Нигоҳубини кӯдакон дар хона\nПрисмотр за детьми на дому\nIn-home childcare",
+                'translations' => [
+                    'tj'  => ['title' => 'Дояи бача', 'description' => 'Дар хона аз кӯдакон нигоҳубин мекунад ва бо онҳо машғул мешавад.'],
+                    'ru'  => ['title' => 'Няня', 'description' => 'Присматривает за детьми и занимается с ними дома.'],
+                    'eng' => ['title' => 'Nanny', 'description' => 'Looks after children and engages with them at home.'],
+                ],
             ],
             'guvernantka' => [
-                'translations' => ['tj' => 'Гувернантка', 'ru' => 'Гувернантка', 'eng' => 'Governess'],
-                'description'  => "Тарбия ва таълими хонагии кӯдак\nДомашнее воспитание и обучение ребёнка\nHome education and upbringing of a child",
+                'translations' => [
+                    'tj'  => ['title' => 'Гувернантка', 'description' => 'Бо тарбия ва таълими хонагии кӯдак машғул мешавад.'],
+                    'ru'  => ['title' => 'Гувернантка', 'description' => "Занимается домашним воспитанием и обучением ребёнка."],
+                    'eng' => ['title' => 'Governess', 'description' => "Handles a child's home upbringing and education."],
+                ],
             ],
             'detsky_animator' => [
-                'translations' => ['tj' => 'Аниматори бачагона', 'ru' => 'Детский аниматор на праздник', 'eng' => "Children's Party Entertainer"],
-                'description'  => "Барномаи бозигарӣ барои зодрӯзи кӯдакон\nИгровая программа для детских праздников\nEntertainment programme for kids' parties",
+                'translations' => [
+                    'tj'  => ['title' => 'Аниматори бачагона', 'description' => 'Дар ҷашни кӯдакона барномаи фароғатӣ мегузаронад.'],
+                    'ru'  => ['title' => 'Детский аниматор на праздник', 'description' => 'Проводит развлекательную программу на детском празднике.'],
+                    'eng' => ['title' => "Children's Party Entertainer", 'description' => "Runs an entertainment programme at a children's party."],
+                ],
             ],
 
             // ── Швейные услуги (новая категория) ───────────────────────────
             'shvea' => [
-                'translations' => ['tj' => 'Дӯзанда', 'ru' => 'Швея', 'eng' => 'Seamstress'],
-                'description'  => "Дӯхтан ва ислоҳи либос\nПошив и ремонт одежды\nClothing sewing and alteration",
+                'translations' => [
+                    'tj'  => ['title' => 'Дӯзанда', 'description' => 'Либосро бо фармоиши инфиродӣ медӯзад ва ислоҳ мекунад.'],
+                    'ru'  => ['title' => 'Швея', 'description' => 'Шьёт и ремонтирует одежду по индивидуальному заказу.'],
+                    'eng' => ['title' => 'Seamstress', 'description' => 'Sews and alters clothing to individual order.'],
+                ],
             ],
             'zakroyshik' => [
-                'translations' => ['tj' => 'Буришгари либос', 'ru' => 'Закройщик', 'eng' => 'Pattern Cutter'],
-                'description'  => "Буриши матоъ мувофиқи андоза\nРаскрой ткани по индивидуальным меркам\nFabric cutting to custom measurements",
+                'translations' => [
+                    'tj'  => ['title' => 'Буришгари либос', 'description' => 'Пеш аз дӯхтан матоъро мувофиқи андозаи инфиродӣ мебурад.'],
+                    'ru'  => ['title' => 'Закройщик', 'description' => 'Раскраивает ткань по индивидуальным меркам перед пошивом.'],
+                    'eng' => ['title' => 'Pattern Cutter', 'description' => 'Cuts fabric to custom measurements before sewing.'],
+                ],
             ],
             'vyshivalshitsa' => [
-                'translations' => ['tj' => 'Гулдӯз', 'ru' => 'Вышивальщица', 'eng' => 'Embroiderer'],
-                'description'  => "Гулдӯзии дастӣ ва мошинӣ\nРучная и машинная вышивка\nHand and machine embroidery",
+                'translations' => [
+                    'tj'  => ['title' => 'Гулдӯз', 'description' => 'Нақшу навиштаҷотро дар матоъ бо даст ё мошин гулдӯзӣ мекунад.'],
+                    'ru'  => ['title' => 'Вышивальщица', 'description' => 'Вышивает узоры и надписи на ткани вручную или на машине.'],
+                    'eng' => ['title' => 'Embroiderer', 'description' => 'Embroiders patterns and text on fabric by hand or machine.'],
+                ],
             ],
 
             // ── Переводческие услуги (новая категория) ─────────────────────
             'perevodchik_ustny' => [
-                'translations' => ['tj' => 'Тарҷумони шифоҳӣ', 'ru' => 'Устный переводчик', 'eng' => 'Interpreter'],
-                'description'  => "Тарҷумаи шифоҳӣ дар мулоқот ва чорабинӣ\nУстный перевод на встречах и мероприятиях\nInterpreting at meetings and events",
+                'translations' => [
+                    'tj'  => ['title' => 'Тарҷумони шифоҳӣ', 'description' => 'Нутқи шифоҳиро дар мулоқот ва чорабиниҳо тарҷума мекунад.'],
+                    'ru'  => ['title' => 'Устный переводчик', 'description' => 'Переводит устную речь на встречах и мероприятиях.'],
+                    'eng' => ['title' => 'Interpreter', 'description' => 'Interprets spoken language at meetings and events.'],
+                ],
             ],
             'perevodchik_pismenny' => [
-                'translations' => ['tj' => 'Тарҷумони хаттӣ', 'ru' => 'Письменный переводчик', 'eng' => 'Translator'],
-                'description'  => "Тарҷумаи ҳуҷҷат ва матн\nПеревод документов и текстов\nDocument and text translation",
+                'translations' => [
+                    'tj'  => ['title' => 'Тарҷумони хаттӣ', 'description' => 'Ҳуҷҷат ва матнро ба таври хаттӣ тарҷума мекунад.'],
+                    'ru'  => ['title' => 'Письменный переводчик', 'description' => 'Переводит документы и тексты письменно.'],
+                    'eng' => ['title' => 'Translator', 'description' => 'Translates documents and texts in writing.'],
+                ],
             ],
             'gid_perevodchik' => [
-                'translations' => ['tj' => 'Роҳнамо-тарҷумон', 'ru' => 'Гид-переводчик', 'eng' => 'Tour Guide-Interpreter'],
-                'description'  => "Роҳнамоӣ бо тарҷума барои сайёҳон\nСопровождение туристов с переводом\nTranslated tour guiding for visitors",
+                'translations' => [
+                    'tj'  => ['title' => 'Роҳнамо-тарҷумон', 'description' => 'Сайёҳонро дар экскурсияҳо бо тарҷума ҳамроҳӣ мекунад.'],
+                    'ru'  => ['title' => 'Гид-переводчик', 'description' => 'Сопровождает туристов с переводом на экскурсиях.'],
+                    'eng' => ['title' => 'Tour Guide-Interpreter', 'description' => 'Accompanies tourists on guided tours with translation.'],
+                ],
             ],
 
             // ── Кулинария и кейтеринг (новая категория) ────────────────────
             'povar' => [
-                'translations' => ['tj' => 'Ошпаз', 'ru' => 'Повар', 'eng' => 'Cook'],
-                'description'  => "Пухтупази хонагӣ ва фармоишӣ\nДомашняя и заказная готовка\nHome and order-based cooking",
+                'translations' => [
+                    'tj'  => ['title' => 'Ошпаз', 'description' => 'Хӯрокро дар хона, чорабинӣ ё бо фармоиш тайёр мекунад.'],
+                    'ru'  => ['title' => 'Повар', 'description' => 'Готовит блюда дома, на мероприятиях или под заказ.'],
+                    'eng' => ['title' => 'Cook', 'description' => 'Cooks meals at home, for events, or to order.'],
+                ],
             ],
             'konditer' => [
-                'translations' => ['tj' => 'Қаннодгар', 'ru' => 'Кондитер', 'eng' => 'Confectioner'],
-                'description'  => "Пухтани торт ва ширинӣ\nВыпечка тортов и десертов\nCake and dessert baking",
+                'translations' => [
+                    'tj'  => ['title' => 'Қаннодгар', 'description' => 'Бо фармоиш торт ва ширинӣ мепазад.'],
+                    'ru'  => ['title' => 'Кондитер', 'description' => 'Печёт торты и десерты на заказ.'],
+                    'eng' => ['title' => 'Confectioner', 'description' => 'Bakes custom cakes and desserts.'],
+                ],
             ],
             'keytering_specialist' => [
-                'translations' => ['tj' => 'Мутахассиси кейтеринг', 'ru' => 'Специалист кейтеринга', 'eng' => 'Catering Specialist'],
-                'description'  => "Ташкили дастархон барои чорабиниҳо\nОрганизация стола для мероприятий\nEvent catering organisation",
+                'translations' => [
+                    'tj'  => ['title' => 'Мутахассиси кейтеринг', 'description' => 'Дар чорабиниҳо хӯрокворӣ ва хизматрасонии дастархонро ташкил мекунад.'],
+                    'ru'  => ['title' => 'Специалист кейтеринга', 'description' => 'Организует питание и обслуживание стола на мероприятиях.'],
+                    'eng' => ['title' => 'Catering Specialist', 'description' => 'Organises catering and table service for events.'],
+                ],
             ],
             'barista' => [
-                'translations' => ['tj' => 'Бариста', 'ru' => 'Бариста', 'eng' => 'Barista'],
-                'description'  => "Тайёр кардани қаҳва барои чорабиниҳо\nПриготовление кофе для мероприятий\nCoffee service for events",
+                'translations' => [
+                    'tj'  => ['title' => 'Бариста', 'description' => 'Барои меҳмонон ва чорабиниҳо нӯшокиҳои қаҳва тайёр мекунад.'],
+                    'ru'  => ['title' => 'Бариста', 'description' => 'Готовит кофейные напитки для гостей и мероприятий.'],
+                    'eng' => ['title' => 'Barista', 'description' => 'Prepares coffee drinks for guests and events.'],
+                ],
             ],
 
             // ── Недвижимость (новая категория) ─────────────────────────────
             'rieltor' => [
-                'translations' => ['tj' => 'Риэлтор', 'ru' => 'Риэлтор', 'eng' => 'Real Estate Agent'],
-                'description'  => "Хариду фурӯш ва иҷораи манзил\nПокупка, продажа и аренда недвижимости\nProperty sale, purchase and rental",
+                'translations' => [
+                    'tj'  => ['title' => 'Риэлтор', 'description' => 'Дар хариду фурӯш ва иҷораи манзил кӯмак мекунад.'],
+                    'ru'  => ['title' => 'Риэлтор', 'description' => 'Помогает купить, продать или снять недвижимость.'],
+                    'eng' => ['title' => 'Real Estate Agent', 'description' => 'Helps buy, sell or rent real estate.'],
+                ],
             ],
             'otsenshik_nedvizhimosti' => [
-                'translations' => ['tj' => 'Баҳодиҳандаи амволи ғайриманқул', 'ru' => 'Оценщик недвижимости', 'eng' => 'Property Appraiser'],
-                'description'  => "Баҳодиҳии арзиши манзил\nОценка стоимости недвижимости\nProperty value assessment",
+                'translations' => [
+                    'tj'  => ['title' => 'Баҳодиҳандаи амволи ғайриманқул', 'description' => 'Арзиши бозории манзил, хона ва қитъаро баҳо медиҳад.'],
+                    'ru'  => ['title' => 'Оценщик недвижимости', 'description' => 'Оценивает рыночную стоимость квартир, домов и участков.'],
+                    'eng' => ['title' => 'Property Appraiser', 'description' => 'Assesses the market value of flats, houses and land plots.'],
+                ],
             ],
             'upravlyayuschy_nedvizhimostyu' => [
-                'translations' => ['tj' => 'Мудири амволи ғайриманқул', 'ru' => 'Управляющий недвижимостью', 'eng' => 'Property Manager'],
-                'description'  => "Идораи иҷора ва хизматрасонии манзил\nУправление арендой и обслуживанием недвижимости\nRental and property management",
+                'translations' => [
+                    'tj'  => ['title' => 'Мудири амволи ғайриманқул', 'description' => 'Иҷора ва хизматрасонии амволи ғайриманқулро идора мекунад.'],
+                    'ru'  => ['title' => 'Управляющий недвижимостью', 'description' => 'Управляет сдачей в аренду и обслуживанием недвижимости.'],
+                    'eng' => ['title' => 'Property Manager', 'description' => 'Manages the renting out and upkeep of properties.'],
+                ],
             ],
 
             // ── Ландшафт и сад (новая категория) ────────────────────────────
             'sadovnik' => [
-                'translations' => ['tj' => 'Боғбон', 'ru' => 'Садовник', 'eng' => 'Gardener'],
-                'description'  => "Нигоҳубини боғ ва растаниҳо\nУход за садом и растениями\nGarden and plant care",
+                'translations' => [
+                    'tj'  => ['title' => 'Боғбон', 'description' => 'Аз боғ, чаман ва растаниҳои қитъа нигоҳубин мекунад.'],
+                    'ru'  => ['title' => 'Садовник', 'description' => 'Ухаживает за садом, газоном и растениями на участке.'],
+                    'eng' => ['title' => 'Gardener', 'description' => 'Cares for a garden, lawn and plants on the property.'],
+                ],
             ],
             'landshaftny_dizayner' => [
-                'translations' => ['tj' => 'Дизайнери ландшафт', 'ru' => 'Ландшафтный дизайнер', 'eng' => 'Landscape Designer'],
-                'description'  => "Лоиҳакашии ҳудуди берунӣ\nПроектирование благоустройства территории\nOutdoor landscape planning",
+                'translations' => [
+                    'tj'  => ['title' => 'Дизайнери ландшафт', 'description' => 'Ободонӣ ва сабзукунии ҳудудро лоиҳакашӣ мекунад.'],
+                    'ru'  => ['title' => 'Ландшафтный дизайнер', 'description' => 'Проектирует благоустройство и озеленение территории.'],
+                    'eng' => ['title' => 'Landscape Designer', 'description' => 'Designs landscaping and greenery for an outdoor area.'],
+                ],
             ],
             'agronom' => [
-                'translations' => ['tj' => 'Агроном', 'ru' => 'Агроном', 'eng' => 'Agronomist'],
-                'description'  => "Машварат оид ба парвариши растанӣ\nКонсультации по выращиванию растений\nPlant cultivation consulting",
+                'translations' => [
+                    'tj'  => ['title' => 'Агроном', 'description' => 'Оид ба парвариш ва нигоҳубини растаниҳо машварат медиҳад.'],
+                    'ru'  => ['title' => 'Агроном', 'description' => 'Консультирует по выращиванию и уходу за растениями.'],
+                    'eng' => ['title' => 'Agronomist', 'description' => 'Advises on growing and caring for plants.'],
+                ],
             ],
 
             // ── Ремонт компьютеров и телефонов (новая категория) ──────────
             'master_computerov' => [
-                'translations' => ['tj' => 'Устои компютер', 'ru' => 'Мастер по ремонту компьютеров', 'eng' => 'Computer Repair Technician'],
-                'description'  => "Таъмир ва тозакунии компютер\nРемонт и чистка компьютеров и ноутбуков\nComputer and laptop repair and cleaning",
+                'translations' => [
+                    'tj'  => ['title' => 'Устои компютер', 'description' => 'Компютеру ноутбукро ташхис ва таъмир мекунад.'],
+                    'ru'  => ['title' => 'Мастер по ремонту компьютеров', 'description' => 'Диагностирует и ремонтирует компьютеры и ноутбуки.'],
+                    'eng' => ['title' => 'Computer Repair Technician', 'description' => 'Diagnoses and repairs computers and laptops.'],
+                ],
             ],
             'master_telefonov' => [
-                'translations' => ['tj' => 'Устои телефон', 'ru' => 'Мастер по ремонту телефонов', 'eng' => 'Phone Repair Technician'],
-                'description'  => "Таъмири экран, батарея ва дигар қисмҳои телефон\nРемонт экрана, батареи и других деталей телефона\nScreen, battery and component phone repair",
+                'translations' => [
+                    'tj'  => ['title' => 'Устои телефон', 'description' => 'Экран, батарея ва дигар қисмҳои телефонро таъмир мекунад.'],
+                    'ru'  => ['title' => 'Мастер по ремонту телефонов', 'description' => 'Ремонтирует экраны, батареи и другие компоненты телефонов.'],
+                    'eng' => ['title' => 'Phone Repair Technician', 'description' => 'Repairs screens, batteries and other phone components.'],
+                ],
             ],
             'master_planshetov' => [
-                'translations' => ['tj' => 'Устои планшет', 'ru' => 'Мастер по ремонту планшетов', 'eng' => 'Tablet Repair Technician'],
-                'description'  => "Таъмири планшет ва дастгоҳҳои дигар\nРемонт планшетов и других устройств\nTablet and device repair",
+                'translations' => [
+                    'tj'  => ['title' => 'Устои планшет', 'description' => 'Планшетро таъмир ва хароботии онро бартараф мекунад.'],
+                    'ru'  => ['title' => 'Мастер по ремонту планшетов', 'description' => 'Ремонтирует планшеты и устраняет их неисправности.'],
+                    'eng' => ['title' => 'Tablet Repair Technician', 'description' => 'Repairs tablets and fixes their faults.'],
+                ],
             ],
             'master_printerov' => [
-                'translations' => ['tj' => 'Устои принтер', 'ru' => 'Мастер по ремонту принтеров', 'eng' => 'Printer Repair Technician'],
-                'description'  => "Таъмир ва пуркунии картриҷ\nРемонт принтеров и заправка картриджей\nPrinter repair and cartridge refilling",
+                'translations' => [
+                    'tj'  => ['title' => 'Устои принтер', 'description' => 'Принтерро таъмир мекунад ва картриҷро пур мекунад.'],
+                    'ru'  => ['title' => 'Мастер по ремонту принтеров', 'description' => 'Ремонтирует принтеры и заправляет картриджи.'],
+                    'eng' => ['title' => 'Printer Repair Technician', 'description' => 'Repairs printers and refills cartridges.'],
+                ],
             ],
 
             // ── Разнорабочие услуги (новая категория) ──────────────────────
             'raznorabochiy' => [
-                'translations' => ['tj' => 'Коргари ёрирасон', 'ru' => 'Разнорабочий', 'eng' => 'General Labourer'],
-                'description'  => "Кӯмаки жисмонӣ дар корҳои гуногун\nФизическая помощь в разных видах работ\nPhysical help with various odd jobs",
+                'translations' => [
+                    'tj'  => ['title' => 'Коргари ёрирасон', 'description' => 'Мувофиқи хости мизоҷ намудҳои гуногуни кори ҷисмониро иҷро мекунад.'],
+                    'ru'  => ['title' => 'Разнорабочий', 'description' => 'Выполняет разные виды физической работы по просьбе клиента.'],
+                    'eng' => ['title' => 'General Labourer', 'description' => "Performs various kinds of physical work at the client's request."],
+                ],
             ],
             'podsobnik' => [
-                'translations' => ['tj' => 'Ёрдамчии сохтмон', 'ru' => 'Подсобный рабочий', 'eng' => "Construction Helper"],
-                'description'  => "Кӯмак дар сохтмон ва боркашонӣ\nПомощь на стройке и при переносе грузов\nConstruction site and moving help",
+                'translations' => [
+                    'tj'  => ['title' => 'Ёрдамчии сохтмон', 'description' => 'Дар сохтмон ва интиқоли бор кӯмак мекунад.'],
+                    'ru'  => ['title' => 'Подсобный рабочий', 'description' => 'Помогает на стройке и с переноской грузов.'],
+                    'eng' => ['title' => 'Construction Helper', 'description' => 'Helps on construction sites and with moving loads.'],
+                ],
             ],
             'master_na_chas' => [
-                'translations' => ['tj' => 'Уста барои корҳои хурд', 'ru' => 'Мастер на час', 'eng' => 'Handyman'],
-                'description'  => "Ислоҳи хурди хона: овезон кардани рафҳо, мебел ва ғайра\nМелкий бытовой ремонт: полки, мебель, фурнитура\nSmall household fixes: shelves, furniture, fittings",
+                'translations' => [
+                    'tj'  => ['title' => 'Уста барои корҳои хурд', 'description' => 'Таъмири хурди рӯзгорро иҷро мекунад: раф, мебел, сантехника.'],
+                    'ru'  => ['title' => 'Мастер на час', 'description' => 'Выполняет мелкий бытовой ремонт: полки, мебель, сантехника.'],
+                    'eng' => ['title' => 'Handyman', 'description' => 'Handles small household fixes: shelves, furniture, plumbing.'],
+                ],
             ],
 
             // ── Ювелирные и часовые услуги (новая категория) ────────────────
             'yuvelir' => [
-                'translations' => ['tj' => 'Заргар', 'ru' => 'Ювелир', 'eng' => 'Jeweller'],
-                'description'  => "Таъмир ва сохтани заргарӣ\nРемонт и изготовление ювелирных изделий\nJewellery repair and crafting",
+                'translations' => [
+                    'tj'  => ['title' => 'Заргар', 'description' => 'Зевари заргариро месозад ва таъмир мекунад.'],
+                    'ru'  => ['title' => 'Ювелир', 'description' => 'Изготавливает и ремонтирует ювелирные украшения.'],
+                    'eng' => ['title' => 'Jeweller', 'description' => 'Makes and repairs jewellery.'],
+                ],
             ],
             'chasovshik' => [
-                'translations' => ['tj' => 'Соатсоз', 'ru' => 'Часовщик', 'eng' => 'Watchmaker'],
-                'description'  => "Таъмир ва танзими соат\nРемонт и настройка часов\nWatch repair and adjustment",
+                'translations' => [
+                    'tj'  => ['title' => 'Соатсоз', 'description' => 'Соатҳои механикӣ ва электрониро таъмир ва танзим мекунад.'],
+                    'ru'  => ['title' => 'Часовщик', 'description' => 'Ремонтирует и настраивает механические и электронные часы.'],
+                    'eng' => ['title' => 'Watchmaker', 'description' => 'Repairs and adjusts mechanical and electronic watches.'],
+                ],
             ],
             'graver' => [
-                'translations' => ['tj' => 'Кандакор', 'ru' => 'Гравёр', 'eng' => 'Engraver'],
-                'description'  => "Кандакорӣ рӯи металл ва сангҳои қиматбаҳо\nГравировка на металле и драгоценных камнях\nEngraving on metal and gemstones",
+                'translations' => [
+                    'tj'  => ['title' => 'Кандакор', 'description' => 'Рӯи металл, зевар ва тӯҳфаҳо кандакорӣ мекунад.'],
+                    'ru'  => ['title' => 'Гравёр', 'description' => 'Наносит гравировку на металл, украшения и сувениры.'],
+                    'eng' => ['title' => 'Engraver', 'description' => 'Engraves metal, jewellery and souvenirs.'],
+                ],
             ],
 
             // ── Психология и консультации (новая категория) ─────────────────
             'psycholog' => [
-                'translations' => ['tj' => 'Равоншинос', 'ru' => 'Психолог', 'eng' => 'Psychologist'],
-                'description'  => "Машваратҳои равоншиносӣ\nПсихологические консультации\nPsychological counselling",
+                'translations' => [
+                    'tj'  => ['title' => 'Равоншинос', 'description' => 'Оид ба масъалаҳои шахсӣ машваратҳои равоншиносӣ мегузаронад.'],
+                    'ru'  => ['title' => 'Психолог', 'description' => 'Проводит психологические консультации по личным вопросам.'],
+                    'eng' => ['title' => 'Psychologist', 'description' => 'Provides psychological counselling on personal matters.'],
+                ],
             ],
             'semeynyy_konsultant' => [
-                'translations' => ['tj' => 'Мушовири оилавӣ', 'ru' => 'Семейный консультант', 'eng' => 'Family Counsellor'],
-                'description'  => "Машварат оид ба муносибатҳои оилавӣ\nКонсультации по семейным отношениям\nFamily relationship counselling",
+                'translations' => [
+                    'tj'  => ['title' => 'Мушовири оилавӣ', 'description' => 'Дар ҳалли ихтилофу мушкилоти оилавӣ кӯмак мекунад.'],
+                    'ru'  => ['title' => 'Семейный консультант', 'description' => 'Помогает решать конфликты и проблемы в семье.'],
+                    'eng' => ['title' => 'Family Counsellor', 'description' => 'Helps resolve family conflicts and problems.'],
+                ],
             ],
             'coach' => [
-                'translations' => ['tj' => 'Коуч', 'ru' => 'Коуч личностного роста', 'eng' => 'Personal Development Coach'],
-                'description'  => "Кӯмак дар рушди шахсӣ ва касбӣ\nПомощь в личностном и карьерном росте\nPersonal and career growth coaching",
+                'translations' => [
+                    'tj'  => ['title' => 'Коуч', 'description' => 'Ба мизоҷ дар рушди шахсӣ ва касбӣ кӯмак мекунад.'],
+                    'ru'  => ['title' => 'Коуч личностного роста', 'description' => 'Помогает клиенту в личностном и карьерном развитии.'],
+                    'eng' => ['title' => 'Personal Development Coach', 'description' => "Helps clients with personal and career development."],
+                ],
             ],
 
             // ── Печать и полиграфия (новая категория) ───────────────────────
             'tipograf' => [
-                'translations' => ['tj' => 'Чопгар', 'ru' => 'Печатник', 'eng' => 'Printer Operator'],
-                'description'  => "Чопи маводи рекламавӣ ва ҳуҷҷатҳо\nПечать рекламной продукции и документов\nPrinting of promo materials and documents",
+                'translations' => [
+                    'tj'  => ['title' => 'Чопгар', 'description' => 'Маҳсулоти полиграфӣ чоп мекунад: корти визитӣ, буклет, баннер.'],
+                    'ru'  => ['title' => 'Печатник', 'description' => 'Печатает полиграфическую продукцию: визитки, буклеты, баннеры.'],
+                    'eng' => ['title' => 'Printer Operator', 'description' => 'Prints promotional materials: business cards, booklets, banners.'],
+                ],
             ],
             'dizayner_pechati' => [
-                'translations' => ['tj' => 'Дизайнери маводи чопӣ', 'ru' => 'Дизайнер печатной продукции', 'eng' => 'Print Designer'],
-                'description'  => "Тарҳрезии баннер, буклет ва варақа\nВёрстка баннеров, буклетов и листовок\nBanner, booklet and flyer layout design",
+                'translations' => [
+                    'tj'  => ['title' => 'Дизайнери маводи чопӣ', 'description' => 'Барои маҳсулоти чопӣ макет таҳия мекунад.'],
+                    'ru'  => ['title' => 'Дизайнер печатной продукции', 'description' => 'Разрабатывает макеты для печатной продукции.'],
+                    'eng' => ['title' => 'Print Designer', 'description' => 'Creates layouts for printed materials.'],
+                ],
             ],
 
             // ── Обувные и кожаные изделия (новая категория) ─────────────────
             'sapozhnik' => [
-                'translations' => ['tj' => 'Мӯзадӯз', 'ru' => 'Сапожник', 'eng' => 'Shoemaker'],
-                'description'  => "Таъмир ва тозакунии пойафзол\nРемонт и чистка обуви\nShoe repair and cleaning",
+                'translations' => [
+                    'tj'  => ['title' => 'Мӯзадӯз', 'description' => 'Пойафзолро таъмир ва тоза мекунад.'],
+                    'ru'  => ['title' => 'Сапожник', 'description' => 'Ремонтирует и чистит обувь.'],
+                    'eng' => ['title' => 'Shoemaker', 'description' => 'Repairs and cleans footwear.'],
+                ],
             ],
             'kozhevnik' => [
-                'translations' => ['tj' => 'Устои чарм', 'ru' => 'Мастер по коже', 'eng' => 'Leather Craftsman'],
-                'description'  => "Таъмири сумка, камарбанд ва дигар маснуоти чармӣ\nРемонт сумок, ремней и других изделий из кожи\nRepair of bags, belts and other leather goods",
+                'translations' => [
+                    'tj'  => ['title' => 'Устои чарм', 'description' => 'Сумка, тасма ва дигар маснуоти чармиро таъмир мекунад.'],
+                    'ru'  => ['title' => 'Мастер по коже', 'description' => 'Ремонтирует сумки, ремни и другие изделия из кожи.'],
+                    'eng' => ['title' => 'Leather Craftsman', 'description' => 'Repairs bags, belts and other leather goods.'],
+                ],
             ],
         ];
 
         foreach ($occupationsData as $key => $data) {
             $occupation = new Occupation();
+
+            // Значение на самой сущности — фолбэк на русский (тот же
+            // паттерн, что у CategoryFixture/LegalFixture): реальное
+            // per-locale значение резолвится на чтение через
+            // localizeEntityFull() (см. докблок класса выше).
+            $occupation->setDescription($data['translations']['ru']['description']);
 
             $reflection = new ReflectionClass($occupation);
             /** @noinspection PhpStatementHasEmptyBodyInspection */
@@ -605,11 +996,12 @@ class OccupationFixture extends Fixture implements FixtureGroupInterface
             $property = $reflection->getProperty('translations');
             $property->setValue($occupation, new ArrayCollection());
 
-            foreach ($data['translations'] as $locale => $title) {
+            foreach ($data['translations'] as $locale => $trans) {
                 $translation = (new Translation())
-                    ->setTitle($title)
+                    ->setTitle($trans['title'])
+                    ->setDescription($trans['description'])
                     ->setLocale($locale)
-                    ->setOccupation($occupation->setDescription($data['description']));
+                    ->setOccupation($occupation);
 
                 $occupation->addTranslation($translation);
             }
