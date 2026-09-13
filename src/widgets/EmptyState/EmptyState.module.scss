@@ -1,0 +1,122 @@
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  width: 100%;
+  margin: auto;
+  gap: 12px;
+}
+
+.icon {
+  color: var(--color-text-secondary, #aaa);
+  opacity: 0.55;
+  margin-bottom: 4px;
+
+  svg {
+    display: block;
+  }
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #888);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--color-text-secondary, #aaa);
+  margin: 0;
+}
+
+.action {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1.5px solid var(--color-border, #ddd);
+  color: var(--color-text-secondary, #888);
+  border-radius: 8px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+
+  @media (hover: hover) and (pointer: fine) {
+    transition: border-color 0.2s, color 0.2s;
+
+    &:hover {
+      border-color: var(--color-primary, #3A54DA);
+      color: var(--color-primary, #3A54DA);
+    }
+  }
+
+  &:active {
+    border-color: var(--color-primary, #3A54DA);
+    color: var(--color-primary, #3A54DA);
+    transform: scale(0.97);
+  }
+
+  @media (max-width: 480px) {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
+
+.refresh {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1.5px solid var(--color-border, #ddd);
+  color: var(--color-text-secondary, #888);
+  border-radius: 8px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  // hover only for real pointer devices — prevents sticky-hover animation on touch
+  @media (hover: hover) and (pointer: fine) {
+    transition: border-color 0.2s, color 0.2s;
+
+    &:hover {
+      border-color: var(--color-primary, #3A54DA);
+      color: var(--color-primary, #3A54DA);
+    }
+  }
+
+  &:active {
+    border-color: var(--color-primary, #3A54DA);
+    color: var(--color-primary, #3A54DA);
+    transform: scale(0.97);
+  }
+
+  @media (max-width: 480px) {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}

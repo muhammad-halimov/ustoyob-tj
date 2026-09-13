@@ -1,0 +1,20 @@
+{
+  "title": "Адрес",
+  "provinces": "Области",
+  "loadingProvinces": "Загрузка областей...",
+  "noProvinces": "Области не найдены",
+  "cities": "Города",
+  "districts": "Районы",
+  "suburbs": "Кварталы",
+  "suburbsSubtitle": "Выберите кварталы, в которых вы работаете",
+  "settlementAreas": "Поселки/ПГТ",
+  "settlementSubtitle": "Выберите ПГТ или поселок",
+  "communities": "ПГТ (Поселки городского типа)",
+  "settlements": "Поселки",
+  "villages": "Села",
+  "villagesIn": "Села в поселке",
+  "quartersCount": "{{count}} кварталов",
+  "settlementsCount": "Поселков: {{count}}",
+  "communitiesCount": "ПГТ: {{count}}",
+  "villagesCount": "{{count}} сёл"
+}

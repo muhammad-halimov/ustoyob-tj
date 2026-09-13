@@ -1,0 +1,387 @@
+@use '../../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.filters_panel {
+  max-width: 450px;
+  width: 100%;
+  height: fit-content;
+  //min-width: 400px;
+  background: map.get(vars.$colors, background-primary);
+  border-radius: map.get(vars.$border-radius, base);
+  box-shadow: 0 4px 12px map.get(vars.$colors, shadow);
+  z-index: 900;
+  padding: map.get(vars.$spacing, 5);
+  flex-shrink: 0;
+}
+
+.filters_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+
+  h2 {
+    font-size: map.get(vars.$font-sizes, '3xl');
+    font-weight: 400;
+    color: map.get(vars.$colors, text-black);
+    margin: 0;
+  }
+
+  // Clear — общий shared-компонент, оставляем его в дефолтном виде
+  // (Clear.module.scss), сюда добавляем только раскладку.
+  .filter_clear_btn {
+    flex-shrink: 0;
+  }
+}
+
+.filter_section {
+  margin-bottom: 40px;
+
+  h3 {
+    font-size: map.get(vars.$font-sizes, xl);
+    font-weight: 500;
+    margin-bottom: map.get(vars.$spacing, 5);
+    color: map.get(vars.$colors, text-black);
+  }
+}
+
+.price_inputs {
+  display: flex;
+  gap: map.get(vars.$spacing, 3);
+
+  // SelectSearch (altMode) уже несёт собственное оформление поля —
+  // раньше здесь была серая рамка-подложка вокруг голых <input>.
+  .price_input {
+    flex: 1;
+    // Без этого flex-item не сжимается меньше min-content всего SelectSearch —
+    // два поля в ряд суммарно шире контейнера и вылезают за панель.
+    min-width: 0;
+  }
+}
+
+.characteristic_list {
+  display: flex;
+  flex-direction: column;
+  gap: map.get(vars.$spacing, 4);
+}
+
+.characteristic_item {
+  display: flex;
+  align-items: center;
+  gap: map.get(vars.$spacing, 3);
+  padding: 5px 0;
+  cursor: pointer;
+
+  &:hover {
+    .circle_icon {
+      background: map.get(vars.$colors, text-black);
+      color: map.get(vars.$colors, primary-text-white);
+    }
+  }
+
+  .characteristic_title {
+    display: flex;
+    flex-direction: column;
+    gap: map.get(vars.$spacing, 1);
+
+    h3 {
+      margin: 0;
+      font-size: map.get(vars.$font-sizes, xl);
+      font-weight: 500;
+      color: map.get(vars.$colors, text-black);
+    }
+
+    span {
+      font-size: map.get(vars.$font-sizes, lg);
+      color: map.get(vars.$colors, text-black);
+    }
+  }
+}
+
+.circle_icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  color: map.get(vars.$colors, text-black);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.filter_actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: map.get(vars.$spacing, 4);
+  margin-top: map.get(vars.$spacing, 6);
+
+  // Reset — общий shared-компонент, оставляем его в дефолтном виде
+  // (Reset.module.scss), сюда добавляем только раскладку.
+  .cancel_btn {
+    flex-shrink: 0;
+  }
+
+  .apply_btn {
+    width: 100%;
+    max-width: 141px;
+    padding: map.get(vars.$spacing, 4);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: map.get(vars.$colors, actual-blue);
+    color: map.get(vars.$colors, primary-text-white);
+    font-weight: 600;
+    font-size: map.get(vars.$font-sizes, base);
+    letter-spacing: 0.02em;
+    border-radius: map.get(vars.$border-radius, lg);
+
+    &:hover {
+      background: map.get(vars.$colors, actual-blue);
+    }
+  }
+}
+
+.category_select {
+  position: relative;
+  margin-top: map.get(vars.$spacing, 2);
+
+  select {
+    width: 100%;
+    padding: map.get(vars.$spacing, 4) map.get(vars.$spacing, 5);
+    font-size:  map.get(vars.$font-sizes, base);
+    color: map.get(vars.$colors, text-black);
+    background: map.get(vars.$colors, primary-text-white);
+    border: 2px solid map.get(vars.$colors, color-stroke);
+    border-radius: map.get(vars.$border-radius, lg);
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    transition: all 0.2s ease;
+
+    &:focus {
+      border-color: map.get(vars.$colors, actual-blue);
+      box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
+    }
+
+    &:hover {
+      border-color: map.get(vars.$colors, actual-blue);
+    }
+
+    option {
+      padding: 12px 20px;
+      font-size: map.get(vars.$font-sizes, base);
+      color: map.get(vars.$colors, text-black);
+
+      &:hover {
+        background: map.get(vars.$colors, actual-blue);
+        color: map.get(vars.$colors, primary-text-white);
+      }
+    }
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: map.get(vars.$spacing, 5);
+    transform: translateY(-50%) rotate(45deg);
+    width: 12px;
+    height: 12px;
+    border-right: 2px solid map.get(vars.$colors, actual-blue);
+    border-bottom: 2px solid map.get(vars.$colors, actual-blue);
+    pointer-events: none;
+    transition: transform 0.2s ease;
+  }
+
+  &:hover::after {
+    transform: translateY(-50%) rotate(225deg);
+  }
+}
+
+.activeFilters {
+  display: flex;
+  align-items: center;
+  gap: map.get(vars.$spacing, 2);
+  flex-wrap: wrap;
+  margin: map.get(vars.$spacing, 4) 0;
+  padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 4);
+  background: map.get(vars.$colors, background-btn2);
+  border-radius: map.get(vars.$border-radius, lg);
+  font-size: map.get(vars.$font-sizes, lg);
+
+  span:first-child {
+    font-weight: 500;
+    color: map.get(vars.$colors, text-black);
+  }
+}
+
+.filterTag {
+  background: map.get(vars.$colors, actual-blue);
+  color: map.get(vars.$colors, primary-text-white);
+  padding: map.get(vars.$spacing, 2) map.get(vars.$spacing, 4);
+  border-radius: map.get(vars.$border-radius, base);
+  font-size: map.get(vars.$font-sizes, base);
+  font-weight: 500;
+}
+
+.clearFiltersBtn {
+  background: map.get(vars.$colors, danger-red);
+  color: map.get(vars.$colors, primary-text-white);
+  border: none;
+  padding: map.get(vars.$spacing, 2) map.get(vars.$spacing, 4);
+  border-radius: map.get(vars.$border-radius, base);
+  font-size: map.get(vars.$font-sizes, base);
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: map.get(vars.$colors, danger-red-hover);
+  }
+}
+
+@media (max-width: 1200px) {
+  .filters_panel {
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .category_select select {
+    font-size: map.get(vars.$font-sizes, lg);
+    padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 4);
+  }
+
+  .price_inputs {
+    flex-direction: column;
+    gap: map.get(vars.$spacing, 2);
+
+    .price_input input {
+      font-size: map.get(vars.$font-sizes, lg);
+      padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 4);
+    }
+  }
+
+  .activeFilters {
+    font-size: map.get(vars.$font-sizes, base);
+    padding: map.get(vars.$spacing, 2) map.get(vars.$spacing, 3);
+  }
+
+  .filterTag,
+  .clearFiltersBtn {
+    font-size: map.get(vars.$font-sizes, sm);
+    padding: map.get(vars.$spacing, 1) map.get(vars.$spacing, 3);
+  }
+
+  .filters_panel {
+    width: 100%;
+    .filter_section {
+      h3 {
+        font-size: 16px;
+      }
+    }
+  }
+
+  .category_select {
+    select {
+      font-size: 16px !important;
+    }
+  }
+
+  .filters_header {
+    margin-bottom: 10px !important;
+    padding-bottom: 0 !important;
+    h2 {
+      font-size: 18px !important;
+    }
+  }
+
+  .filter_actions {
+    .apply_btn {
+      padding: 12px !important;
+    }
+  }
+}
+
+.rating_stars {
+  display: flex;
+  flex-direction: column;
+  gap: map.get(vars.$spacing, 3);
+}
+
+.star_option {
+  display: flex;
+  align-items: center;
+  gap: map.get(vars.$spacing, 3);
+  padding: map.get(vars.$spacing, 2) map.get(vars.$spacing, 3);
+  border-radius: map.get(vars.$border-radius, base);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: map.get(vars.$colors, color-stroke);
+  }
+
+  &.selected {
+    background-color: map.get(vars.$colors, actual-blue);
+    color: map.get(vars.$colors, primary-text-white);
+  }
+
+  .stars {
+    display: flex;
+    gap: 2px;
+
+    .star {
+      color: map.get(vars.$colors, star-yellow);
+      font-size: map.get(vars.$font-sizes, xl);
+    }
+  }
+
+  .star_label {
+    font-size: map.get(vars.$font-sizes, base);
+    font-weight: 500;
+  }
+}
+
+// Адаптивность для новых фильтров
+@media (max-width: 480px) {
+  .rating_stars .star_option {
+    padding: map.get(vars.$spacing, 2);
+
+    .star_label {
+      font-size: map.get(vars.$font-sizes, sm);
+    }
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .filters_panel {
+    background: var(--color-background-primary);
+  }
+
+  .filters_header h2,
+  .filter_section h3,
+  .characteristic_item .characteristic_title h3,
+  .characteristic_item .characteristic_title span {
+    color: var(--color-text-black);
+  }
+
+  .category_select select {
+    background: var(--color-background-primary);
+    color: var(--color-text-black);
+    border-color: var(--color-stroke);
+  }
+
+  .activeFilters {
+    background: var(--color-background-all);
+
+    span:first-child {
+      color: var(--color-text-black);
+    }
+  }
+}

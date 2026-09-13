@@ -1,0 +1,962 @@
+@use '../../../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+// Row wrapper used inside renderViewItem / renderEditItem — controls gap between icon and field
+.network_row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+}
+
+// (unused tile classes below, kept for dead-code safety — safe to delete)
+.social_networks_grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+// Each social network is a square icon tile
+.network_tile {
+  width: 48px;
+  height: 48px;
+  position: relative;
+  border-radius: 12px;
+  border: 1px solid var(--color-stroke);
+  background: var(--color-background-primary);
+  overflow: hidden;
+  cursor: grab;
+  transition: border-color 0.15s, opacity 0.2s;
+
+  &:hover .tile_actions {
+    opacity: 1;
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.tile_editing {
+  border-color: var(--color-actual-blue);
+  box-shadow: 0 0 0 2px rgba(58, 84, 218, 0.18);
+}
+
+.tile_dragging {
+  opacity: 0.35;
+  border-style: dashed;
+  border-color: var(--color-actual-blue);
+}
+
+.tile_drag_over {
+  border-color: var(--color-actual-blue);
+  box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.18);
+}
+
+// Icon inside the tile — 40×40
+.tile_icon {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+  }
+
+  span {
+    font-size: 28px;
+  }
+}
+
+// Dark overlay with copy / edit / delete buttons, fades in on hover
+.tile_actions {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.tile_action_btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  line-height: 0;
+  opacity: 0.85;
+  transition: opacity 0.1s, transform 0.1s;
+
+  &:hover {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+// Add-new tile — same size, dashed border, inline with the other tiles
+.add_tile {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 2px dashed var(--color-stroke);
+  background: none;
+  cursor: pointer;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--color-actual-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover {
+    border-color: var(--color-actual-blue);
+    background: rgba(58, 84, 218, 0.06);
+  }
+}
+
+// ── INLINE EDIT STRIP (shown below the grid when editing an existing item) ──
+
+.inline_edit {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  width: 100%;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.inline_edit_icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+  }
+
+  span {
+    font-size: 28px;
+  }
+}
+
+.inline_edit_fields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+// ── SHARED FORM ELEMENTS ────────────────────────────────────────────────────
+
+.social_input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 2px solid var(--color-stroke);
+  border-radius: 10px;
+  font-size: 15px;
+  background-color: var(--color-background-primary);
+  color: var(--color-text-primary);
+  transition: all 0.3s ease;
+  outline: none;
+
+  &:focus {
+    border-color: var(--color-actual-blue);
+    box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
+    background-color: var(--color-background-secondary);
+  }
+
+  &::placeholder {
+    color: var(--color-text-placeholder);
+    font-style: italic;
+  }
+}
+
+.validation_error {
+  width: 100%;
+  color: #dc3545;
+  font-size: 12px;
+  padding: 3px 0;
+}
+
+// ── ADD-NETWORK FORM (dropdown + EditActions) ───────────────────────────────
+
+.social_network_select {
+  margin-bottom: 12px;
+
+  label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--color-text-primary);
+    font-weight: 500;
+    font-size: 15px;
+  }
+
+  select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--color-stroke);
+    border-radius: 10px;
+    font-size: 15px;
+    background-color: var(--color-background-primary);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    outline: none;
+
+    &:focus {
+      border-color: var(--color-actual-blue);
+      box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
+      background-color: var(--color-background-secondary);
+    }
+
+    &:hover {
+      border-color: var(--color-actual-blue);
+    }
+  }
+}
+
+// ── FOOTER CONTROLS ─────────────────────────────────────────────────────────
+
+.add_education_container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 16px 0;
+  width: 100%;
+  gap: 8px;
+}
+
+.reset_social_btn {
+  background: #ff3b30;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #e5362b;
+  }
+}
+
+// ── DARK THEME ──────────────────────────────────────────────────────────────
+
+:global(html[data-theme="dark"]) {
+  .network_tile {
+    background: var(--color-background-primary);
+    border-color: var(--color-stroke);
+  }
+
+  .add_tile {
+    border-color: var(--color-stroke);
+    color: var(--color-actual-blue);
+  }
+
+  .social_input {
+    background: var(--color-background-primary);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+  }
+
+  .social_network_select {
+    label {
+      color: var(--color-text-primary);
+    }
+
+    select {
+      background: var(--color-background-primary);
+      border-color: var(--color-stroke);
+      color: var(--color-text-primary);
+
+      option {
+        background: var(--color-background-primary);
+      }
+    }
+  }
+}
+
+.section_item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 40px;
+  border-radius: 20px;
+  background-color: map.get(vars.$colors, background-primary);
+  padding: 20px;
+  min-height: 110px;
+
+  h3 {
+    margin-bottom: 10px;
+  }
+}
+
+.section_content {
+  background-color: var(--color-background-primary);
+  border-radius: 12px;
+  width: 100%;
+}
+
+.social_networks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.empty_social_networks {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #666;
+  height: 60px;
+}
+
+.social_network_item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background-color: var(--color-background-primary);
+  border: 1px solid var(--color-stroke);
+  position: relative;
+  overflow: hidden;
+  transition: opacity 0.2s, border-color 0.2s, background 0.2s;
+
+  &:hover {
+    background-color: var(--color-background-secondary);
+    border-color: var(--color-actual-blue);
+  }
+
+  &.dragging {
+    opacity: 0.35;
+    border-style: dashed;
+    border-color: var(--color-actual-blue);
+  }
+
+  &.drag_over {
+    border-color: var(--color-actual-blue);
+    background-color: var(--color-background-secondary);
+    box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.15);
+  }
+}
+
+.drag_handle {
+  cursor: grab;
+  padding: 4px 6px;
+  color: var(--color-icons);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 6px;
+  transition: color 0.2s, background 0.2s;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  &:hover {
+    color: var(--color-actual-blue);
+    background-color: var(--color-background-secondary);
+  }
+}
+
+.social_network_icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+  }
+
+  span {
+    font-size: 28px;
+  }
+}
+
+.social_network_info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.social_network_name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.social_network_display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.social_network_handle {
+  font-size: 14px;
+  color: var(--color-actual-blue);
+  padding: 8px 12px;
+  border-radius: 8px;
+  background-color: var(--color-background-secondary);
+  border: 1px solid var(--color-stroke);
+  min-height: 38px;
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+
+  &:hover {
+    background-color: var(--color-background-gray-hover);
+    border-color: var(--color-stroke);
+  }
+
+  &.empty_handle {
+    color: var(--color-icons);
+    font-style: italic;
+    background-color: var(--color-background-secondary);
+    border: 1px dashed var(--color-stroke);
+    font-weight: 400;
+
+    &:hover {
+      background-color: var(--color-background-secondary);
+      border-color: var(--color-actual-blue);
+      border-style: solid;
+      color: var(--color-actual-blue);
+    }
+  }
+}
+
+.handle_value_link {
+  color: #3A54DA;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+  display: block;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+
+  &:hover {
+    color: #2a44ca;
+    text-decoration: underline;
+  }
+}
+
+.handle_placeholder {
+  color: #999;
+  font-style: italic;
+}
+
+.list_item_actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.copy_icon, .edit_icon, .delete_icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 14px;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+// EditActions своей строкой ниже поля (по центру) — как в остальном профиле
+// (Телефоны, Образование, форма добавления соцсети чуть ниже в этом же файле),
+// а не рядом с полем в одном ряду. Без gap — отступ от поля даёт margin-top самого
+// EditActions (flex gap + margin не схлопываются, сложились бы); у .validation_error
+// свой margin-top, так что и с ним разрыв не потеряется.
+.social_network_edit {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.social_input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 2px solid var(--color-stroke);
+  border-radius: 10px;
+  font-size: 15px;
+  background-color: var(--color-background-primary);
+  color: var(--color-text-primary);
+  transition: all 0.3s ease;
+  outline: none;
+
+  &:focus {
+    border-color: var(--color-actual-blue);
+    box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
+    background-color: var(--color-background-secondary);
+  }
+
+  &::placeholder {
+    color: var(--color-text-placeholder);
+    font-style: italic;
+  }
+}
+
+.social_edit_buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.save_social_btn {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover {
+    background: #43A047;
+  }
+
+  &:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.cancel_social_btn {
+  background: #ff3b30;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover {
+    background: #e5362b;
+  }
+}
+
+.validation_error {
+  color: #dc3545;
+  font-size: 12px;
+  margin-top: 5px;
+  padding: 3px 0;
+}
+
+.add_education_container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 16px 0;
+  width: 100%;
+  gap: 8px;
+}
+
+.reset_social_btn {
+  background: #ff3b30;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #e5362b;
+  }
+}
+
+.add_button {
+  background-color: var(--color-actual-blue);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background-color: var(--color-primary-hover);
+  }
+}
+
+.add_btn {
+  background: #3A54DA;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #2a44ca;
+  }
+}
+
+.add_social_network_form {
+  background-color: var(--color-background-secondary);
+  border: 2px solid var(--color-stroke);
+  border-radius: 16px;
+  padding: 24px;
+  margin-top: 20px;
+
+  h4 {
+    margin: 0 0 20px 0;
+    color: var(--color-text-primary);
+    font-size: 18px;
+    font-weight: 600;
+  }
+}
+
+.social_network_select {
+  margin-bottom: 20px;
+
+  label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 500;
+    font-size: 15px;
+  }
+
+  select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--color-stroke);
+    border-radius: 10px;
+    font-size: 15px;
+    background-color: var(--color-background-primary);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    outline: none;
+
+    &:focus {
+      border-color: var(--color-actual-blue);
+      box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
+      background-color: var(--color-background-secondary);
+    }
+
+    &:hover {
+      border-color: var(--color-actual-blue);
+    }
+  }
+}
+
+.add_social_buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.confirm_add_btn {
+  background-color: var(--color-actual-blue);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--color-primary-hover);
+  }
+
+  &:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+  }
+}
+
+.cancel_add_btn {
+  background: transparent;
+  color: #666;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  padding: 10px 24px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #ff3b30;
+    color: #ff3b30;
+    background: rgba(255, 59, 48, 0.05);
+  }
+}
+
+@media (max-width: 768px) {
+  .section_item {
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .social_network_item {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .social_network_name {
+    font-size: 16px;
+  }
+
+  .social_network_handle {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .social_network_item {
+    padding: 12px 10px;
+    gap: 8px;
+  }
+
+  .social_network_name {
+    font-size: 15px;
+  }
+
+  .social_network_handle {
+    font-size: 13px;
+    padding: 8px 10px;
+    min-height: 38px;
+  }
+
+  .social_edit_buttons {
+    align-self: flex-end;
+  }
+
+  .social_input {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 400px) {
+  .social_network_item {
+    padding: 10px 8px;
+    gap: 6px;
+  }
+
+  .drag_handle {
+    padding: 2px 3px;
+  }
+
+  .social_network_handle {
+    font-size: 13px;
+    padding: 7px 8px;
+    min-height: 36px;
+  }
+
+  .social_network_name {
+    font-size: 14px;
+  }
+
+  .list_item_actions {
+    gap: 4px;
+  }
+
+  .copy_icon, .edit_icon, .delete_icon {
+    padding: 2px;
+  }
+
+  .social_edit_buttons {
+    align-self: flex-end;
+  }
+
+  .social_input {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .section_item {
+    background-color: var(--color-background-primary);
+  }
+
+  .section_content {
+    background: var(--color-background-primary);
+  }
+
+  .social_network_item {
+    background: var(--color-background-primary);
+    border-color: var(--color-stroke);
+
+    &:hover {
+      background-color: var(--color-background-secondary);
+      border-color: var(--color-actual-blue);
+    }
+
+    &.drag_over {
+      border-color: var(--color-actual-blue);
+      background-color: var(--color-background-secondary);
+      box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.2);
+    }
+  }
+
+  .drag_handle {
+    color: var(--color-text-secondary);
+
+    &:hover {
+      color: var(--color-primary);
+      background: var(--color-background-all);
+    }
+  }
+
+  .social_network_name {
+    color: var(--color-text-primary);
+  }
+
+  .social_network_handle {
+    background: var(--color-background-all);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+
+    &.empty_handle {
+      background: var(--color-background-secondary);
+      border-color: var(--color-stroke);
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .handle_placeholder {
+    color: var(--color-text-secondary);
+  }
+
+  .social_input {
+    background: var(--color-background-primary);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+  }
+
+  .empty_social_networks {
+    color: var(--color-text-secondary);
+  }
+
+  .social_network_icon {
+    background: var(--color-background-all);
+    box-shadow: none;
+  }
+
+  .add_social_network_form {
+    background: var(--color-background-all);
+    border-color: var(--color-stroke);
+
+    h4 {
+      color: var(--color-text-primary);
+    }
+  }
+
+  .social_network_select {
+    label {
+      color: var(--color-text-primary);
+    }
+
+    select {
+      background: var(--color-background-primary);
+      border-color: var(--color-stroke);
+      color: var(--color-text-primary);
+
+      option {
+        background: var(--color-background-primary);
+      }
+    }
+  }
+
+  .cancel_add_btn {
+    color: var(--color-text-secondary);
+    border-color: var(--color-stroke);
+  }
+}

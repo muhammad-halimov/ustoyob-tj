@@ -1,0 +1,121 @@
+{
+  "app": {
+    "name": "ustoyob.tj",
+    "loading": "Loading...",
+    "error": "Error occurred",
+    "success": "Success",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "close": "Close",
+    "showMore": "More",
+    "showLess": "Less",
+    "notSpecified": "N/A",
+    "addressNotSpecified": "Address not specified"
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Please enter a valid email",
+    "password": "Password must be at least 6 characters",
+    "phone": "Please enter a valid phone number",
+    "minLength": "Minimum length is {{count}} characters",
+    "maxLength": "Maximum length is {{count}} characters"
+  },
+  "messages": {
+    "noData": "No data available",
+    "loading": "Loading data...",
+    "errorLoading": "Error loading data",
+    "tryAgain": "Try again"
+  },
+  "emptyState": {
+    "title": "Nothing here yet",
+    "refresh": "Refresh"
+  },
+  "reviews": {
+    "one": "review",
+    "few": "reviews",
+    "many": "reviews"
+  },
+  "footer": {
+    "privacyPolicy": "Privacy Policy",
+    "termsOfUse": "Terms of Use",
+    "publicOffer": "Public Offer",
+    "techSupport": "Tech Support"
+  },
+  "legal": {
+    "notFound": "Document not found",
+    "lastUpdated": "Last updated"
+  },
+  "navigation": {
+    "goHome": "Go Home"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "subtitle": "An unexpected error occurred. Try going back to the homepage and repeating the action.",
+    "goHome": "Go Home"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "subtitle": "This page doesn't exist, or it was moved or deleted.",
+    "goHome": "Go Home"
+  },
+  "oauth": {
+    "loading": "Authorizing...",
+    "pleaseWait": "Please wait",
+    "processingGoogle": "Processing Google authorization...",
+    "processingVia": "Authorizing via {{provider}}...",
+    "processingTelegram": "Authorizing via Telegram...",
+    "errorTitle": "Authorization error",
+    "redirecting": "Redirecting to home page...",
+    "backToHome": "Back to home",
+    "noAuthData": "Failed to retrieve authorization data",
+    "unknownProvider": "Unknown authorization provider",
+    "tokenNotReceived": "Token not received",
+    "expiredRequest": "Request expired. Please try again",
+    "insufficientData": "Insufficient data for authorization",
+    "tryLater": "An error occurred, please try again later",
+    "providerTaken": "This account is already linked to another user",
+    "alreadyLinked": "This provider is already linked to your account",
+    "notAuthenticated": "You are not authenticated",
+    "invalidState": "Invalid OAuth state. Possible CSRF attack.",
+    "popupBlocked": "Please allow pop-ups in your browser to sign in via {{provider}}",
+    "emailTaken": "An account with this email already exists. Please sign in with your password.",
+    "linkEmailTitle": "Link your email",
+    "linkEmailDescription": "To complete registration, please enter your email",
+    "emailPlaceholder": "Your email",
+    "linkEmailSubmit": "Continue",
+    "linkEmailSkip": "Skip",
+    "invalidToken": "Authorization session is invalid. Please try again.",
+    "success": "Authorization successful!",
+    "selectAccountType": "Choose your account type:"
+  },
+  "confirmAccount": {
+    "loading": "Verifying link...",
+    "success": "Account successfully activated!",
+    "redirecting": "Redirecting to home...",
+    "invalidLink": "Invalid link",
+    "linkExpired": "Link has expired or is invalid",
+    "error": "An error occurred during activation"
+  },
+  "cookieConsent": {
+    "title": "🍪 We use cookies",
+    "description": "We use cookies to make the site work. By staying on the site, you agree to our use of cookies.",
+    "accept": "Accept"
+  },
+  "select": "Select...",
+  "search": "Search...",
+  "clear": "Clear",
+  "clearSearch": "Clear search",
+  "noResults": "Nothing found",
+  "showPassword": "Show password",
+  "hidePassword": "Hide password"
+}

@@ -1,0 +1,178 @@
+import { useState, useCallback } from 'react';
+import { getAuthToken } from '../utils/authUtils';
+import { getStorageJSON, setStorageJSON } from '../utils/storageUtils';
+import type { LocalStorageFavorites } from '../entities';
+import { universalApiRequest } from '../utils/apiUtils';
+import { resolveApiError } from '../utils/appMessagesUtils';
+import { API_ROUTES } from '../app/routers/routes';
+
+// Flat entry returned by GET /api/favorites/me (hydra:member)
+// id теперь UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md)
+interface FavoriteEntry {
+    id: string | number;
+    type: 'user' | 'ticket';
+    user: { id: string | number } | null;
+    ticket: { id: string | number } | null;
+}
+
+interface UseFavoritesProps {
+    itemId: string | number;
+    itemType: 'ticket' | 'user';
+    onSuccess?: () => void;
+    onError?: (message: string) => void;
+}
+
+// Module-level cache to deduplicate concurrent /api/favorites/me requests.
+// Multiple components may mount simultaneously and call useFavorites;
+// sharing a single in-flight Promise avoids redundant network requests.
+let _favoritesPromise: Promise<FavoriteEntry[]> | null = null;
+let _favoritesCache: { data: FavoriteEntry[]; timestamp: number } | null = null;
+const FAVORITES_CACHE_TTL = 30 * 1000; // 30 seconds
+
+/** Clears both the in-memory cache and the in-flight promise. Call after a favorite is added or removed. */
+const invalidateFavoritesCache = () => {
+    _favoritesCache = null;
+    _favoritesPromise = null;
+};
+
+export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavoritesProps) => {
+    const [isLiked, setIsLiked] = useState(false);
+    const [isLikeLoading, setIsLikeLoading] = useState(false);
+    const [entryId, setEntryId] = useState<string | number | null>(null); // FavoriteEntry id for DELETE
+
+    const loadLocalStorageFavorites = (): LocalStorageFavorites => {
+        try {
+            const stored = getStorageJSON<LocalStorageFavorites>('favorites');
+            if (stored) {
+                return { tickets: Array.isArray(stored.tickets) ? stored.tickets : [] };
+            }
+        } catch { /* ignore */ }
+        return { tickets: [] };
+    };
+
+    const saveLocalStorageFavorites = (favorites: LocalStorageFavorites) => {
+        try {
+            setStorageJSON('favorites', favorites);
+        } catch { /* ignore */ }
+    };
+
+    // Fetch all favorite entries from GET /api/favorites/me (with dedup/cache)
+    const getCurrentFavorites = useCallback(async (_token: string): Promise<FavoriteEntry[]> => {
+        const now = Date.now();
+
+        if (_favoritesCache && now - _favoritesCache.timestamp < FAVORITES_CACHE_TTL) {
+            return _favoritesCache.data;
+        }
+
+        if (!_favoritesPromise) {
+            _favoritesPromise = universalApiRequest(API_ROUTES.FAVORITES_ME, { locale: false }).then((data: any) => {
+                const entries: FavoriteEntry[] = data['hydra:member'] ?? (Array.isArray(data) ? data : []);
+                _favoritesCache = { data: entries, timestamp: Date.now() };
+                _favoritesPromise = null;
+                return entries;
+            }).catch((err: unknown) => {
+                _favoritesPromise = null;
+                throw err;
+            });
+        }
+
+        return _favoritesPromise;
+    }, []);
+
+    const checkFavoriteStatus = useCallback(async () => {
+        const token = getAuthToken();
+        if (!token) {
+            if (itemType === 'ticket') {
+                const local = loadLocalStorageFavorites();
+                setIsLiked(local.tickets.includes(itemId));
+            } else {
+                setIsLiked(false);
+            }
+            return;
+        }
+
+        try {
+            const entries = await getCurrentFavorites(token);
+            const match = entries.find(e =>
+                e.type === itemType &&
+                (itemType === 'ticket' ? e.ticket?.id === itemId : e.user?.id === itemId)
+            );
+            setIsLiked(!!match);
+            setEntryId(match?.id ?? null);
+        } catch {
+            setIsLiked(false);
+            setEntryId(null);
+        }
+    }, [itemId, itemType, getCurrentFavorites]);
+
+    const handleLikeClick = async () => {
+        const token = getAuthToken();
+
+        // Unauth — localStorage only (tickets only)
+        if (!token) {
+            if (itemType !== 'ticket') return;
+            const local = loadLocalStorageFavorites();
+            if (local.tickets.includes(itemId)) {
+                saveLocalStorageFavorites({ tickets: local.tickets.filter(id => id !== itemId) });
+                setIsLiked(false);
+            } else {
+                saveLocalStorageFavorites({ tickets: [...local.tickets, itemId] });
+                setIsLiked(true);
+            }
+            window.dispatchEvent(new Event('favoritesUpdated'));
+            return;
+        }
+
+        // Unlike — DELETE /api/favorites/{entryId}
+        if (isLiked && entryId) {
+            setIsLikeLoading(true);
+            try {
+                await universalApiRequest(API_ROUTES.FAVORITE_BY_ID(entryId), {
+                    method: 'DELETE',
+                    locale: false,
+                });
+                setIsLiked(false);
+                setEntryId(null);
+                invalidateFavoritesCache();
+                window.dispatchEvent(new Event('favoritesUpdated'));
+                if (onSuccess) onSuccess();
+            } catch (err) {
+                if (onError) onError(resolveApiError(err));
+            } finally {
+                setIsLikeLoading(false);
+            }
+            return;
+        }
+
+        // Like — POST /api/favorites { ticket: IRI } or { user: IRI }
+        setIsLikeLoading(true);
+        try {
+            const body = itemType === 'ticket'
+                ? { ticket: API_ROUTES.TICKET_BY_ID(itemId) }
+                : { user: API_ROUTES.USER_BY_ID(itemId) };
+
+            const newEntry: FavoriteEntry = await universalApiRequest(API_ROUTES.FAVORITES, {
+                method: 'POST',
+                body,
+                locale: false,
+            });
+            setIsLiked(true);
+            setEntryId(newEntry.id);
+            invalidateFavoritesCache();
+            window.dispatchEvent(new Event('favoritesUpdated'));
+            if (onSuccess) onSuccess();
+        } catch (err) {
+            if (onError) onError(resolveApiError(err));
+        } finally {
+            setIsLikeLoading(false);
+        }
+    };
+
+    return {
+        isLiked,
+        isLikeLoading,
+        handleLikeClick,
+        checkFavoriteStatus,
+        setIsLiked
+    };
+};

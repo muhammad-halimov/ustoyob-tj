@@ -1,0 +1,23 @@
+{
+  "search": {
+    "placeholder": "Ҷустуҷӯи хизматрасонӣ...",
+    "find": "Ёфтан",
+    "advancedSearch": "Ҷустуҷӯи пешрафта",
+    "category": "Категория",
+    "price": "Нарх",
+    "location": "Ҷойгиршавӣ",
+    "date": "Сана",
+    "rating": "Рейтинг",
+    "sortBy": "Ҷобаҷӯ кардан бо",
+    "relevance": "Мувофиқат",
+    "newest": "Навтаринҳо",
+    "oldest": "Кӯҳнатаринҳо",
+    "priceLowToHigh": "Нарх: аз арзон ба гарон",
+    "priceHighToLow": "Нарх: аз гарон ба арзон",
+    "ratingHighToLow": "Рейтинг: аз баланд ба паст",
+    "noResults": "Чизе ёфт нашуд",
+    "tryDifferentKeywords": "Калимаҳои дигари калидиро кӯшиш кунед",
+    "clearFilters": "Тоза кардани филтрҳо",
+    "applyFilters": "Истифодаи филтрҳо"
+  }
+}

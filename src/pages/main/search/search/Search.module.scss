@@ -1,0 +1,605 @@
+@use '../../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.container {
+  position: relative;
+  max-width: 1150px; // Оптимизировано для 60% ширины на больших экранах
+  width: 100%;
+  margin: 40px auto;
+  flex: 1;
+}
+
+.containerExpanded {
+  @media screen and (min-width: 769px) {
+    max-width: 95%;
+    width: 95%;
+  }
+}
+
+.search_with_filters {
+  display: flex;
+  gap: 27px;
+  //align-items: flex-start;
+}
+
+.search_content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: map.get(vars.$spacing, 5);
+}
+
+.search {
+  // max-width: 1549px;
+  background: map.get(vars.$colors, background-primary);
+  border-radius: map.get(vars.$border-radius, xl);
+  padding: map.get(vars.$spacing, 5);
+  box-shadow: 0 2px 8px map.get(vars.$colors, shadow);
+
+  .title {
+    font-weight: 400;
+    font-size: map.get(vars.$font-sizes, '3xl');
+    margin-bottom: map.get(vars.$spacing, 3);
+    color: map.get(vars.$colors, text-black);
+  }
+
+  .search_wrap {
+    display: flex;
+    align-items: center;
+    background-color: map.get(vars.$colors, actual-blue);
+    padding: 4px;
+    border-radius: map.get(vars.$border-radius, lg);
+    overflow: hidden;
+
+    .input_wrap {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+
+      .input {
+        width: 100%;
+        border: none;
+        border-radius: map.get(vars.$border-radius, base);
+        outline: none;
+        padding: map.get(vars.$spacing, 3) 36px map.get(vars.$spacing, 3) map.get(vars.$spacing, 2);
+        font-size: map.get(vars.$font-sizes, 'base');
+        color: map.get(vars.$colors, text-placeholder);
+
+        &::placeholder {
+          color: map.get(vars.$colors, text-placeholder);
+          letter-spacing: 0.02em;
+        }
+      }
+
+      .clear_input_btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: map.get(vars.$colors, text-placeholder);
+        width: 32px;
+        height: 32px;
+      }
+    }
+
+    /* .button {
+      background: map.get(vars.$colors, actual-blue);
+      color: map.get(vars.$colors, primary-text-white);
+      border: none;
+      width: 48px;
+      min-width: 48px;
+      height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border-radius: map.get(vars.$border-radius, base);
+      cursor: pointer;
+      transition: background 0.2s;
+
+      svg {
+        display: block;
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    } */
+  }
+
+  .filters_btn {
+    margin: map.get(vars.$spacing, 5) auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: map.get(vars.$spacing, 1);
+    background: transparent;
+    border: 2px solid map.get(vars.$colors, actual-blue);
+    color: map.get(vars.$colors, actual-blue);
+    font-size: map.get(vars.$font-sizes, xl);
+    padding: 10px 20px;
+    border-radius: map.get(vars.$border-radius, lg);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+
+    svg {
+      stroke: map.get(vars.$colors, actual-blue);
+      margin-right: map.get(vars.$spacing, 2);
+    }
+
+    &:hover {
+      background: map.get(vars.$colors, filters-btn-hover);
+    }
+  }
+}
+
+.searchResults {
+  display: flex;
+  flex-direction: column;
+  gap: map.get(vars.$spacing, 5);
+  // padding-top: map.get(vars.$spacing, 5);
+
+  .emptyStateWrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-top: map.get(vars.$spacing, 10);
+    width: 100%;
+  }
+
+  &.hidden {
+    display: none;
+  }
+
+  .resultCard {
+    width: 100%;
+    min-height: 320px;
+    background: map.get(vars.$colors, primary-text-white);
+    border-radius: map.get(vars.$border-radius, xl);
+    padding: map.get(vars.$spacing, 5);
+    border: 1px solid map.get(vars.$colors, color-stroke);
+    box-shadow: 0 2px 8px map.get(vars.$colors, shadow);
+
+    .resultHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: map.get(vars.$spacing, 3);
+
+      h3 {
+        font-size: 28px;
+        font-weight: 400;
+        color: map.get(vars.$colors, text-black);
+        margin: 0;
+      }
+
+      .price {
+        font-size: map.get(vars.$font-sizes, xl);
+        color: map.get(vars.$colors, text-black);
+        font-weight: 500;
+        background-color: map.get(vars.$colors, background-btn2);
+        padding: 10px 20px;
+        border-radius: map.get(vars.$border-radius, lg);
+      }
+    }
+
+    .description {
+      margin-bottom: map.get(vars.$spacing, 5);
+      color: map.get(vars.$colors, text-black);
+      font-size: map.get(vars.$font-sizes, 'base');
+      line-height: 1.4;
+    }
+
+    .resultDetails {
+      display: flex;
+      flex-direction: column;
+      gap: map.get(vars.$spacing, 2);
+      margin-bottom: map.get(vars.$spacing, 5);
+
+      .address svg,
+      .date svg {
+        margin-right: map.get(vars.$spacing, 4);
+      }
+
+      span {
+        font-size: map.get(vars.$font-sizes, 'base');
+        color: map.get(vars.$colors, text-black);
+      }
+
+      .category {
+        max-width: 200px;
+        text-align: center;
+        font-size: map.get(vars.$font-sizes, base);
+        color: map.get(vars.$colors, text-black);
+        font-weight: 500;
+        background-color: map.get(vars.$colors, background-btn2);
+        padding: 10px 20px;
+        border-radius: map.get(vars.$border-radius, lg);
+      }
+    }
+
+    .resultFooter {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      .author svg {
+        margin-right: map.get(vars.$spacing, 4);
+      }
+
+      span {
+        font-size: map.get(vars.$font-sizes, 'xl');
+        color: map.get(vars.$colors, text-who);
+      }
+
+      .timeAgo {
+        color: map.get(vars.$colors, text-placeholder);
+      }
+    }
+  }
+}
+
+// Модальные окна
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-shadow-overlay);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: map.get(vars.$colors, background-primary);
+  border-radius: map.get(vars.$border-radius, lg);
+  padding: 0;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 25px var(--color-shadow-light);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid map.get(vars.$colors, color-stroke);
+
+  h2 {
+    margin: 0;
+    font-size: map.get(vars.$font-sizes, lg);
+    font-weight: 600;
+    color: map.get(vars.$colors, text-gray-light);
+  }
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: map.get(vars.$colors, text-gray-light);
+
+  &:hover {
+    color: map.get(vars.$colors, text-black);
+  }
+}
+
+.modalBody {
+  padding: map.get(vars.$spacing, 6);
+
+  p {
+    margin: 0 0 map.get(vars.$spacing, 5) 0;
+    color: map.get(vars.$colors, text-gray-light);
+    line-height: 1.5;
+  }
+}
+
+.modalActions {
+  display: flex;
+  gap: map.get(vars.$spacing, 3);
+  justify-content: flex-end;
+}
+
+.primaryButton {
+  background: map.get(vars.$colors, background-btn);
+  color: map.get(vars.$colors, primary-text-white);
+  border: none;
+  padding: 10px 20px;
+  border-radius: map.get(vars.$border-radius, base);
+  cursor: pointer;
+  font-size: map.get(vars.$font-sizes, sm);
+  font-weight: 500;
+
+  &:hover {
+    background: map.get(vars.$colors, primary-hover);
+  }
+}
+
+.secondaryButton {
+  background: map.get(vars.$colors, background-gray-light);
+  color: map.get(vars.$colors, text-gray-light);
+  border: none;
+  padding: 10px 20px;
+  border-radius: map.get(vars.$border-radius, base);
+  cursor: pointer;
+  font-size: map.get(vars.$font-sizes, sm);
+
+  &:hover {
+    background: map.get(vars.$colors, background-gray-hover);
+  }
+}
+
+
+@media screen and (max-width: 1200px) {
+  .container {
+    padding: 0 20px;
+  }
+
+  .search_with_filters {
+    flex-direction: column;
+  }
+}
+
+@media screen and (max-width: 480px){
+  .container {
+    width: 100%;
+    display: block;
+    padding: 0 20px;
+    .title {
+      font-size: 18px;
+    }
+    .search_wrap {
+      font-size: 16px;
+      input {
+        padding: 9px 10px;
+        &::placeholder {
+          font-size: 14px;
+        }
+      }
+      .button {
+        padding: 10px 13px;
+      }
+    }
+    .filters_btn {
+      padding: 8px 15px;
+      //max-width: 91px;
+      font-size: 12px;
+      svg {
+        width: 16px;
+      }
+    }
+
+    .clear_filters_control_btn {
+      flex-shrink: 0;
+      width: auto !important;
+      height: 36px !important;
+    }
+    .search_with_filters {
+      flex-direction: column;
+    }
+    .resultHeader {
+      h3 {
+        font-size: 20px !important;
+      }
+      .price {
+        font-size: 12px !important;
+        display: flex;
+        padding: 10px;
+        max-width: 116px;
+      }
+    }
+    .category {
+      font-size: 14px !important;
+    }
+    .author,
+    .timeAgo {
+      font-size: 16px !important;
+    }
+  }
+
+}
+
+.active_filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--color-background-secondary);
+  border-radius: 8px;
+
+  span:first-child {
+    font-weight: 600;
+    margin-right: 8px;
+  }
+}
+
+.filter_tag {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.filter_controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: map.get(vars.$spacing, 5);
+
+  .filters_btn {
+    margin: 0;
+  }
+}
+
+.clear_filters_control_btn {
+  flex-shrink: 0;
+  width: auto !important;
+  height: 46px !important;
+  padding: 0 12px;
+  border-radius: map.get(vars.$border-radius, lg);
+  border: 2px solid map.get(vars.$colors, actual-blue);
+  color: map.get(vars.$colors, actual-blue);
+
+  svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.clear_input_btn {
+  flex-shrink: 0;
+}
+
+.resultCard {
+  position: relative;
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background-color: var(--color-background-primary);
+  transition: all 0.3s ease;
+}
+
+.resultCard.fromSelectedCity {
+  border-left: 4px solid var(--color-primary);
+  background-color: var(--color-background-accent-light);
+}
+
+.resultCard.fromSelectedCity:hover {
+  box-shadow: 0 4px 12px var(--color-shadow-accent);
+  transform: translateY(-2px);
+}
+
+.cityBadge {
+  position: absolute;
+  top: 218px;
+  right: 17px;
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.cityBadge span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cityBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background-color: var(--color-background-accent-light);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--color-primary);
+  margin-bottom: 8px;
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+.cityName {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+:global(html[data-theme="dark"]) {
+  .search {
+    background: var(--color-background-primary);
+
+    .title {
+      color: var(--color-text-black);
+    }
+
+    .search_wrap {
+      .input {
+        background-color: var(--color-background-primary);
+        color: var(--color-text-primary);
+      }
+    }
+
+    .filters_btn {
+      color: var(--color-text-white);
+    }
+  }
+
+  .searchResults {
+    .resultCard {
+      background: var(--color-background-primary);
+      border-color: var(--color-stroke);
+
+      .resultHeader h3,
+      .description,
+      .resultDetails span,
+      .resultDetails .category {
+        color: var(--color-text-primary);
+      }
+
+      .resultDetails .price,
+      .resultDetails .category {
+        background-color: var(--color-background-all);
+      }
+    }
+  }
+
+  .modalContent {
+    background: var(--color-background-primary);
+  }
+
+  .modalHeader {
+    border-bottom-color: var(--color-stroke);
+
+    h2 {
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .closeButton {
+    color: var(--color-text-secondary);
+
+    &:hover {
+      color: var(--color-text-primary);
+      background: var(--color-background-all);
+    }
+  }
+
+  .modalBody {
+    p {
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .secondaryButton {
+    background: var(--color-background-all);
+    color: var(--color-text-secondary);
+
+    &:hover {
+      background: var(--color-background-secondary);
+    }
+  }
+
+  .resultCard {
+    background-color: var(--color-background-primary);
+    border-color: var(--color-stroke);
+  }
+}

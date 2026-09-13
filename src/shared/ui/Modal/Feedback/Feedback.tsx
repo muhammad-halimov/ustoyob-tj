@@ -1,0 +1,695 @@
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { getAuthToken, getUserRole, getUserData } from '../../../../utils/authUtils';
+import { getStorageItem } from '../../../../utils/storageUtils';
+import Auth from '../Auth/Auth';
+import Status from '../Status';
+import { Toggle } from '../../Button/Toggle/Toggle';
+import { SelectSearch } from '../../SelectSearch';
+import Grid, { PhotoItem } from '../../Photo/Grid';
+import { Preview, usePreview } from '../../Photo/Preview';
+import { uploadPhotos } from '../../../../utils/imageUtils';
+import styles from './Feedback.module.scss';
+import type { Ticket, AppealReason } from '../../../../entities';
+
+export interface FeedbackModalProps {
+    mode: 'review' | 'complaint';
+    isOpen: boolean;
+    onClose: () => void;
+    onSuccess: (message: string) => void;
+    onError?: (message: string) => void;
+    targetUserId: string | number;
+    ticketId?: string | number;
+    onReviewSubmitted?: (reviewCount: number) => void;
+    showServiceSelector?: boolean;
+    editReviewId?: string | number;
+    initialRating?: number;
+    initialText?: string;
+    initialImages?: Array<{ id: string | number; image: string }>;
+    /** The review's own `createdAt` — used to lock editing past the 24h window the backend
+     *  enforces (see `isEditLocked` below). Only relevant alongside `editReviewId`. */
+    initialCreatedAt?: string;
+    targetUserRole?: 'client' | 'master';
+    chatId?: string | number;
+    reviewId?: string | number;
+    complaintType?: 'ticket' | 'chat' | 'review' | 'user';
+    showUserComplaintToggle?: boolean;
+}
+
+import { API_BASE_URL } from '../../../../utils/configUtils';
+import { universalApiRequest } from '../../../../utils/apiUtils';
+import { getAppealReasons } from '../../../../utils/dataCacheUtils';
+import { API_ROUTES } from '../../../../app/routers/routes';
+
+const Feedback: React.FC<FeedbackModalProps> = ({
+    mode,
+    isOpen,
+    onClose,
+    onSuccess,
+    targetUserId,
+    ticketId,
+    onReviewSubmitted,
+    showServiceSelector = false,
+    targetUserRole,
+    chatId,
+    reviewId,
+    complaintType = 'ticket',
+    showUserComplaintToggle = false,
+    editReviewId,
+    initialRating,
+    initialText,
+    initialImages,
+    initialCreatedAt,
+}) => {
+    const { t } = useTranslation('components');
+    const isReview = mode === 'review';
+
+    // Same 24h window ReviewsSection's dropdown already blocks the "Редактировать" click on —
+    // duplicated here as a safety net for this modal's own submit path, not the only guard.
+    const REVIEW_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+    const isEditLocked = isReview && !!editReviewId && !!initialCreatedAt &&
+        (Date.now() - new Date(initialCreatedAt).getTime()) > REVIEW_EDIT_WINDOW_MS;
+
+    // --- Common state ---
+    const [photos, setPhotos] = useState<PhotoItem[]>([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [statusOpen, setStatusOpen] = useState(false);
+    const [statusType, setStatusType] = useState<'success' | 'error'>('error');
+    const [statusMessage, setStatusMessage] = useState('');
+
+    // --- Review state ---
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [reviewText, setReviewText] = useState('');
+    const [selectedStars, setSelectedStars] = useState(0);
+    const [services, setServices] = useState<Pick<Ticket, 'id' | 'title'>[]>([]);
+    const [selectedServiceId, setSelectedServiceId] = useState<string | number | null>(null);
+    const [loadingServices, setLoadingServices] = useState(false);
+
+    // --- Complaint state ---
+    const [reasons, setReasons] = useState<AppealReason[]>([]);
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [reason, setReason] = useState('');
+    const [tickets, setTickets] = useState<Pick<Ticket, 'id' | 'title'>[]>([]);
+    const [selectedTicketId, setSelectedTicketId] = useState<string | number | null>(ticketId ?? null);
+    const [loadingTickets, setLoadingTickets] = useState(false);
+    const [isUserComplaint, setIsUserComplaint] = useState(false);
+
+    const effectiveComplaintType = isUserComplaint ? 'user' : complaintType;
+
+    const getReviewImageUrl = (path: string) =>
+        path.startsWith('http') ? path : `${API_BASE_URL}/uploads/reviews/${path}`;
+
+    const allPhotoUrls = photos.map(p =>
+        p.type === 'existing' ? getReviewImageUrl(p.image) : p.previewUrl
+    );
+    const photoGallery = usePreview({ images: allPhotoUrls });
+
+    const showStatus = (type: 'success' | 'error', message: string) => {
+        setStatusType(type);
+        setStatusMessage(message);
+        setStatusOpen(true);
+    };
+
+    // --- Review effects ---
+    React.useEffect(() => {
+        if (isOpen && isReview) {
+            setIsAuthenticated(!!getAuthToken());
+        }
+    }, [isOpen, isReview]);
+
+    React.useEffect(() => {
+        if (isOpen && isReview && editReviewId) {
+            if (initialText !== undefined) setReviewText(initialText);
+            if (initialRating !== undefined) setSelectedStars(initialRating);
+            if (initialImages && initialImages.length > 0) {
+                setPhotos(initialImages.map(img => ({ type: 'existing' as const, id: img.id, image: img.image })));
+            } else {
+                setPhotos([]);
+            }
+        }
+    }, [isOpen, editReviewId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    React.useEffect(() => {
+        if (isOpen && isReview && isAuthenticated && showServiceSelector && targetUserId) {
+            fetchServices();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, isReview, isAuthenticated, showServiceSelector, targetUserId]);
+
+    // --- Complaint effects ---
+    React.useEffect(() => {
+        if (!isOpen || isReview) return;
+        const locale = getStorageItem('i18nextLng') || 'tj';
+        // applicableTo на бэке — 'chat'|'ticket'|'review'|'user'|'support'|'overall' (см.
+        // AppealReasonFixture) — жалоба на пользователя должна тянуть applicableTo=user
+        // (там реальные причины вроде "Поддельный профиль"/"Выдаёт себя за другого"), а не
+        // 'overall' — иначе эти причины никогда не попадают в дропдаун.
+        const type = effectiveComplaintType === 'chat' ? 'chat'
+            : effectiveComplaintType === 'review' ? 'review'
+            : effectiveComplaintType === 'user' ? 'user'
+            : 'ticket';
+        const authRequired = !!getAuthToken();
+        // Жалобы на чат — особый случай на бэке (ApiPostAppealConntroller, case 'chat'):
+        // причина с authRequired=true отклоняется БЕЗУСЛОВНО (401 auth_required_for_chat_appeals),
+        // даже у залогиненного пользователя — в отличие от ticket/review/user, где проверка
+        // `authRequired && !bearer` пропускает залогиненных. Поэтому для чата всегда запрашиваем
+        // только authRequired=false причины, не завязываясь на состояние авторизации.
+        const reasonAuthRequired = type === 'chat' ? false : authRequired;
+
+        // `type` — всегда один из 'chat'|'review'|'user'|'ticket' (никогда 'overall' само по
+        // себе), так что общие overall-причины всегда домешиваем отдельным запросом.
+        const requests: Promise<AppealReason[]>[] = [
+            getAppealReasons(locale, `applicableTo=${type}&authRequired=${reasonAuthRequired}`),
+            getAppealReasons(locale, `applicableTo=overall&authRequired=${reasonAuthRequired}`),
+        ];
+        // authenticated users also get the public (non-auth-required) overall reasons
+        // (no-op for chat — reasonAuthRequired is already false there)
+        if (authRequired && type !== 'chat') {
+            requests.push(getAppealReasons(locale, `applicableTo=overall&authRequired=false`));
+        }
+        Promise.all(requests).then((arrays) => {
+            const seen = new Set<string | number>();
+            const merged: AppealReason[] = [];
+            for (const r of arrays.flat()) {
+                if (!seen.has(r.id)) { seen.add(r.id); merged.push(r); }
+            }
+            setReasons(merged);
+        }).catch(() => setReasons([]));
+    }, [isOpen, isReview, effectiveComplaintType]);
+
+    React.useEffect(() => {
+        if (!isOpen || isReview) return;
+        if (targetUserId && !ticketId) fetchTickets();
+        if (ticketId) setSelectedTicketId(ticketId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, isReview, targetUserId, ticketId]);
+
+    // --- Review helpers ---
+    const fetchServices = async () => {
+        try {
+            setLoadingServices(true);
+            const userRole = getUserRole();
+            const endpoint = userRole === 'client'
+                ? `${API_ROUTES.TICKETS}?service=true&active=true&exists[author]=false&exists[master]=true&master=${targetUserId}`
+                : `${API_ROUTES.TICKETS}?service=false&active=true&exists[master]=false&exists[author]=true&author=${targetUserId}`;
+            const data: any = await universalApiRequest(endpoint);
+            const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
+            setServices(arr.map(t => ({ id: t.id, title: t.title || 'Без названия' })));
+        } catch (e) {
+            console.error('Error fetching services:', e);
+        } finally {
+            setLoadingServices(false);
+        }
+    };
+
+    const getCurrentUserId = (): string | number | null => getUserData()?.id ?? null;
+
+    const fetchReviewCount = async (userId: string | number): Promise<number> => {
+        try {
+            const data: any = await universalApiRequest(`${API_ROUTES.REVIEWS}?exists[ticket]=true&exists[master]=true&exists[client]=true&master=${userId}`);
+            const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
+            return arr.filter(r => r.master?.id === userId || r.client?.id === userId).length;
+        } catch {
+            return 0;
+        }
+    };
+
+    // --- Complaint helpers ---
+    const fetchTickets = async () => {
+        try {
+            setLoadingTickets(true);
+            const userRole = getUserRole();
+            const resolvedTargetRole = targetUserRole ?? (userRole === 'client' ? 'master' : 'client');
+            const endpoint = resolvedTargetRole === 'master'
+                ? `${API_ROUTES.TICKETS}?service=true&active=true&exists[master]=true&master=${targetUserId}`
+                : `${API_ROUTES.TICKETS}?service=false&active=true&exists[author]=true&author=${targetUserId}`;
+            const data: any = await universalApiRequest(endpoint);
+            const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
+            setTickets(arr.map(t => ({ id: t.id, title: t.title || 'Без названия' })));
+        } catch (e) {
+            console.error('Error fetching tickets:', e);
+        } finally {
+            setLoadingTickets(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    // --- Submit: Review ---
+    const handleSubmitReview = async () => {
+        if (isEditLocked) { showStatus('error', t('reviewModal.errorTooOldToEdit')); return; }
+        if (!reviewText.trim()) { showStatus('error', t('reviewModal.errorCommentRequired')); return; }
+        if (selectedStars === 0) { showStatus('error', t('reviewModal.errorRatingRequired')); return; }
+        const reviewTicketId = showServiceSelector ? selectedServiceId : ticketId;
+        if (!editReviewId && !reviewTicketId) {
+            showStatus('error', t(showServiceSelector ? 'reviewModal.errorServiceRequired' : 'reviewModal.errorTicketRequired'));
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const token = getAuthToken()!;
+
+            // --- Edit mode: PATCH existing review (same pattern as CreateEdit) ---
+            if (editReviewId) {
+                try {
+                // 1. Remember existing image IDs before upload
+                const existingImageIds = new Set(
+                    photos
+                        .filter((p): p is Extract<PhotoItem, { type: 'existing' }> => p.type === 'existing')
+                        .map(p => p.id)
+                );
+
+                // 2. Upload new photos one by one (same as CreateEdit)
+                const newPhotoEntries = photos
+                    .map((p, i) => ({ photo: p, index: i }))
+                    .filter((e): e is { photo: Extract<PhotoItem, { type: 'new' }>; index: number } => e.photo.type === 'new');
+
+                for (const { photo } of newPhotoEntries) {
+                    try {
+                        await uploadPhotos('reviews', editReviewId, [photo.file], token);
+                    } catch (e) {
+                        console.error('Error uploading review photo:', e);
+                    }
+                }
+
+                // 3. Re-fetch review to get updated image list (old + newly uploaded)
+                const freshReview = await universalApiRequest(API_ROUTES.REVIEW_BY_ID(editReviewId)).catch(() => null);
+                const allCurrentImages: Array<{ id: number; image: string }> = (freshReview as any)?.images || [];
+
+                // 4. Build sorted final images list preserving user order
+                const uploadedInOrder = allCurrentImages.filter(img => !existingImageIds.has(img.id));
+                let uploadedIdx = 0;
+                const finalImages = photos
+                    .map(p => {
+                        if (p.type === 'existing') {
+                            return allCurrentImages.find(img => img.id === p.id) ?? null;
+                        } else {
+                            return uploadedInOrder[uploadedIdx++] ?? null;
+                        }
+                    })
+                    .filter((x): x is { id: number; image: string } => x !== null);
+
+                await universalApiRequest(API_ROUTES.REVIEW_BY_ID(editReviewId), {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/merge-patch+json' },
+                    body: { rating: selectedStars, description: reviewText, images: finalImages },
+                    locale: false,
+                });
+                showStatus('success', t('reviewModal.successEditMessage'));
+                return;
+                } catch {
+                    showStatus('error', t('reviewModal.errorDefault'));
+                    return;
+                }
+            }
+
+            // --- Create mode ---
+            const userRole = getUserRole();
+            const currentUserId = getCurrentUserId();
+            if (!currentUserId) { showStatus('error', t('reviewModal.errorUserNotFound')); return; }
+            if (currentUserId === targetUserId) { showStatus('error', t('reviewModal.errorSelfReview')); return; }
+            if (!reviewTicketId) { showStatus('error', t('reviewModal.errorTicketRequired')); return; }
+
+            interface ReviewData { type: string; rating: number; description: string; ticket: string; master?: string; client?: string; }
+            const reviewData: ReviewData = {
+                type: '',
+                rating: selectedStars,
+                description: reviewText,
+                ticket: API_ROUTES.TICKET_BY_ID(reviewTicketId),
+            };
+            if (userRole === 'master') {
+                reviewData.type = 'client';
+                reviewData.master = API_ROUTES.USER_BY_ID(currentUserId);
+                reviewData.client = API_ROUTES.USER_BY_ID(targetUserId);
+            } else if (userRole === 'client') {
+                reviewData.type = 'master';
+                reviewData.client = API_ROUTES.USER_BY_ID(currentUserId);
+                reviewData.master = API_ROUTES.USER_BY_ID(targetUserId);
+            } else {
+                showStatus('error', t('reviewModal.errorUnknownRole'));
+                return;
+            }
+
+            try {
+                const reviewResponse: any = await universalApiRequest(API_ROUTES.REVIEWS, {
+                    method: 'POST',
+                    body: reviewData,
+                    locale: false,
+                });
+                if (photos.length > 0 && reviewResponse.id) {
+                    const filesToUpload = photos.flatMap(p => p.type === 'new' ? [p.file] : []);
+                    try { await uploadPhotos('reviews', reviewResponse.id, filesToUpload, token); }
+                    catch (e) { console.error('Error uploading review photos:', e); }
+                }
+                if (onReviewSubmitted) {
+                    const updatedCount = await fetchReviewCount(targetUserId);
+                    onReviewSubmitted(updatedCount);
+                }
+                showStatus('success', t('reviewModal.successMessage'));
+            } catch (reviewErr: any) {
+                const status = reviewErr?.http ?? reviewErr?.status ?? 0;
+                let errorMessage = t('reviewModal.errorDefault');
+                if (status === 409) errorMessage = t('reviewModal.errorAlreadyReviewed');
+                else if (status === 400) errorMessage = t('reviewModal.errorInvalidData');
+                else if (status === 404) errorMessage = t('reviewModal.errorNotFound');
+                else if (status === 403) errorMessage = t('reviewModal.errorNoAccess');
+                else if (reviewErr?.message?.includes('no interaction')) errorMessage = t('reviewModal.errorNoInteraction');
+                showStatus('error', errorMessage);
+            }
+        } catch {
+            showStatus('error', t('reviewModal.errorUnexpected'));
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // --- Submit: Complaint ---
+    const handleSubmitComplaint = async () => {
+        if (!title.trim()) { showStatus('error', t('complaintModal.errorTitleRequired')); return; }
+        if (!description.trim()) { showStatus('error', t('complaintModal.errorDescriptionRequired')); return; }
+        if (!reason) { showStatus('error', t('complaintModal.errorReasonRequired')); return; }
+        if (effectiveComplaintType === 'ticket' && !selectedTicketId) { showStatus('error', t('complaintModal.errorTicketRequired')); return; }
+
+        setIsSubmitting(true);
+        try {
+            const token = getAuthToken()!
+            const complaintData: Record<string, any> = {
+                type: effectiveComplaintType,
+                title,
+                description,
+                reason: API_ROUTES.APPEAL_REASON_BY_ID(reason),
+                respondent: API_ROUTES.USER_BY_ID(targetUserId),
+            };
+            if (selectedTicketId) complaintData.ticket = API_ROUTES.TICKET_BY_ID(selectedTicketId);
+            if (chatId) complaintData.chat = API_ROUTES.CHAT_BY_ID(chatId);
+            if (reviewId) complaintData.review = API_ROUTES.REVIEW_BY_ID(reviewId);
+
+            try {
+                const complaintResponse: any = await universalApiRequest(API_ROUTES.APPEALS, {
+                    method: 'POST',
+                    body: complaintData,
+                    locale: false,
+                });
+                if (photos.length > 0 && complaintResponse.id) {
+                    const filesToUpload = photos.flatMap(p => p.type === 'new' ? [p.file] : []);
+                    try { await uploadPhotos('appeals', complaintResponse.id, filesToUpload, token); }
+                    catch (e) { console.error('Error uploading complaint photos:', e); }
+                }
+                showStatus('success', t('complaintModal.successMessage'));
+            } catch (complaintErr: any) {
+                const status = complaintErr?.http ?? complaintErr?.status ?? 0;
+                let errorMessage = t('complaintModal.errorDefault');
+                if (status === 404) errorMessage = t('complaintModal.errorNotFound');
+                else if (status === 403 || status === 401) errorMessage = t('complaintModal.errorNoAccess');
+                showStatus('error', errorMessage);
+            }
+        } catch {
+            showStatus('error', t('complaintModal.errorUnexpected'));
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleCloseModal = () => {
+        // Review state
+        setReviewText('');
+        setSelectedStars(0);
+        setSelectedServiceId(null);
+        setServices([]);
+        setIsAuthenticated(false);
+        // Complaint state
+        setTitle('');
+        setDescription('');
+        setReason('');
+        setSelectedTicketId(null);
+        setTickets([]);
+        setIsUserComplaint(false);
+        // Common
+        setPhotos([]);
+        onClose();
+    };
+
+    // Review: show Auth if not authenticated
+    if (isReview && !isAuthenticated) {
+        return (
+            <Auth
+                isOpen={true}
+                onClose={handleCloseModal}
+                onLoginSuccess={() => setIsAuthenticated(true)}
+            />
+        );
+    }
+
+    return (
+        <>
+        <Status
+            type={statusType}
+            isOpen={statusOpen}
+            onClose={() => {
+                setStatusOpen(false);
+                if (statusType === 'success') {
+                    onSuccess(statusMessage);
+                    handleCloseModal();
+                }
+            }}
+            message={statusMessage}
+        />
+        <div className={styles.modalOverlay} onClick={handleCloseModal}>
+            <div className={styles.feedbackModal} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.modalHeader}>
+                    <h2>{isReview ? t('reviewModal.title') : t('complaintModal.title')}</h2>
+                </div>
+
+                <div className={styles.modalContent}>
+                    {/* ===== REVIEW FIELDS ===== */}
+                    {isReview && isEditLocked && (
+                        <div className={styles.editLockedNotice}>{t('reviewModal.editLockedNotice')}</div>
+                    )}
+                    {isReview && showServiceSelector && (
+                        <div className={styles.serviceSection}>
+                            <label>{t('reviewModal.selectService')}</label>
+                            {loadingServices ? (
+                                <div className={styles.loadingServices}>{t('reviewModal.loadingServices')}</div>
+                            ) : services.length === 0 ? (
+                                <div className={styles.noServices}>{t('reviewModal.noServices')}</div>
+                            ) : (
+                                <SelectSearch
+                                    value={selectedServiceId != null ? String(selectedServiceId) : ''}
+                                    // id теперь UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md) — Number(uuid)
+                                    // даёт NaN и тихо ломает выбор услуги. Сохраняем строкой как есть.
+                                    onChange={(value) => setSelectedServiceId(value || null)}
+                                    placeholder={t('reviewModal.selectServicePlaceholder')}
+                                    options={services.map(s => ({ value: String(s.id), label: s.title }))}
+                                    disabled={isSubmitting || isEditLocked}
+                                    hideClear
+                                />
+                            )}
+                        </div>
+                    )}
+
+                    {isReview && (
+                        <div className={styles.commentSection}>
+                            <textarea
+                                value={reviewText}
+                                onChange={(e) => setReviewText(e.target.value)}
+                                placeholder={t('reviewModal.commentPlaceholder')}
+                                className={styles.commentTextarea}
+                                disabled={isSubmitting || isEditLocked}
+                            />
+                        </div>
+                    )}
+
+                    {/* ===== COMPLAINT FIELDS ===== */}
+                    {!isReview && showUserComplaintToggle && (
+                        <Toggle
+                            checked={isUserComplaint}
+                            onChange={(e) => setIsUserComplaint(e.target.checked)}
+                            label={t('complaintModal.userComplaintToggle')}
+                        />
+                    )}
+
+                    {!isReview && effectiveComplaintType === 'ticket' && !ticketId && !isUserComplaint && (
+                        <div className={styles.ticketSection}>
+                            <label>{t('complaintModal.selectTicket')}</label>
+                            {loadingTickets ? (
+                                <div className={styles.loadingTickets}>{t('complaintModal.loadingTickets')}</div>
+                            ) : tickets.length === 0 ? (
+                                <div className={styles.noTickets}>{t('complaintModal.noTickets')}</div>
+                            ) : (
+                                <SelectSearch
+                                    value={selectedTicketId != null ? String(selectedTicketId) : ''}
+                                    // id теперь UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md) — Number(uuid)
+                                    // даёт NaN и тихо ломает выбор тикета. Сохраняем строкой как есть.
+                                    onChange={(value) => setSelectedTicketId(value || null)}
+                                    placeholder={t('complaintModal.selectTicketPlaceholder')}
+                                    options={tickets.map(ticket => ({ value: String(ticket.id), label: ticket.title }))}
+                                    disabled={isSubmitting}
+                                    hideClear
+                                />
+                            )}
+                        </div>
+                    )}
+
+                    {!isReview && (
+                        <div className={styles.reasonSection}>
+                            <label>{t('complaintModal.selectReason')}</label>
+                            <SelectSearch
+                                value={reason}
+                                onChange={(value) => setReason(value)}
+                                placeholder={t('complaintModal.selectReasonPlaceholder')}
+                                options={reasons.map(r => ({ value: String(r.id), label: r.title }))}
+                                disabled={isSubmitting}
+                                hideClear
+                            />
+                        </div>
+                    )}
+
+                    {!isReview && (
+                        <div className={styles.titleSection}>
+                            <label>{t('complaintModal.complaintTitle')}</label>
+                            <SelectSearch
+                                altMode
+                                hideIcon
+                                options={[]}
+                                value={title}
+                                onChange={setTitle}
+                                placeholder={t('complaintModal.titlePlaceholder')}
+                                disabled={isSubmitting}
+                            />
+                        </div>
+                    )}
+
+                    {!isReview && (
+                        <div className={styles.descriptionSection}>
+                            <label>{t('complaintModal.complaintDescription')}</label>
+                            <textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder={t('complaintModal.descriptionPlaceholder')}
+                                className={styles.descriptionTextarea}
+                                disabled={isSubmitting}
+                            />
+                        </div>
+                    )}
+
+                    {/* ===== PHOTOS (common) ===== */}
+                    <div className={styles.photoSection}>
+                        <label className={styles.photoLabel}>
+                            {isReview ? t('reviewModal.attachPhoto') : t('complaintModal.attachPhoto')}
+                        </label>
+                        <Preview
+                            isOpen={photoGallery.isOpen}
+                            images={allPhotoUrls}
+                            currentIndex={photoGallery.currentIndex}
+                            onClose={photoGallery.closeGallery}
+                            onNext={photoGallery.goToNext}
+                            onPrevious={photoGallery.goToPrevious}
+                            onSelectImage={photoGallery.selectImage}
+                        />
+                        <Grid
+                            photos={photos}
+                            onChange={setPhotos}
+                            getImageUrl={getReviewImageUrl}
+                            onClickPhoto={photoGallery.openGallery}
+                            disabled={isSubmitting || isEditLocked}
+                            inputId={isReview ? 'review-photos' : 'complaint-photos'}
+                        />
+                    </div>
+
+                    {/* ===== REVIEW: Star rating ===== */}
+                    {isReview && (
+                        <div className={styles.ratingSection}>
+                            <label>{t('reviewModal.rateWork')}</label>
+                            <div className={styles.stars}>
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                        key={star}
+                                        type="button"
+                                        className={`${styles.star} ${star <= selectedStars ? styles.active : ''}`}
+                                        onClick={() => setSelectedStars(star)}
+                                        disabled={isSubmitting || isEditLocked}
+                                    >
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"
+                                             xmlns="http://www.w3.org/2000/svg">
+                                            <g clipPath="url(#clip0_248_13358)">
+                                                <path
+                                                    d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z"
+                                                    stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                                <path d="M12 19V18.98" stroke="currentColor" strokeWidth="2"
+                                                      strokeMiterlimit="10"/>
+                                            </g>
+                                            <defs>
+                                                <clipPath id="clip0_248_13358">
+                                                    <rect width="24" height="24" fill="white"/>
+                                                </clipPath>
+                                            </defs>
+                                        </svg>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* ===== ACTIONS ===== */}
+                <div className={styles.modalActions}>
+                    <button
+                        className={styles.closeButton}
+                        onClick={handleCloseModal}
+                        disabled={isSubmitting}
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                             xmlns="http://www.w3.org/2000/svg">
+                            <g clipPath="url(#clip0_fb_close)">
+                                <g clipPath="url(#clip1_fb_close)">
+                                    <path
+                                        d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z"
+                                        stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                    <path d="M16.7705 7.22998L7.23047 16.77" stroke="currentColor" strokeWidth="2"
+                                          strokeMiterlimit="10"/>
+                                    <path d="M7.23047 7.22998L16.7705 16.77" stroke="currentColor" strokeWidth="2"
+                                          strokeMiterlimit="10"/>
+                                </g>
+                            </g>
+                            <defs>
+                                <clipPath id="clip0_fb_close"><rect width="24" height="24" fill="white"/></clipPath>
+                                <clipPath id="clip1_fb_close"><rect width="24" height="24" fill="white"/></clipPath>
+                            </defs>
+                        </svg>
+                        {isReview ? t('reviewModal.close') : t('complaintModal.close')}
+                    </button>
+                    <button
+                        className={`${styles.submitButton} ${!isReview ? styles.submitButtonComplaint : ''}`}
+                        onClick={isReview ? handleSubmitReview : handleSubmitComplaint}
+                        disabled={isSubmitting || isEditLocked}
+                    >
+                        <span style={{ visibility: isSubmitting ? 'hidden' : 'visible', display: 'flex', alignItems: 'center' }}>
+                            {isReview ? t('reviewModal.submit') : t('complaintModal.submit')}
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                 xmlns="http://www.w3.org/2000/svg">
+                                <g clipPath="url(#clip0_fb_submit)">
+                                    <path
+                                        d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z"
+                                        stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                    <path d="M6.26953 12H17.7295" stroke="white" strokeWidth="2"
+                                          strokeMiterlimit="10"/>
+                                    <path d="M12.96 7.22998L17.73 12L12.96 16.77" stroke="white" strokeWidth="2"
+                                          strokeMiterlimit="10"/>
+                                </g>
+                                <defs>
+                                    <clipPath id="clip0_fb_submit"><rect width="24" height="24" fill="white"/></clipPath>
+                                </defs>
+                            </svg>
+                        </span>
+                        {isSubmitting && <span className={styles.submitSpinner} />}
+                    </button>
+                </div>
+            </div>
+        </div>
+        </>
+    );
+};
+
+export default Feedback;

@@ -1,0 +1,154 @@
+@use 'fonts';
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+*,::before,::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+// ─── Global mobile touch optimisation ────────────────────────────────────────
+// Set on every element so divs/spans with cursor:pointer also get no tap flash.
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+// Eliminates the 300 ms tap-delay and disables double-tap-zoom on interactive
+// elements (keeps scroll working on scrollable containers via 'auto').
+a,
+button,
+input,
+select,
+textarea,
+label,
+[role="button"],
+[role="tab"],
+[role="option"],
+[tabindex] {
+  touch-action: manipulation;
+}
+
+// Generic tap/press feedback for button-like elements that lack their own :active.
+// Components that define their own :active override this automatically.
+button:active:not(:disabled),
+[role="button"]:active,
+[role="tab"]:active {
+  opacity: 0.75;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Глобальные стили для body и html с поддержкой темизации
+html {
+  // Инициализация темы по умолчанию
+  --color-scheme: light;
+  color-scheme: var(--color-scheme);
+  // Резервируем место под скроллбар чтобы не было горизонтального прыжка
+  // при появлении/исчезновении вертикального скроллбара
+  scrollbar-gutter: stable;
+}
+
+html[data-theme="dark"] {
+  --color-scheme: dark;
+}
+
+body {
+  background: var(--color-background-all);
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  min-height: 100vh;
+}
+
+// Sticky footer — `.app` is Layout.tsx's root wrapper around Header/main/Footer. Without
+// this, main just renders at its natural content height and the footer sits right after it —
+// fine on a tall page, but on a short one it leaves a gap of bare background below the footer
+// instead of the footer sitting flush at the bottom of the screen.
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+
+  main {
+    flex: 1;
+    // Lets a page *fill* (not just occupy) the space above the footer if it wants to — a
+    // flex item's default min-height:auto refuses to shrink below its content otherwise,
+    // which a page like Chat needs (own internal scroll instead of the whole page
+    // overflowing). Plain-content pages are unaffected: they don't ask for 100% height
+    // anywhere, so they still just render at natural size same as always.
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+}
+
+// Глобальные стили для темизации
+:root {
+  // Анимации для переходов между темами
+  --theme-transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+// Стили для элементов ввода и интерактивных компонентов
+input, textarea, select {
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+  border-color: var(--color-stroke);
+  transition: var(--theme-transition);
+  
+  &:focus {
+    border-color: var(--color-primary);
+    outline-color: var(--color-primary);
+  }
+  
+  &::placeholder {
+    color: var(--color-text-placeholder);
+  }
+}
+
+// Стили для кнопок
+button {
+  transition: var(--theme-transition);
+  border-color: var(--color-stroke);
+  
+  &:not(:disabled) {
+    &:hover {
+      background-color: var(--color-background-gray-hover);
+    }
+  }
+}
+
+// Стили для ссылок
+a {
+  color: var(--color-primary);
+  transition: color 0.3s ease;
+  
+  &:hover {
+    color: var(--color-primary-hover);
+  }
+}
+
+// Стили для модальных окон и оверлеев
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .modal-overlay {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+// Стили для скроллбаров в темной теме
+[data-theme="dark"] ::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--color-background-primary);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--color-stroke);
+  border-radius: 4px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-background-gray-hover);
+}

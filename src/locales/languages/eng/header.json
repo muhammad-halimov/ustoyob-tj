@@ -1,0 +1,37 @@
+{
+  "tagline": "Masters nearby. Fast and simple.",
+  "filters": "Filters",
+  "orders": "Home",
+  "favorites": "Favorites",
+  "chats": "Chats",
+  "profile": "Profile",
+  "location": "City",
+  "geography": "Geography",
+  "addBtn": "Add",
+  "postAd": "Post a ticket",
+  "postService": "Post a service",
+  "login": "Login",
+  "logout": "Logout",
+  "register": "Register",
+  "myAds": "My ads",
+  "settings": "Settings",
+  "selectedCity": "Location",
+  "lang": {
+    "tj": "TJ",
+    "ru": "RU",
+    "eng": "ENG"
+  },
+  "confirmationBanner": {
+    "title": "Your account is not confirmed",
+    "message": "Confirm your account via the link in the email to get full access to site features",
+    "resend": "Resend email",
+    "sending": "Sending...",
+    "tokenError": "Authentication token not found",
+    "emailSent": "Confirmation email sent successfully",
+    "sendError": "Failed to send confirmation email",
+    "warning": "Warning",
+    "sendErrorRetry": "Error sending confirmation. Please try again",
+    "networkError": "Network error. Please check your connection"
+  },
+  "searchCity": "Search city..."
+}

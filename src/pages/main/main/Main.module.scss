@@ -1,0 +1,276 @@
+@use '../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.main {
+  width: 100%;
+
+  .searchResults {
+    @include vars.Container;
+    margin-top: 20px;
+
+
+    &.withFilters {
+      max-width: calc(100% - 400px);
+      margin-left: auto;
+      margin-right: 0;
+    }
+
+    &.withoutFilters {
+      width: 100%;
+    }
+
+    .resultCard {
+      width: 100%;
+      //max-width: 1022px;
+      min-height: 320px;
+      background: map.get(vars.$colors, primary-text-white);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 16px;
+
+      .resultHeader {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .description {
+        margin-bottom: 16px;
+        color: map.get(vars.$colors, text-placeholder);
+      }
+
+      .resultDetails {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .resultFooter {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        .timeAgo {
+          color: map.get(vars.$colors, text-placeholder);
+        }
+      }
+    }
+  }
+
+  .searchMasters {
+    display: flex;
+    @include vars.Container;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 25px;
+
+    .searchMasters_item {
+      flex: 1 1 calc(27% - 15px);
+      max-width: 366px;
+      min-width: 210px;
+      min-height: 261px;
+      background-color: map.get(vars.$colors, primary-text-white);
+      padding: 20px 15.22px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+      text-align: center;
+
+      img {
+        margin-bottom: 12px;
+      }
+
+      .searchMasters_item_welc {
+        margin-bottom: 12px;
+      }
+
+      .searchMasters_item_title {
+        font-weight: 300;
+        font-size: 16px;
+        color: map.get(vars.$colors, text-placeholder);
+        line-height: 100%;
+      }
+    }
+  }
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--color-shadow-overlay);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: var(--color-background-primary);
+  padding: 30px 30px;
+  border-radius: 8px;
+  text-align: center;
+  position: relative;
+}
+
+.btnClose {
+  position: absolute;
+  top: 5px;
+  right: 8px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  svg {
+    width: 18px;
+  }
+}
+
+.desktopGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 27px;
+}
+
+/* Tablet padding starts at 1200px */
+@media screen and (max-width: 1200px) {
+  .searchResults {
+    padding: 0 20px;
+  }
+
+  .searchMasters {
+    padding: 0 20px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .modalOverlay {
+    padding: 0 16px;
+  }
+}
+
+/* Tablet: 1024px and below */
+@media screen and (max-width: 1024px) {
+  .desktopGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+}
+
+/* мобильный слайдер скрыт на ПК */
+.mobileSlider {
+  display: none;
+}
+
+/* Mobile/Tablet */
+@media screen and (max-width: 1200px){
+  .desktopGrid {
+    display: none;
+  }
+
+  .mobileSlider {
+    display: block;
+  }
+
+  .searchMasters {
+    display: block !important;
+    padding: 0 20px;
+  }
+
+  .searchMasters_item img {
+    width: 100%;
+    border-radius: 10px;
+  }
+
+  .about {
+    margin-top: 40px !important;
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .main {
+    .searchResults .resultCard,
+    .searchMasters .searchMasters_item {
+      background: var(--color-background-primary);
+    }
+  }
+
+  .modalContent {
+    background: var(--color-background-primary);
+  }
+}
+
+// Swiper pagination styles
+.performersSwiper {
+  :global {
+    .swiper-wrapper {
+      align-items: stretch; // Растягиваем все слайды на одну высоту
+    }
+
+    .swiper-slide {
+      height: auto; // Позволяем слайдам растягиваться
+      display: flex; // Используем flex для выравнивания
+      
+      > div {
+        width: 100%;
+        display: flex;
+      }
+    }
+
+    .swiper-pagination {
+      bottom: -35px !important; // Вынести pagination за пределы карточек
+      position: absolute;
+    }
+
+    .swiper-pagination-bullet {
+      background: #3A54DA;
+      opacity: 0.3;
+      width: 8px;
+      height: 8px;
+    }
+
+    .swiper-pagination-bullet-active {
+      opacity: 1;
+      background: #3A54DA;
+    }
+  }
+}
+
+.recommendationsWrapper {
+  @include vars.Container;
+  margin: 60px auto 30px;
+
+  @media (max-width: 1200px) {
+    padding: 0 20px;
+  }
+
+  :global(.recommendation) {
+    margin: 0 !important;
+  }
+
+  @media (max-width: 768px) {
+    margin: 40px auto 30px;
+  }
+}
+
+.recommendationsTitle {
+  font-size: 36px;
+  font-weight: 400;
+  color: #000;
+  margin-bottom: 40px;
+
+  @media (max-width: 768px) {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .recommendationsTitle {
+    color: var(--color-text-black);
+  }
+}
+
