@@ -1,0 +1,860 @@
+@use '../../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: map.get(vars.$colors, background-primary);
+  border-radius: map.get(vars.$border-radius, lg);
+  padding: map.get(vars.$spacing, 8);
+  width: 100%;
+  max-width: 841px;
+  position: relative;
+  box-shadow: 0 8px 32px map.get(vars.$colors, shadow);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.closeButton {
+  position: absolute;
+  top: map.get(vars.$spacing, 4);
+  right: map.get(vars.$spacing, 4);
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: map.get(vars.$colors, color-icons);
+  min-width: 30px;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+
+  &:hover {
+    color: map.get(vars.$colors, text-black);
+    background: map.get(vars.$colors, hover-with-borderBtn);
+    border-radius: 50%;
+  }
+
+  &:active {
+    color: map.get(vars.$colors, text-black);
+    background: map.get(vars.$colors, hover-with-borderBtn);
+    border-radius: 50%;
+    transform: scale(0.9);
+  }
+}
+
+/* Welcome screen */
+.welcomeScreen {
+  text-align: center;
+
+  h2 {
+    margin-bottom: map.get(vars.$spacing, 4);
+    font-size: map.get(vars.$font-sizes, 2xl);
+    color: map.get(vars.$colors, text-primary);
+    line-height: 1.4;
+  }
+}
+
+.welcomeButtons {
+  display: flex;
+  flex-direction: column;
+
+  .enterPic {
+    display: block;
+    margin: 40px auto 5px;
+  }
+}
+
+/* Form */
+.form {
+  h2 {
+    margin-bottom: map.get(vars.$spacing, 8);
+    font-size: map.get(vars.$font-sizes, '2xl');
+    color: map.get(vars.$colors, text-black);
+    text-align: center;
+    font-weight: 600;
+  }
+
+  .socialTitle {
+    text-align: center;
+    margin-top: map.get(vars.$spacing, 6);
+    font-size: map.get(vars.$font-sizes, base);
+  }
+
+  // Единое место для размера/раскладки OAuth-иконок (Google/Facebook/Instagram/Telegram) —
+  // раньше max-width:62px стоял только у telegram/google, а мобильный оверрайд ниже менял
+  // ширину только у facebook/google, из-за чего 4 кнопки на деле были рассинхронизированы
+  // по размеру. Теперь все четыре — одинаковый img-размер, одна точка правки.
+  .socialButtons {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: map.get(vars.$spacing, 4);
+    margin: map.get(vars.$spacing, 5) 0;
+
+    button {
+      cursor: pointer;
+    }
+
+    img {
+      display: block;
+      width: 64px;
+      height: 64px;
+    }
+  }
+}
+
+.error {
+  background: #fee;
+  border: 1px solid #fcc;
+  color: #c33;
+  padding: map.get(vars.$spacing, 3);
+  border-radius: map.get(vars.$border-radius, base);
+  margin-bottom: map.get(vars.$spacing, 4);
+  font-size: map.get(vars.$font-sizes, sm);
+  text-align: center;
+}
+
+.subtitle {
+  text-align: center;
+  color: map.get(vars.$colors, color-icons);
+  margin-bottom: map.get(vars.$spacing, 6);
+  font-size: map.get(vars.$font-sizes, sm);
+}
+
+/* Role selector */
+.roleSelector {
+  display: flex;
+  gap: 0;
+  margin-bottom: map.get(vars.$spacing, 8);
+  width: 100%;
+  border-radius: map.get(vars.$border-radius, base);
+  overflow: hidden;
+  background: map.get(vars.$colors, background-primary);
+
+  button {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 400;
+    transition: all 0.2s ease;
+    color: map.get(vars.$colors, text-primary);
+    user-select: none;
+
+    &:hover:not(.roleButtonActive) {
+      background: map.get(vars.$colors, background-btn2);
+      border-radius: map.get(vars.$border-radius, lg);
+    }
+
+    &:active {
+      opacity: 0.8;
+      transform: scale(0.97);
+    }
+  }
+}
+
+.roleButtonActive {
+  background: map.get(vars.$colors, actual-blue) !important;
+  border-radius: map.get(vars.$border-radius, lg);
+  color: map.get(vars.$colors, primary-text-white) !important;
+}
+
+/* Input/Select */
+.inputGroup {
+  margin-bottom: map.get(vars.$spacing, 3);
+}
+
+.nameRow {
+  display: flex;
+  gap: map.get(vars.$spacing, 3);
+
+  .inputGroup {
+    flex: 1;
+    // Без этого flex-item не сжимается меньше min-content всего SelectSearch —
+    // поля имя/фамилия суммарно шире ряда и вылезают за форму.
+    min-width: 0;
+  }
+}
+
+/* Primary button */
+.primaryButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 4);
+  background: map.get(vars.$colors, actual-blue);
+  color: map.get(vars.$colors, primary-text-white);
+  border: none;
+  border-radius: map.get(vars.$border-radius, base);
+  font-size: map.get(vars.$font-sizes, 'base');
+  font-weight: 600;
+  cursor: pointer;
+  margin: 15px auto;
+  user-select: none;
+  transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover:not(:disabled) {
+    background: #2a44ca;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(58, 84, 218, 0.3);
+  }
+
+  &:active:not(:disabled) {
+    background: #2a44ca;
+    transform: scale(0.98);
+    box-shadow: none;
+  }
+
+  &:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+}
+
+/* Secondary button */
+.secondaryButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 4);
+  background: map.get(vars.$colors, background-primary);
+  color: map.get(vars.$colors, actual-blue);
+  border: 2px solid map.get(vars.$colors, actual-blue);
+  border-radius: map.get(vars.$border-radius, base);
+  font-size: map.get(vars.$font-sizes, 'base');
+  font-weight: 600;
+  cursor: pointer;
+  margin: 0 auto;
+  transition: background-color 0.2s, transform 0.2s;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover:not(:disabled) {
+    background: map.get(vars.$colors, hover-with-borderBtn);
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    color: #ccc;
+    border-color: #ccc;
+  }
+}
+
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: map.get(vars.$spacing, 2);
+  align-items: center;
+  margin-top: map.get(vars.$spacing, 6);
+}
+
+/* "Нет аккаунта? Зарегистрируйтесь!" — статичный текст вопроса + кликабельный .linkButton
+   рядом, единой строкой с переносом как единое целое, а не разрывом посреди фразы. */
+.registerPrompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0 map.get(vars.$spacing, 1);
+  text-align: center;
+
+  .promptText {
+    font-size: map.get(vars.$font-sizes, 'base');
+    color: map.get(vars.$colors, text-gray);
+  }
+}
+
+.linkButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: map.get(vars.$colors, actual-blue);
+  cursor: pointer;
+  font-size: map.get(vars.$font-sizes, 'base');
+  font-weight: 600;
+  line-height: 1.3;
+  border-radius: map.get(vars.$border-radius, base);
+  // Достаточный тап-таргет под мобильные (~44px) вместо голого текста без хитбокса.
+  padding: 10px 14px;
+  min-height: 44px;
+  transition: background-color 0.2s, color 0.2s;
+  text-decoration: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover:not(:disabled) {
+    color: #2a44ca;
+    background: map.get(vars.$colors, filters-btn-hover);
+  }
+
+  &:active:not(:disabled) {
+    color: #2a44ca;
+    background: map.get(vars.$colors, filters-btn-hover);
+    transform: scale(0.97);
+  }
+
+  &:disabled {
+    color: #ccc;
+    cursor: not-allowed;
+  }
+
+  span {
+    color: map.get(vars.$colors, text-who);
+    margin-right: map.get(vars.$spacing, 1);
+    font-weight: 400;
+  }
+}
+
+/* Legal note */
+.legalNote {
+  font-size: map.get(vars.$font-sizes, xs);
+  color: map.get(vars.$colors, color-icons);
+  text-align: center;
+  margin-bottom: map.get(vars.$spacing, 2);
+  // Достаточный line-height, чтобы при переносе на 2-3 строки (особенно на узких экранах)
+  // соседние строки не наезжали друг на друга и не мешали точному тапу по ссылке.
+  line-height: 2;
+}
+
+.legalLink {
+  display: inline-block;
+  color: map.get(vars.$colors, actual-blue);
+  text-decoration: none;
+  font-weight: 500;
+  // Небольшой, но реальный хитбокс вместо голого текста — почти не меняет раскладку
+  // (ссылка инлайновая, внутри абзаца), но тапать на мобильном заметно проще.
+  padding: 4px 3px;
+  margin: -4px -3px;
+  border-radius: map.get(vars.$border-radius, sm);
+  transition: color 0.2s;
+
+  &:hover {
+    color: #2a44ca;
+    background: map.get(vars.$colors, filters-btn-hover);
+  }
+
+  &:active {
+    color: #2a44ca;
+    background: map.get(vars.$colors, filters-btn-hover);
+  }
+}
+
+/* Adaptive */
+@media (max-width: 768px) {
+  .roleSelector {
+    button {
+      padding: 14px 16px;
+      font-size: 14px;
+    }
+  }
+
+  .nameRow {
+    flex-direction: column;
+  }
+
+  .form h2 {
+    font-size: map.get(vars.$font-sizes, 'base');
+  }
+}
+
+/* Modal sizes */
+.modal_welcome { max-width: 520px; padding: 24px 32px; }
+.modal_login { max-width: 520px; }
+.modal_register { max-width: 717px; }
+.modal_forgot_password { max-width: 520px; }
+.modal_verify_code { max-width: 520px; }
+.modal_new_password { max-width: 520px; }
+
+@media screen and (max-width: 550px) {
+  .modal_welcome {
+    max-width: 335px;
+  }
+  .modal_login { max-width: 335px; }
+  .modal_register { max-width: 335px; }
+  .modal_forgot_password { max-width: 335px; }
+  .modal_verify_code { max-width: 335px; }
+  .modal_new_password { max-width: 335px; }
+
+  .roleSelector {
+    width: 100%;
+    button {
+      padding: 8px 16px;
+    }
+  }
+  .modalContent {
+    padding: 20px;
+  }
+
+  // Все 4 OAuth-иконки уменьшаются вместе и пропорционально (см. комментарий у базового
+  // .form .socialButtons) — раньше только Google/Facebook ужимались (нестрого, через
+  // width:70% без height, что ещё и растягивало картинку), а Instagram/Telegram
+  // оставались полноразмерными.
+  .form .socialButtons {
+    gap: map.get(vars.$spacing, 3);
+
+    img {
+      width: 48px;
+      height: 48px;
+    }
+  }
+
+  // Full-width только для самостоятельных ссылок-действий (прямые дети .links —
+  // "Не помню пароль", "Назад" и т.п.). Ссылка внутри .registerPrompt ("Нет аккаунта?
+  // Зарегистрируйтесь!") должна остаться частью одной строки, а не падать на full-width
+  // и переноситься под текст вопроса.
+  .links > .linkButton {
+    width: 100%;
+    padding: 10px 12px;
+  }
+
+  .legalNote {
+    padding: 0 map.get(vars.$spacing, 2);
+  }
+}
+
+.successMessage {
+  background-color: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  text-align: center;
+
+  p {
+    margin: 8px 0;
+    line-height: 1.5;
+
+    &:first-child {
+      font-weight: bold;
+      color: #2e7d32;
+      font-size: 18px;
+    }
+  }
+
+  strong {
+    color: #1976d2;
+  }
+}
+
+.divider {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin: 20px 0;
+}
+
+.buttonGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.secondaryButton {
+  background-color: var(--color-background-secondary);
+  color: var(--color-text-gray);
+  border: 1px solid var(--color-stroke);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover:not(:disabled) {
+    background-color: var(--color-background-gray-hover);
+    border-color: var(--color-text-secondary);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.googleButton {
+  // Существующие стили
+  cursor: pointer;
+  background: none;
+  border: none;
+  user-select: none;
+
+  &:active:not(:disabled) {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.telegramButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+
+  &:active:not(:disabled) {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+}
+
+.telegramWidgetContainer {
+  margin: 15px 0;
+
+  iframe {
+    border-radius: 20px !important;
+    overflow: hidden;
+    border: none;
+  }
+}
+
+
+// Добавьте эти стили в ваш файл
+
+.roleLabel {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.googleButtonText,
+.telegramButtonText {
+  margin-left: 8px;
+  font-weight: 500;
+}
+
+.socialNote {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 14px;
+  color: #555;
+
+  p {
+    margin: 0;
+  }
+
+  strong {
+    color: #333;
+  }
+}
+
+.facebookButton,
+.instagramButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+
+  &:active:not(:disabled) {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.passwordRequirements {
+  margin-top: 8px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  font-size: 13px;
+  line-height: 1.4;
+
+  p {
+    margin: 0 0 8px 0;
+    font-weight: 600;
+    color: #495057;
+    font-size: 14px;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 20px;
+    list-style-type: none;
+
+    li {
+      position: relative;
+      margin-bottom: 6px;
+      color: #6c757d;
+      transition: color 0.2s ease;
+
+      &:before {
+        content: '○';
+        position: absolute;
+        left: -20px;
+        top: 0;
+        color: #6c757d;
+        font-size: 12px;
+      }
+
+      &.requirementMet {
+        color: #28a745;
+        font-weight: 500;
+
+        &:before {
+          content: '✓';
+          color: #28a745;
+          font-weight: bold;
+        }
+      }
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+}
+
+.passwordError {
+  color: #dc3545;
+  font-size: 13px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &:before {
+    content: '⚠';
+    font-size: 14px;
+  }
+}
+
+.inputGroup {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.passwordValid {
+  color: #28a745;
+  font-size: 13px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &:before {
+    content: '✓';
+    font-weight: bold;
+    font-size: 14px;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.passwordRequirements {
+  animation: fadeIn 0.3s ease;
+}
+
+.passwordStrength {
+  margin-top: 8px;
+  height: 4px;
+  background-color: #e9ecef;
+  border-radius: 2px;
+  overflow: hidden;
+
+  .strengthBar {
+    height: 100%;
+    width: 0;
+    transition: width 0.3s ease, background-color 0.3s ease;
+    border-radius: 2px;
+
+    &.weak {
+      background-color: #dc3545;
+      width: 25%;
+    }
+
+    &.fair {
+      background-color: #ffc107;
+      width: 50%;
+    }
+
+    &.good {
+      background-color: #28a745;
+      width: 75%;
+    }
+
+    &.strong {
+      background-color: #20c997;
+      width: 100%;
+    }
+  }
+}
+
+.passwordContainer {
+  position: relative;
+}
+
+:global(html[data-theme="dark"]) {
+  .modalContent {
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+  }
+
+  .closeButton {
+    color: var(--color-text-secondary);
+
+    &:hover {
+      color: var(--color-text-primary);
+      background: var(--color-background-all);
+    }
+  }
+
+  .form h2,
+  .welcomeScreen h2 {
+    color: var(--color-text-primary);
+  }
+
+  .roleSelector {
+    background: var(--color-background-all);
+
+    button {
+      background: var(--color-background-all);
+      color: var(--color-text-primary);
+
+      &:hover:not(.roleButtonActive) {
+        background: var(--color-background-secondary);
+      }
+    }
+  }
+
+  .secondaryButton {
+    background: var(--color-background-primary);
+
+    &:hover:not(:disabled) {
+      background: var(--color-background-all);
+    }
+  }
+
+  .subtitle {
+    color: var(--color-text-secondary);
+  }
+
+  .passwordStrength {
+    background-color: var(--color-background-all);
+  }
+
+  .divider {
+    color: var(--color-text-secondary);
+    border-color: var(--color-stroke);
+
+    &::before,
+    &::after {
+      background-color: var(--color-stroke);
+    }
+  }
+
+  .successMessage {
+    background: var(--color-background-all);
+    color: var(--color-text-primary);
+  }
+
+  .roleLabel {
+    color: var(--color-text-secondary);
+  }
+
+  .socialNote {
+    background-color: var(--color-background-all);
+    color: var(--color-text-secondary);
+
+    strong {
+      color: var(--color-text-primary);
+    }
+  }
+
+  .passwordRequirements {
+    background-color: var(--color-background-all);
+    border-color: var(--color-stroke);
+
+    p {
+      color: var(--color-text-primary);
+    }
+
+    ul li {
+      color: var(--color-text-secondary);
+
+      &:before {
+        color: var(--color-text-secondary);
+      }
+
+      &.requirementMet {
+        color: #28a745;
+      }
+    }
+  }
+
+  .passwordError {
+    color: #ff6b6b;
+  }
+
+  .secondaryButton {
+    background-color: var(--color-background-all);
+    color: var(--color-text-primary);
+    border-color: var(--color-stroke);
+
+    &:hover:not(:disabled) {
+      background-color: var(--color-background-secondary);
+      border-color: var(--color-text-secondary);
+    }
+  }
+
+  .primaryButton {
+    background: var(--color-actual-blue);
+    color: #fff;
+
+    &:hover:not(:disabled) {
+      background: var(--color-primary);
+    }
+
+    &:disabled {
+      background: #555;
+      color: var(--color-text-secondary);
+    }
+  }
+}

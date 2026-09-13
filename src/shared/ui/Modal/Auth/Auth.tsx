@@ -1,0 +1,1611 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { InstagramLinkNotice } from '../InstagramLinkNotice';
+import { useLanguageChange } from '../../../../hooks';
+import styles from './Auth.module.scss';
+import {
+    getAuthToken,
+    getUserData,
+    getUserRole,
+    setAuthToken,
+    setAuthTokenExpiry,
+    setUserData,
+    setUserEmail,
+    setUserRole,
+    setUserOccupation,
+    isAdmin,
+} from '../../../../utils/authUtils';
+import { openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult, markOAuthPopupFlow } from '../../../../utils/oauthPopup';
+import { getOccupations } from '../../../../utils/dataCacheUtils';
+import { DateWidget } from '../../../../widgets/DateWidget/DateWidget';
+import { Marquee } from '../../Text/Marquee';
+import Status from '../Status';
+import { PageLoader } from '../../../../widgets/PageLoader';
+import { Clear } from '../../Button/Clear/Clear';
+import { SelectSearch } from '../../SelectSearch';
+import type { OAuthProviderName, User, Occupation, Category } from '../../../../entities';
+import { ROUTES, API_ROUTES } from '../../../../app/routers/routes';
+import { universalApiRequest } from '../../../../utils/apiUtils';
+import { resolveApiError, ApiError } from '../../../../utils/appMessagesUtils';
+import { setSessionItem, removeSessionItem, removeSessionItems, removeStorageItem, removeStorageItems, getStorageJSON } from '../../../../utils/storageUtils';
+
+const AuthModalState = {
+    WELCOME: 'welcome',
+    LOGIN: 'login',
+    REGISTER: 'register',
+    FORGOT_PASSWORD: 'forgot_password',
+    VERIFY_CODE: 'verify_code',
+    NEW_PASSWORD: 'new_password',
+    CONFIRM_EMAIL: 'confirm_email',
+    TELEGRAM_ROLE_SELECT: 'telegram_role_select',
+} as const;
+
+type AuthModalStateType = typeof AuthModalState[keyof typeof AuthModalState];
+
+interface AuthModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onLoginSuccess?: (token: string, email?: string) => void;
+}
+
+interface FormData {
+    email: string;
+    password: string;
+    confirmPassword: string;
+    firstName: string;
+    lastName: string;
+    specialty: string;
+    newPassword: string;
+    phoneOrEmail: string;
+    role: 'master' | 'client';
+    code: string;
+    dateOfBirth: string;
+}
+
+interface LoginResponse {
+    token: string;
+}
+
+interface OAuthUrlResponse {
+    url: string;
+}
+
+interface OAuthUserResponse {
+    user: {
+        id: number;
+        email: string;
+        name: string;
+        surname: string;
+        roles: string[];
+        occupation?: Array<{id: number; title: string; [key: string]: unknown}>;
+        oauthType?: {
+            googleId?: string;
+            instagramId?: string;
+            facebookId?: string;
+            telegramId?: string;
+            [key: string]: unknown;
+        };
+        [key: string]: unknown;
+    };
+    token: string;
+    message: string;
+    status?: number;
+}
+
+interface TelegramAuthResponse {
+    user: User;
+    token: string;
+}
+
+// Регулярное выражение для проверки пароля
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).+$/;
+
+// Функция для проверки сложности пароля
+const validatePassword = (password: string, t: any): { isValid: boolean; message: string } => {
+    if (password.length < 8) {
+        return {
+            isValid: false,
+            message: t('auth.passwordMinLength')
+        };
+    }
+
+    if (!PASSWORD_REGEX.test(password)) {
+        return {
+            isValid: false,
+            message: t('auth.passwordValidation')
+        };
+    }
+
+    return {
+        isValid: true,
+        message: ''
+    };
+};
+
+/**
+ * Authentication modal.
+ * Handles: login (email+password), registration, password reset,
+ * and OAuth (Google, Telegram) flows within a single modal.
+ * After a successful login stores the JWT and user data via auth.ts helpers
+ * and calls `onLoginSuccess` to notify the parent.
+ */
+const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
+    const { t } = useTranslation(['components', 'common']);
+    useLanguageChange(); // Для обновления категорий при смене языка
+    const [currentState, setCurrentState] = useState<AuthModalStateType>(AuthModalState.WELCOME);
+    // Instagram-заглушка теперь отдельная модалка (shared/ui/Modal/InstagramLinkNotice)
+    // поверх текущего экрана (LOGIN/REGISTER) — не отдельный currentState, так что
+    // возвращаться никуда не нужно, экран под ней просто остаётся как был.
+    const [showInstagramNotice, setShowInstagramNotice] = useState(false);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [formData, setFormData] = useState<FormData>({
+        email: '',
+        password: '',
+        confirmPassword: '',
+        firstName: '',
+        lastName: '',
+        specialty: '',
+        newPassword: '',
+        phoneOrEmail: '',
+        role: 'client', // Безопасный дефолт (client вместо master)
+        code: '',
+        dateOfBirth: ''
+    });
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string>('');
+    const [registeredEmail, setRegisteredEmail] = useState<string>('');
+    const [passwordValidation, setPasswordValidation] = useState<{ isValid: boolean; message: string }>({
+        isValid: false,
+        message: ''
+    });
+    const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
+
+    // Эффект для валидации пароля при изменении
+    useEffect(() => {
+        if (formData.password) {
+            const validation = validatePassword(formData.password, t);
+            setPasswordValidation(validation);
+
+            // Автоматически показываем требования, если пароль невалидный
+            if (!validation.isValid && formData.password.length > 0) {
+                setShowPasswordRequirements(true);
+            } else if (validation.isValid) {
+                setShowPasswordRequirements(false);
+            }
+        } else {
+            setPasswordValidation({ isValid: false, message: '' });
+            setShowPasswordRequirements(false);
+        }
+    }, [formData.password, t]);
+
+    // Эффект для загрузки категорий и настройки Telegram
+    useEffect(() => {
+        const loadCategories = async () => {
+            try {
+                const data = await getOccupations();
+                // Преобразуем Occupation в Category
+                const categories: Category[] = data.map(occ => ({
+                    id: occ.id,
+                    title: occ.title,
+                    description: occ.description || '',
+                    image: occ.image || ''
+                }));
+                setCategories(categories);
+            } catch (err) {
+                console.error('Error loading categories:', err);
+            }
+        };
+
+        loadCategories();
+
+        // Слушаем смену языка для перезагрузки категорий
+        window.addEventListener('languageChanged', loadCategories);
+
+        return () => {
+            window.removeEventListener('languageChanged', loadCategories);
+        };
+    }, []);
+
+    // Виджет Telegram (data-auth-url) может вернуть колбэк не в эту же вкладку, а в
+    // новую — так работает мобильное приложение Telegram при подтверждении входа.
+    // TelegramCallbackPage в этом случае пишет сигнал в localStorage (и пытается
+    // закрыться) — здесь подхватываем его, если эта, оригинальная, вкладка ещё жива.
+    useEffect(() => {
+        const onStorage = (e: StorageEvent) => {
+            if (e.key !== 'telegram_login_success') return;
+            removeStorageItem('telegram_login_success');
+            const token = getAuthToken();
+            if (token) handleSuccessfulAuth(token, getUserData()?.email);
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Общая функция для начала OAuth авторизации (Google/Facebook/Instagram).
+    // Открываем popup, а не window.location.href — полный переход вкладки на
+    // домен провайдера как раз и даёт ОС повод перехватить навигацию и увести
+    // в нативное приложение вместо страницы в браузере. Popup эту вероятность
+    // не убирает целиком (это по-прежнему решение ОС/провайдера), но не отдаёт
+    // саму нашу вкладку — OAuthCallbackPage внутри popup'а сам сообщает
+    // результат через postMessage и закрывается (см. utils/oauthPopup).
+    const handleOAuthStart = (provider: OAuthProviderName) => {
+        const roleKey = `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`;
+        const specialtyKey = `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`;
+        const csrfKey = `${provider}CsrfState`;
+        const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
+
+        // Открываем popup синхронно, ДО await/.then() — иначе к моменту, когда
+        // придёт ответ с реальным URL, жест пользователя (клик) уже "остынет" и
+        // блокировщик попапов (особенно Safari) молча зарубит window.open.
+        // Как только URL известен — просто донавигируем это же окно.
+        const popup = openOAuthPopup(`oauth_${provider}`);
+        if (!popup) {
+            setError(t('common:oauth.popupBlocked', { provider: providerLabel }));
+            return;
+        }
+
+        try {
+            // Сохраняем выбранную роль и специальность
+            setSessionItem(roleKey, formData.role);
+            if (formData.role === 'master' && formData.specialty) {
+                setSessionItem(specialtyKey, formData.specialty);
+            }
+
+            // Получаем URL для OAuth
+            universalApiRequest(API_ROUTES.AUTH_PROVIDER_URL(provider), {
+                requiresAuth: false,
+                locale: false,
+            })
+                .then((data: any) => {
+                    const redirectUrl = (data as OAuthUrlResponse).url;
+                    let parsed: URL;
+                    try {
+                        parsed = new URL(redirectUrl);
+                    } catch {
+                        popup.close();
+                        setError('Получен некорректный URL для авторизации');
+                        return;
+                    }
+                    if (!['https:', 'http:'].includes(parsed.protocol)) {
+                        popup.close();
+                        setError('Получен некорректный URL для авторизации');
+                        return;
+                    }
+                    // Сохраняем state из реального redirect URL для CSRF-проверки на callback
+                    const stateFromUrl = parsed.searchParams.get('state');
+                    if (stateFromUrl) {
+                        setSessionItem(csrfKey, stateFromUrl);
+                        // Помечаем именно этот state как popup-флоу — OAuthCallbackPage
+                        // сверится с этим по своему state и поймёт, что надо не
+                        // navigate(), а отчитаться нам и закрыться (см. utils/oauthPopup).
+                        markOAuthPopupFlow(stateFromUrl);
+                    }
+
+                    navigateOAuthPopup(popup, redirectUrl);
+                    setIsLoading(true);
+                    waitForOAuthPopupResult(popup)
+                        .then(() => {
+                            // OAuthCallbackPage внутри popup'а уже сохранил токен/юзера/роль
+                            // в localStorage (тот же origin) — просто подхватываем их здесь.
+                            const token = getAuthToken();
+                            if (token) {
+                                handleSuccessfulAuth(token, getUserData()?.email);
+                            }
+                        })
+                        .catch((popupErr: Error) => {
+                            if (popupErr.message === 'popup_closed') {
+                                // Popup закрылся без сигнала (postMessage/localStorage до нас
+                                // не долетели — например Facebook: обрубает и то, и другое)
+                                // — прежде чем считать это отменой, проверяем реальный
+                                // результат: OAuthCallbackPage внутри popup'а уже успел бы
+                                // записать токен в тот же localStorage, если авторизация
+                                // прошла. Так мы не зависим от того, дошло ли уведомление.
+                                const token = getAuthToken();
+                                if (token) {
+                                    handleSuccessfulAuth(token, getUserData()?.email);
+                                }
+                                return;
+                            }
+                            setError(resolveApiError(popupErr, `Ошибка при авторизации через ${providerLabel}`));
+                        })
+                        .finally(() => {
+                            setIsLoading(false);
+                            removeSessionItems(roleKey, specialtyKey, csrfKey);
+                        });
+                })
+                .catch(err => {
+                    popup.close();
+                    console.error(`${provider.toUpperCase()} auth error:`, err);
+                    setError(resolveApiError(err, `Ошибка при авторизации через ${providerLabel}`));
+                    removeSessionItems(roleKey, specialtyKey, csrfKey);
+                });
+
+        } catch (err) {
+            popup.close();
+            console.error(`${provider.toUpperCase()} auth error:`, err);
+            setError(resolveApiError(err, `Ошибка при авторизации через ${providerLabel}`));
+
+            // Очищаем сохраненные данные при ошибке
+            removeSessionItems(roleKey, specialtyKey, csrfKey);
+        }
+    };
+
+    // Функция для сохранения данных пользователя
+    const saveUserData = (data: OAuthUserResponse | TelegramAuthResponse) => {
+        console.log('Saving user data:', data);
+
+        if (data.token) {
+            setAuthToken(data.token);
+            setTokenExpiry();
+        }
+
+        if (data.user) {
+            setUserData(data.user);
+
+            if (data.user.email) {
+                setUserEmail(data.user.email);
+            }
+
+            console.log('🔥🔥🔥 OAuth saveUserData - data.user:', data.user);
+            console.log('🔥 formData.role:', formData.role);
+            console.log('🔥 data.user.roles from OAuth:', data.user.roles);
+
+            // Определяем роль из ответа сервера
+            if (data.user.roles && data.user.roles.length > 0) {
+                const roles = data.user.roles.map(r => r.toLowerCase());
+                console.log('🔥 roles after toLowerCase():', roles);
+
+                if (roles.includes('role_master') || roles.includes('master')) {
+                    console.log('✅ OAuth MATCHED: role_master or master → setUserRole("master")');
+                    setUserRole('master');
+                } else if (roles.includes('role_client') || roles.includes('client')) {
+                    console.log('✅ OAuth MATCHED: role_client or client → setUserRole("client")');
+                    setUserRole('client');
+                } else {
+                    // Роли не распознаны - используем client как безопасный дефолт
+                    console.log('⚠️ OAuth NO MATCH in roles:', roles, '→ Using safe default: "client"');
+                    setUserRole('client');
+                }
+            } else {
+                // Нет ролей в ответе - используем client как безопасный дефолт
+                console.log('⚠️ OAuth no roles in response → Using safe default: "client"');
+                setUserRole('client');
+            }
+
+            // Сохраняем occupation если есть
+            if (data.user.occupation) {
+                console.log('User occupation from OAuth:', data.user.occupation);
+                setUserOccupation(data.user.occupation as Occupation[]);
+            }
+
+            console.log('Final user role set to:', getUserRole());
+        }
+    };
+
+    // Функция для Telegram Widget
+    const handleTelegramAuthClick = () => {
+        // Сохраняем роль перед началом авторизации
+        setSessionItem('pendingTelegramRole', formData.role);
+        if (formData.role === 'master' && formData.specialty) {
+            setSessionItem('pendingTelegramSpecialty', formData.specialty);
+        }
+
+        // Создаем модальное окно для Telegram widget
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+        const telegramModalContainer = document.createElement('div');
+        telegramModalContainer.style.position = 'fixed';
+        telegramModalContainer.style.top = '0';
+        telegramModalContainer.style.left = '0';
+        telegramModalContainer.style.width = '100%';
+        telegramModalContainer.style.height = '100%';
+        telegramModalContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        telegramModalContainer.style.display = 'flex';
+        telegramModalContainer.style.alignItems = 'center';
+        telegramModalContainer.style.justifyContent = 'center';
+        telegramModalContainer.style.zIndex = '10000';
+
+        const widgetWrapper = document.createElement('div');
+        widgetWrapper.style.backgroundColor = isDark ? '#2a2a2a' : 'white';
+        widgetWrapper.style.borderRadius = '10px';
+        widgetWrapper.style.padding = '30px';
+        widgetWrapper.style.textAlign = 'center';
+        widgetWrapper.style.position = 'relative';
+        widgetWrapper.style.minWidth = '350px';
+
+        // Кнопка закрытия (Clear-стиль)
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.setAttribute('aria-label', 'Clear');
+        closeBtn.innerHTML = `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="8" cy="8" r="7.5" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 5.5L10.5 10.5M10.5 5.5L5.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+        closeBtn.style.position = 'absolute';
+        closeBtn.style.top = '10px';
+        closeBtn.style.right = '10px';
+        closeBtn.style.background = 'none';
+        closeBtn.style.border = 'none';
+        closeBtn.style.cursor = 'pointer';
+        closeBtn.style.color = isDark ? '#888' : '#999';
+        closeBtn.style.display = 'flex';
+        closeBtn.style.alignItems = 'center';
+        closeBtn.style.justifyContent = 'center';
+        closeBtn.style.padding = '4px';
+        closeBtn.onclick = () => {
+            telegramModalContainer.remove();
+        };
+
+        const widgetContainer = document.createElement('div');
+        widgetContainer.id = `telegram-widget-${Date.now()}`;
+        widgetContainer.style.marginTop = '20px';
+
+        // data-auth-url, не data-onauth: у telegram-widget.js data-onauth разбирает
+        // строку через eval() (window.__parseFunction) — CSP этого приложения
+        // (script-src без 'unsafe-eval', см. index.html) такой eval блокирует, и
+        // виджет ломается на самой инициализации, кнопка вообще не рендерится.
+        // Возврат к редиректу закрывает вопрос с рендером; устойчивость к тому,
+        // что мобильное приложение может вернуть колбэк в другую вкладку —
+        // на стороне TelegramCallbackPage (localStorage-сигнал), не здесь.
+        const script = document.createElement('script');
+        script.src = 'https://telegram.org/js/telegram-widget.js?22';
+        script.async = true;
+        script.setAttribute('data-telegram-login', import.meta.env.VITE_TELEGRAM_BOT_NAME);
+        script.setAttribute('data-size', 'large');
+        script.setAttribute('data-userpic', 'false');
+        script.setAttribute('data-radius', '10');
+        script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
+        script.setAttribute('data-request-access', 'write');
+
+        widgetContainer.appendChild(script);
+        widgetWrapper.appendChild(closeBtn);
+        widgetWrapper.appendChild(widgetContainer);
+        telegramModalContainer.appendChild(widgetWrapper);
+        document.body.appendChild(telegramModalContainer);
+
+        // Закрываем основную модалку
+        handleClose();
+
+        // Закрываем при клике за пределами модального окна
+        telegramModalContainer.onclick = (e) => {
+            if (e.target === telegramModalContainer) {
+                telegramModalContainer.remove();
+            }
+        };
+    };
+
+    // Обновляет одно поле formData — используется вместо onChange-события, так как
+    // SelectSearch (altMode) отдаёт в onChange готовое значение, а не e.target.name/value.
+    const handleFieldChange = (name: keyof FormData) => (value: string) => {
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+        if (error) setError('');
+    };
+
+    const handleRoleChange = (role: 'master' | 'client') => {
+        setFormData(prev => ({
+            ...prev,
+            role
+        }));
+    };
+
+    const setTokenExpiry = () => {
+        const expiryTime = new Date();
+        expiryTime.setHours(expiryTime.getHours() + 1);
+        setAuthTokenExpiry(expiryTime.toISOString());
+    };
+
+    const fetchUserData = async (): Promise<void> => {
+        try {
+            const userData: any = await universalApiRequest(API_ROUTES.USERS_ME, { locale: false });
+            console.log('🔥🔥🔥 User data from /me endpoint:', userData);
+
+                // Сохраняем данные пользователя
+                setUserData(userData);
+
+                if (userData.email) {
+                    setUserEmail(userData.email);
+                }
+
+                // Определяем роль из данных пользователя (ТОЛЬКО ОТ API, НЕ ИЗ ФОРМЫ!)
+                let userRole: 'client' | 'master' | null;
+
+                console.log('🔥🔥🔥 LOGIN - userData.roles from API:', userData.roles);
+                console.log('🔥 userData.roles type:', typeof userData.roles, 'isArray:', Array.isArray(userData.roles));
+
+                if (userData.roles && userData.roles.length > 0) {
+                    const roles = userData.roles.map((r: string) => r.toLowerCase());
+                    console.log('🔥 roles after toLowerCase():', roles);
+
+                    if (roles.includes('role_master') || roles.includes('master')) {
+                        userRole = 'master';
+                        console.log('✅ LOGIN MATCHED: role_master or master → userRole = "master"');
+                    } else if (roles.includes('role_client') || roles.includes('client')) {
+                        userRole = 'client';
+                        console.log('✅ LOGIN MATCHED: role_client or client → userRole = "client"');
+                    } else {
+                        // API вернул роли, но они не распознаны - используем client как безопасный дефолт
+                        userRole = 'client';
+                        console.log('⚠️ LOGIN NO MATCH in roles:', roles, '→ Using safe default: "client"');
+                    }
+
+                    console.log('🔥 Final detected role from API:', userRole);
+                } else {
+                    // API вообще не вернул роли - используем client как безопасный дефолт
+                    userRole = 'client';
+                    console.log('⚠️ LOGIN No roles in API response → Using safe default: "client"');
+                }
+
+                console.log('💾💾💾 LOGIN Calling setUserRole with:', userRole);
+                // Устанавливаем роль (должна быть client или master, не null)
+                if (userRole) {
+                    setUserRole(userRole);
+                } else {
+                    console.error('❌ LOGIN userRole is null! This should never happen!');
+                    setUserRole('client'); // Крайний fallback
+                }
+
+                // Сохраняем occupation если есть
+                if (userData.occupation) {
+                    console.log('User occupation from API:', userData.occupation);
+                    setUserOccupation(userData.occupation as Occupation[]);
+                }
+        } catch (err) {
+            console.error('Error fetching user data:', err);
+        }
+    };
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+
+        try {
+            const loginData = {
+                email: formData.email.trim(),
+                password: formData.password
+            };
+
+            console.log('Login attempt with:', loginData);
+
+            const data: LoginResponse = await universalApiRequest(API_ROUTES.AUTHENTICATION_TOKEN, {
+                method: 'POST',
+                body: loginData,
+                requiresAuth: false,
+                locale: false,
+            });
+            console.log('Login response token received');
+
+            if (!data.token) {
+                setError(t('auth.invalidCredentials'));
+                return;
+            }
+
+            // Сохраняем токен
+            setAuthToken(data.token);
+            setTokenExpiry();
+
+            // ПОЛУЧАЕМ И СОХРАНЯЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ С OCCUPATION
+            await fetchUserData();
+
+            handleSuccessfulAuth(data.token, formData.email);
+
+        } catch (err) {
+            console.error('Login error:', err);
+            if (err instanceof ApiError && err.http === 401) {
+                setError(t('auth.invalidCredentials'));
+                return;
+            }
+            setError(resolveApiError(err, 'Произошла ошибка при авторизации'));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleRegister = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+
+        // Проверка паролей
+        if (formData.password !== formData.confirmPassword) {
+            setError('Пароли не совпадают');
+            setIsLoading(false);
+            return;
+        }
+
+        // Валидация пароля
+        const passwordValidationResult = validatePassword(formData.password, t);
+        if (!passwordValidationResult.isValid) {
+            setError(passwordValidationResult.message);
+            setIsLoading(false);
+            return;
+        }
+
+        const email = formData.phoneOrEmail.includes('@') ? formData.phoneOrEmail : '';
+
+        if (!email) {
+            setError('Для регистрации требуется email. Телефон не поддерживается для входа.');
+            setIsLoading(false);
+            return;
+        }
+
+        // SelectSearch (в отличие от нативного <select>) не поддерживает атрибут
+        // required — раньше это ограничение навешивал браузер, теперь проверяем сами.
+        if (formData.role === 'master' && !formData.specialty) {
+            setError(t('auth.selectSpecialty'));
+            setIsLoading(false);
+            return;
+        }
+
+        // Подготавливаем данные пользователя
+        const userData: {
+            email: string;
+            name: string;
+            surname: string;
+            password: string;
+            roles?: string[];
+            occupation?: string[];
+            dateOfBirth?: string;
+        } = {
+            email,
+            name: formData.firstName,
+            surname: formData.lastName,
+            password: formData.password,
+        };
+
+        if (formData.dateOfBirth) {
+            userData.dateOfBirth = new Date(formData.dateOfBirth).toISOString();
+        }
+
+        // Формируем массив ролей - пробуем разные форматы
+        const rolesArray = [];
+
+        // ВАРИАНТ 1: Только основная роль без ROLE_USER
+        if (formData.role === 'master') {
+            rolesArray.push('ROLE_MASTER');
+        } else {
+            rolesArray.push('ROLE_CLIENT');
+        }
+
+        userData.roles = rolesArray;
+
+        // Добавляем occupation для специальности специалиста, если выбрана
+        if (formData.role === 'master' && formData.specialty) {
+            userData.occupation = [API_ROUTES.OCCUPATION_BY_ID(formData.specialty)];
+            console.log('Adding occupation for specialist:', userData.occupation);
+        }
+
+        console.log('Sending registration data:', userData);
+
+        try {
+            // 1. Регистрируем пользователя
+            await universalApiRequest(API_ROUTES.USERS, {
+                method: 'POST',
+                body: userData,
+                requiresAuth: false,
+                locale: false,
+            });
+
+            // 2. Логинимся после регистрации
+            const loginData: LoginResponse = await universalApiRequest(API_ROUTES.AUTHENTICATION_TOKEN, {
+                method: 'POST',
+                body: { email, password: formData.password },
+                requiresAuth: false,
+                locale: false,
+            });
+
+            if (!loginData.token) {
+                setError(t('auth.invalidCredentials'));
+                return;
+            }
+
+            // 3. Сохраняем токен
+            setAuthToken(loginData.token);
+            setTokenExpiry();
+
+            // 4. Сохраняем роль из формы регистрации в localStorage
+            // Это делаем сразу, потому что сервер может не сразу вернуть роли
+            setUserRole(formData.role);
+            console.log('Setting user role from registration form:', formData.role);
+
+            // 5. Попробуем назначить роль через grant-role (но не блокируемся на ошибке)
+            try {
+                await grantUserRole(loginData.token, formData.role);
+            } catch (grantErr) {
+                console.warn('Could not grant role via API, using role from form:', grantErr);
+            }
+
+            // 6. Пытаемся получить данные пользователя (может вернуть 403 до подтверждения)
+            try {
+                const userData: any = await universalApiRequest(API_ROUTES.USERS_ME, { locale: false });
+                console.log('User data after registration:', userData);
+
+                setUserData(userData);
+
+                if (userData.email) {
+                    setUserEmail(userData.email);
+                }
+
+                if (userData.roles && userData.roles.length > 0) {
+                    console.log('🔥🔥🔥 Registration - User roles from API:', userData.roles);
+                    const roles = userData.roles.map((r: string) => r.toLowerCase());
+                    if (roles.includes('role_master') || roles.includes('master')) {
+                        setUserRole('master');
+                    } else if (roles.includes('role_client') || roles.includes('client')) {
+                        setUserRole('client');
+                    }
+                }
+            } catch (userErr) {
+                console.warn('Could not fetch user data from /me endpoint (expected for new users)', userErr);
+            }
+
+            // 7. Отправляем пользователя на подтверждение email
+            setRegisteredEmail(email);
+            setCurrentState(AuthModalState.CONFIRM_EMAIL);
+
+            // 8. Отправляем успешный auth с токеном
+            handleSuccessfulAuth(loginData.token, email);
+
+        } catch (err) {
+            console.error('Registration error:', err);
+            setError(resolveApiError(err, 'Произошла ошибка при регистрации'));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const grantUserRole = async (_token: string, role: 'master' | 'client'): Promise<boolean> => {
+        try {
+            console.log('Granting role:', role);
+
+            // Возможно, нужно использовать другие значения ролей
+            // Попробуем разные варианты
+            const roleValue = role === 'master' ? 'MASTER' : 'CLIENT';
+
+            console.log('Trying to grant role:', roleValue);
+
+            try {
+                await universalApiRequest(API_ROUTES.USERS_GRANT_ROLE, {
+                    method: 'POST',
+                    body: { role: roleValue },
+                    locale: false,
+                });
+                console.log('Role granted successfully');
+                return true;
+            } catch (grantErr: any) {
+                console.warn('Failed to grant role:', roleValue, grantErr?.message);
+
+                // Попробуем другие форматы ролей
+                const alternativeRoleValues = [
+                    role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT',
+                    role === 'master' ? 'master' : 'client',
+                    role === 'master' ? 'RoleMaster' : 'RoleClient'
+                ];
+
+                for (const altRole of alternativeRoleValues) {
+                    console.log('Trying alternative role:', altRole);
+                    try {
+                        await universalApiRequest(API_ROUTES.USERS_GRANT_ROLE, {
+                            method: 'POST',
+                            body: { role: altRole },
+                            locale: false,
+                        });
+                        console.log('Role granted successfully with alternative value:', altRole);
+                        return true;
+                    } catch (err) {
+                        console.log('Failed with alternative role:', altRole, 'Error:', err);
+                    }
+                }
+
+                return false;
+            }
+        } catch (err) {
+            console.error('Error granting role:', err);
+            return false;
+        }
+    };
+
+    const handleSuccessfulAuth = (token: string, email?: string) => {
+        if (email) {
+            setUserEmail(email);
+        }
+
+        // НЕ перезаписываем роль здесь! Роль уже установлена в fetchUserData/saveUserData
+        const existingRole = getUserRole();
+        console.log('🔥🔥🔥 handleSuccessfulAuth - existing role in localStorage:', existingRole);
+        
+        if (!existingRole) {
+            console.error('❌ No role found after auth! This should not happen!');
+            // Крайний случай - используем client как безопасный дефолт
+            setUserRole('client');
+        }
+
+        resetForm();
+        if (onLoginSuccess) {
+            onLoginSuccess(token, email);
+        }
+        handleClose();
+        window.dispatchEvent(new Event('login'));
+
+        // Админ попадает сразу на очередь заявок ТП (там же сам решает вкладку "Все заявки"
+        // по роли), а не туда, где он листал сайт до входа — обычные пользователи как и раньше
+        // просто перезагружают текущую страницу.
+        const adminRedirect = isAdmin() ? ROUTES.TECH_SUPPORT : null;
+
+        setTimeout(() => {
+            if (adminRedirect) {
+                window.location.href = adminRedirect;
+            } else {
+                window.location.reload();
+            }
+        }, 100);
+    };
+
+    const resetForm = () => {
+        setFormData({
+            email: '',
+            password: '',
+            confirmPassword: '',
+            firstName: '',
+            lastName: '',
+            specialty: '',
+            newPassword: '',
+            phoneOrEmail: '',
+            role: 'client', // Безопасный дефолт (client вместо master)
+            code: '',
+            dateOfBirth: ''
+        });
+        setError('');
+        setCurrentState(AuthModalState.WELCOME);
+        setPasswordValidation({ isValid: false, message: '' });
+        setShowPasswordRequirements(false);
+
+        // Очищаем все временные данные
+        ['google', 'instagram', 'facebook', 'telegram'].forEach(provider => {
+            removeSessionItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`);
+            removeSessionItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`);
+            removeSessionItem(`${provider}CsrfState`);
+        });
+        removeStorageItems('tempGoogleToken', 'tempGoogleUserData', 'telegramUserData');
+    };
+
+    const handleClose = () => {
+        setCurrentState(AuthModalState.WELCOME);
+        onClose();
+    };
+
+    const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (e.target === e.currentTarget) {
+            handleClose();
+        }
+    };
+
+    // ===== Password recovery handlers =====
+
+    const handleForgotPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+        try {
+            await universalApiRequest(API_ROUTES.CHANGE_PASSWORD_SEND_OTP, {
+                method: 'POST',
+                body: { email: formData.email },
+                requiresAuth: false,
+                locale: false,
+            });
+            // Always move to next step (don't reveal if email exists)
+            setCurrentState(AuthModalState.VERIFY_CODE);
+        } catch {
+            setError(t('auth.errorOccurred'));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleVerifyCode = (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setCurrentState(AuthModalState.NEW_PASSWORD);
+    };
+
+    const handleNewPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (formData.newPassword !== formData.confirmPassword) {
+            setError(t('auth.passwordMismatch'));
+            return;
+        }
+        setIsLoading(true);
+        setError('');
+        try {
+            await universalApiRequest(API_ROUTES.CHANGE_PASSWORD, {
+                method: 'POST',
+                body: { email: formData.email, code: formData.code, newPassword: formData.newPassword },
+                requiresAuth: false,
+                locale: false,
+            });
+            setCurrentState(AuthModalState.LOGIN);
+        } catch {
+            setError(t('auth.errorOccurred'));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // ===== Password recovery screens =====
+
+    const renderForgotPasswordScreen = () => {
+        return (
+            <form onSubmit={handleForgotPassword} className={styles.form}>
+                <h2>{t('auth.forgotPasswordTitle')}</h2>
+
+                <div className={styles.inputGroup}>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        inputType="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleFieldChange('email')}
+                        required
+                        disabled={isLoading}
+                        placeholder={t('auth.enterEmail')}
+                    />
+                </div>
+
+                <button type="submit" className={styles.primaryButton} disabled={isLoading}>
+                    {isLoading ? <PageLoader fullPage={false} compact /> : t('auth.sendCode')}
+                </button>
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
+                        disabled={isLoading}
+                    >
+                        {t('auth.backToLogin')}
+                    </button>
+                </div>
+            </form>
+        );
+    };
+
+    const renderVerifyCodeScreen = () => {
+        return (
+            <form onSubmit={handleVerifyCode} className={styles.form}>
+                <h2>{t('auth.enterCode')}</h2>
+
+                <p className={styles.infoText}>{t('auth.codeSentTo')} <strong>{formData.email}</strong></p>
+
+                <div className={styles.inputGroup}>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        name="code"
+                        value={formData.code}
+                        onChange={handleFieldChange('code')}
+                        required
+                        maxLength={6}
+                        disabled={isLoading}
+                        placeholder={t('auth.enterOtpCode')}
+                    />
+                </div>
+
+                <button type="submit" className={styles.primaryButton} disabled={isLoading}>
+                    {t('auth.continue')}
+                </button>
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.FORGOT_PASSWORD)}
+                        disabled={isLoading}
+                    >
+                        {t('common:app.back')}
+                    </button>
+                </div>
+            </form>
+        );
+    };
+
+    const renderNewPasswordScreen = () => {
+        return (
+            <form onSubmit={handleNewPassword} className={styles.form}>
+                <h2>{t('auth.newPasswordTitle')}</h2>
+
+                <div className={styles.inputGroup}>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        isPassword
+                        name="newPassword"
+                        autoComplete="new-password"
+                        value={formData.newPassword}
+                        onChange={handleFieldChange('newPassword')}
+                        required
+                        minLength={8}
+                        disabled={isLoading}
+                        placeholder={t('auth.enterNewPassword')}
+                    />
+                </div>
+
+                <div className={styles.inputGroup}>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        isPassword
+                        name="confirmPassword"
+                        autoComplete="new-password"
+                        value={formData.confirmPassword}
+                        onChange={handleFieldChange('confirmPassword')}
+                        required
+                        minLength={8}
+                        disabled={isLoading}
+                        placeholder={t('auth.confirmPassword')}
+                    />
+                </div>
+
+                <button type="submit" className={styles.primaryButton} disabled={isLoading}>
+                    {isLoading ? <PageLoader fullPage={false} compact /> : t('auth.savePassword')}
+                </button>
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.VERIFY_CODE)}
+                        disabled={isLoading}
+                    >
+                        {t('common:app.back')}
+                    </button>
+                </div>
+            </form>
+        );
+    };
+
+    const renderWelcomeScreen = () => {
+        return (
+            <div className={styles.welcomeScreen}>
+                <div className={styles.welcomeButtons}>
+                    <img className={styles.enterPic} src="/img/icons/logos/Logo.svg" alt="enter" width="120"/>
+                    <h2>{t('auth.entrance')}</h2>
+                    <button
+                        className={styles.primaryButton}
+                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
+                        type="button"
+                    >
+                        {t('auth.login')}
+                    </button>
+                    <button
+                        className={styles.secondaryButton}
+                        onClick={() => setCurrentState(AuthModalState.REGISTER)}
+                        type="button"
+                    >
+                        {t('auth.registerButton')}
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    const renderLoginScreen = () => {
+        return (
+            <form onSubmit={handleLogin} className={styles.form}>
+                <h2>{t('auth.entrance')}</h2>
+
+                <div className={styles.inputGroup}>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        inputType="email"
+                        name="email"
+                        autoComplete="email"
+                        value={formData.email}
+                        onChange={handleFieldChange('email')}
+                        required
+                        disabled={isLoading}
+                        placeholder={t('auth.enterEmail')}
+                    />
+                </div>
+                <div className={styles.inputGroup}>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        isPassword
+                        name="password"
+                        autoComplete="current-password"
+                        value={formData.password}
+                        onChange={handleFieldChange('password')}
+                        required
+                        disabled={isLoading}
+                        placeholder={t('auth.enterPassword')}
+                    />
+                </div>
+
+                <button
+                    type="submit"
+                    className={styles.primaryButton}
+                    disabled={isLoading}
+                >
+                    {isLoading ? <PageLoader fullPage={false} compact /> : t('auth.login')}
+                </button>
+
+                <div className={styles.socialTitle}>{t('auth.loginWith')}</div>
+
+                <div className={styles.socialButtons}>
+                    <button
+                        type="button"
+                        className={styles.googleButton}
+                        onClick={() => handleOAuthStart('google')}
+                        disabled={isLoading}
+                        title={t('auth.loginViaGoogle')}
+                    >
+                        <img src="/img/icons/oauth/chrome.png" alt="Google" />
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.facebookButton}
+                        onClick={() => handleOAuthStart('facebook')}
+                        disabled={isLoading}
+                        title={t('auth.loginViaFacebook')}
+                    >
+                        <img src="/img/icons/oauth/facebook.png" alt="Facebook" />
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.instagramButton}
+                        onClick={() => setShowInstagramNotice(true)}
+                        disabled={isLoading}
+                        title={t('auth.loginViaInstagram')}
+                    >
+                        <img src="/img/icons/oauth/instagram.png" alt="Instagram" />
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.telegramButton}
+                        onClick={handleTelegramAuthClick}
+                        disabled={isLoading}
+                        title={t('auth.loginViaTelegram')}
+                    >
+                        <img src="/img/icons/oauth/telegram.png" alt="Telegram" />
+                    </button>
+                </div>
+
+                <div className={styles.socialNote}>
+                    <p>{t('auth.socialAuthNotice')} <strong>{formData.role === 'master' ? t('auth.specialist') : t('auth.client')}</strong></p>
+                </div>
+
+                <div className={styles.links}>
+                    <div className={styles.registerPrompt}>
+                        <span className={styles.promptText}>{t('auth.noAccount')} </span>
+                        <button
+                            type="button"
+                            className={styles.linkButton}
+                            onClick={() => setCurrentState(AuthModalState.REGISTER)}
+                            disabled={isLoading}
+                        >
+                            {t('auth.signUpLink')}
+                        </button>
+                    </div>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.FORGOT_PASSWORD)}
+                        disabled={isLoading}
+                    >
+                        {t('auth.forgotPassword')}
+                    </button>
+                </div>
+            </form>
+        );
+    };
+
+    const renderRegisterScreen = () => {
+        return (
+            <form onSubmit={handleRegister} className={styles.form}>
+                <h2>{t('auth.register')}</h2>
+
+                <div className={styles.roleSelector}>
+                    <button
+                        type="button"
+                        className={formData.role === 'master' ? styles.roleButtonActive : styles.roleButton}
+                        onClick={() => handleRoleChange('master')}
+                    >
+                        <Marquee text={t('auth.iAmSpecialist')} />
+                    </button>
+                    <button
+                        type="button"
+                        className={formData.role === 'client' ? styles.roleButtonActive : styles.roleButton}
+                        onClick={() => handleRoleChange('client')}
+                    >
+                        <Marquee text={t('auth.iAmClient')} />
+                    </button>
+                </div>
+
+                <div className={styles.nameRow}>
+                    <div className={styles.inputGroup}>
+                        <SelectSearch
+                            altMode
+                            options={[]}
+                            hideIcon
+                            name="firstName"
+                            autoComplete="given-name"
+                            value={formData.firstName}
+                            onChange={handleFieldChange('firstName')}
+                            required
+                            disabled={isLoading}
+                            placeholder={t('auth.enterFirstName')}
+                        />
+                    </div>
+                    <div className={styles.inputGroup}>
+                        <SelectSearch
+                            altMode
+                            options={[]}
+                            hideIcon
+                            name="lastName"
+                            autoComplete="family-name"
+                            value={formData.lastName}
+                            onChange={handleFieldChange('lastName')}
+                            required
+                            disabled={isLoading}
+                            placeholder={t('auth.enterLastName')}
+                        />
+                    </div>
+                </div>
+
+                <div className={styles.inputGroup}>
+                    <DateWidget
+                        name="dateOfBirth"
+                        value={formData.dateOfBirth}
+                        onChange={(val) => setFormData(prev => ({ ...prev, dateOfBirth: val }))}
+                        disabled={isLoading}
+                    />
+                </div>
+
+                {formData.role === 'master' && (
+                    <div className={styles.inputGroup}>
+                        <SelectSearch
+                            value={formData.specialty}
+                            onChange={handleFieldChange('specialty')}
+                            placeholder={t('auth.selectSpecialty')}
+                            options={categories.map(category => ({
+                                value: String(category.id),
+                                label: category.title,
+                            }))}
+                            disabled={isLoading}
+                        />
+                    </div>
+                )}
+
+                <div className={styles.inputGroup}>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        inputType="email"
+                        name="phoneOrEmail"
+                        autoComplete="email"
+                        value={formData.phoneOrEmail}
+                        onChange={handleFieldChange('phoneOrEmail')}
+                        required
+                        disabled={isLoading}
+                        placeholder="example@mail.com"
+                    />
+                </div>
+
+                <div className={styles.inputGroup}>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        isPassword
+                        name="password"
+                        autoComplete="new-password"
+                        value={formData.password}
+                        onChange={handleFieldChange('password')}
+                        required
+                        disabled={isLoading}
+                        placeholder={t('auth.createPassword')}
+                        onFocus={() => setShowPasswordRequirements(true)}
+                        onBlur={() => {
+                            if (passwordValidation.isValid) {
+                                setShowPasswordRequirements(false);
+                            }
+                        }}
+                    />
+                    {showPasswordRequirements && (
+                        <div className={styles.passwordRequirements}>
+                            <p>{t('auth.passwordRequirements')}</p>
+                            <ul>
+                                <li className={formData.password.length >= 8 ? styles.requirementMet : ''}>
+                                    {t('auth.minLength')}
+                                </li>
+                                <li className={/[a-z]/.test(formData.password) ? styles.requirementMet : ''}>
+                                    {t('auth.lowercase')}
+                                </li>
+                                <li className={/[A-Z]/.test(formData.password) ? styles.requirementMet : ''}>
+                                    {t('auth.uppercase')}
+                                </li>
+                                <li className={/\d/.test(formData.password) ? styles.requirementMet : ''}>
+                                    {t('auth.number')}
+                                </li>
+                                <li className={/[!@#$%^&*]/.test(formData.password) ? styles.requirementMet : ''}>
+                                    {t('auth.special')}
+                                </li>
+                            </ul>
+                        </div>
+                    )}
+                </div>
+
+                <div className={styles.inputGroup}>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        isPassword
+                        name="confirmPassword"
+                        autoComplete="new-password"
+                        value={formData.confirmPassword}
+                        onChange={handleFieldChange('confirmPassword')}
+                        required
+                        disabled={isLoading}
+                        placeholder={t('auth.confirmPassword')}
+                    />
+                    {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                        <div className={styles.passwordError}>
+                            Пароли не совпадают
+                        </div>
+                    )}
+                </div>
+
+                <p className={styles.legalNote}>
+                    {t('auth.agreeToTerms')}{' '}
+                    <Link to={ROUTES.TERMS_OF_USE} className={styles.legalLink} onClick={handleClose}>
+                        {t('common:footer.termsOfUse')}
+                    </Link>
+                    {' '}{t('auth.and')}{' '}
+                    <Link to={ROUTES.PRIVACY_POLICY} className={styles.legalLink} onClick={handleClose}>
+                        {t('common:footer.privacyPolicy')}
+                    </Link>
+                </p>
+
+                <button
+                    type="submit"
+                    className={styles.primaryButton}
+                    disabled={isLoading || !passwordValidation.isValid}
+                >
+                    {isLoading ? <PageLoader fullPage={false} compact /> : t('auth.registerButton')}
+                </button>
+
+                <div className={styles.socialTitle}>{t('auth.orRegisterWith')}</div>
+
+                <div className={styles.socialButtons}>
+                    <button
+                        type="button"
+                        className={styles.googleButton}
+                        onClick={() => handleOAuthStart('google')}
+                        disabled={isLoading}
+                        title={t('auth.registerViaGoogle')}
+                    >
+                        <img src="/img/icons/oauth/chrome.png" alt="Google" />
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.facebookButton}
+                        onClick={() => handleOAuthStart('facebook')}
+                        disabled={isLoading}
+                        title={t('auth.registerViaFacebook')}
+                    >
+                        <img src="/img/icons/oauth/facebook.png" alt="Facebook" />
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.instagramButton}
+                        onClick={() => setShowInstagramNotice(true)}
+                        disabled={isLoading}
+                        title={t('auth.registerViaInstagram')}
+                    >
+                        <img src="/img/icons/oauth/instagram.png" alt="Instagram" />
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.telegramButton}
+                        onClick={handleTelegramAuthClick}
+                        disabled={isLoading}
+                        title={t('auth.registerViaTelegram')}
+                    >
+                        <img src="/img/icons/oauth/telegram.png" alt="Telegram" />
+                    </button>
+                </div>
+
+                <div id="telegram-widget-container-register" className={styles.telegramWidgetContainer}>
+                    {/* Widget будет добавлен динамически */}
+                </div>
+
+                <div className={styles.socialNote}>
+                    <p>{t('auth.socialRegisterNotice')} <strong>{formData.role === 'master' ? t('auth.specialist') : t('auth.client')}</strong></p>
+                </div>
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
+                        disabled={isLoading}
+                    >
+                        {t('auth.alreadyHaveAccount')} {t('auth.loginLink')}
+                    </button>
+                </div>
+            </form>
+        );
+    };
+
+    const renderConfirmEmailScreen = () => {
+        return (
+            <div className={styles.form}>
+                <h2>{t('auth.accountConfirmation')}</h2>
+
+                <div className={styles.successMessage}>
+                    <p>{t('auth.registrationSuccess')}</p>
+                    <p>На вашу почту <strong>{registeredEmail}</strong> отправлено письмо с ссылкой для подтверждения аккаунта.</p>
+                    <p>Пожалуйста, проверьте вашу почту и перейдите по ссылке для завершения регистрации.</p>
+                </div>
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
+                        disabled={isLoading}
+                    >
+                        {t('auth.goToLogin')}
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    const completeTelegramAuth = async (selectedRole: 'master' | 'client' = 'client') => {
+        try {
+            setIsLoading(true);
+            setError('');
+
+            const telegramUserData = getStorageJSON<User>('telegramUserData');
+            if (!telegramUserData) {
+                setError('Данные пользователя Telegram не найдены');
+                return;
+            }
+            console.log('Completing Telegram auth for role:', selectedRole);
+
+            const data: TelegramAuthResponse = await universalApiRequest(API_ROUTES.AUTH_TELEGRAM_COMPLETE, {
+                method: 'POST',
+                body: { userData: telegramUserData, role: selectedRole },
+                requiresAuth: false,
+                locale: false,
+            });
+            console.log('Telegram auth completed, data:', data);
+
+            if (data.token) {
+                saveUserData(data);
+                handleSuccessfulAuth(data.token, data.user?.email);
+                removeStorageItems('telegramUserData');
+            } else {
+                setError(resolveApiError(null, 'Ошибка при завершении авторизации через Telegram'));
+            }
+
+        } catch (err) {
+            console.error('Telegram auth completion error:', err);
+            setError(resolveApiError(err, 'Ошибка при завершении авторизации через Telegram'));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const renderTelegramRoleSelectScreen = () => {
+        return (
+            <div className={styles.form}>
+                <h2>{t('auth.selectAccountType')}</h2>
+
+                <div className={styles.successMessage}>
+                    <p>Вы успешно авторизовались через Telegram!</p>
+                    <p>Пожалуйста, выберите тип аккаунта:</p>
+                </div>
+
+                <div className={styles.roleSelector}>
+                    <button
+                        type="button"
+                        className={styles.roleButton}
+                        onClick={() => completeTelegramAuth('master')}
+                        disabled={isLoading}
+                    >
+                        <Marquee text={t('auth.iAmSpecialist')} />
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.roleButton}
+                        onClick={() => completeTelegramAuth('client')}
+                        disabled={isLoading}
+                    >
+                        <Marquee text={t('auth.iAmClient')} />
+                    </button>
+                </div>
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
+                        disabled={isLoading}
+                    >
+                        {t('auth.backToLogin')}
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    const renderContent = () => {
+        switch (currentState) {
+            case AuthModalState.WELCOME:
+                return renderWelcomeScreen();
+            case AuthModalState.LOGIN:
+                return renderLoginScreen();
+            case AuthModalState.REGISTER:
+                return renderRegisterScreen();
+            case AuthModalState.CONFIRM_EMAIL:
+                return renderConfirmEmailScreen();
+            case AuthModalState.TELEGRAM_ROLE_SELECT:
+                return renderTelegramRoleSelectScreen();
+            case AuthModalState.FORGOT_PASSWORD:
+                return renderForgotPasswordScreen();
+            case AuthModalState.VERIFY_CODE:
+                return renderVerifyCodeScreen();
+            case AuthModalState.NEW_PASSWORD:
+                return renderNewPasswordScreen();
+            default:
+                return renderWelcomeScreen();
+        }
+    };
+
+    if (!isOpen) {
+        return null;
+    }
+
+    return (
+        <>
+            <div className={styles.modalOverlay} onClick={handleOverlayClick}>
+                <div
+                    className={`${styles.modalContent} ${styles[`modal_${currentState}`]}`}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <Clear className={styles.closeButton} onClick={handleClose} />
+                    {renderContent()}
+                </div>
+                <Status
+                    type="error"
+                    isOpen={!!error}
+                    onClose={() => setError('')}
+                    message={error}
+                />
+            </div>
+            <InstagramLinkNotice
+                isOpen={showInstagramNotice}
+                onClose={() => setShowInstagramNotice(false)}
+                onContinue={() => { setShowInstagramNotice(false); handleOAuthStart('instagram'); }}
+                isLoading={isLoading}
+            />
+        </>
+    );
+};
+
+export default Auth;
+export { AuthModalState };

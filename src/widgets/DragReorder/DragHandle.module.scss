@@ -1,0 +1,19 @@
+.drag_handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  color: #aab4d4;
+  padding: 4px;
+  flex-shrink: 0;
+  touch-action: none;
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  &:hover {
+    color: #3A54DA;
+  }
+}

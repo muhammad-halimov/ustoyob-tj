@@ -1,0 +1,3543 @@
+import {type ChangeEvent, useCallback, useEffect, useRef, useState, Dispatch, SetStateAction} from 'react';
+import type * as React from 'react';
+import {Navigate, useNavigate, useParams} from 'react-router-dom';
+import {getAuthToken, getUserData, getUserRole, logout} from '../../utils/authUtils';
+import {openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult, markOAuthPopupFlow} from '../../utils/oauthPopup';
+import {API_ROUTES, ROUTES} from '../../app/routers/routes';
+import styles from './Profile.module.scss';
+import {useTranslation} from 'react-i18next';
+import {useTheme} from '../../contexts';
+import {useLanguageChange, useShowMore} from '../../hooks';
+import {getStorageItem, removeStorageItem, setStorageItem, setStorageJSON, getStorageJSON, setSessionItem, removeSessionItem} from '../../utils/storageUtils';
+import {createChatWithAuthor} from '../../utils/chatUtils';
+import { uploadPhotos } from '../../utils/imageUtils';
+
+import {usePreview} from '../../shared/ui/Photo/Preview';
+import {AddressValue, buildAddressData} from '../../shared/ui/Address/Selector';
+import {PageLoader} from '../../widgets/PageLoader';
+import {getOccupations, getProvinces, getCities, getDistricts} from '../../utils/dataCacheUtils';
+import {smartNameTranslator} from '../../utils/textUtils';
+
+// Импорты из entities
+import {
+    ApiResponse,
+    Education,
+    EducationItem,
+    Gallery,
+    Occupation,
+    ProfileData,
+    Review as ReviewType,
+    Ticket,
+    WorkExample,
+    SocialNetwork,
+    User,
+    Address,
+} from '../../entities';
+import type { Image } from '../../entities';
+import { API_BASE_URL } from '../../utils/configUtils';
+
+// Новые компоненты из shared/ui
+import {ProfileHeader} from './shared/ui/ProfileHeader';
+import {EducationSection} from './shared/ui/EducationSection';
+import {PhonesSection} from './shared/ui/PhonesSection';
+import {SocialNetworksSection} from './shared/ui/SocialNetworksSection';
+import {SOCIAL_NETWORK_CONFIG, renderSocialIcon} from './shared/config/socialNetworkConfig';
+import {WorkExamplesSection} from './shared/ui/WorkExamplesSection';
+import {WorkAreasSection} from './shared/ui/WorkAreasSection';
+import {ServicesSection} from './shared/ui/ServicesSection';
+import {ReviewsSection} from './shared/ui/ReviewsSection';
+import {LinkedAccountsSection} from './shared/ui/LinkedAccountsSection';
+import type { OAuthProvider } from '../../entities';
+import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
+import Status from '../../shared/ui/Modal/Status';
+import Feedback from '../../shared/ui/Modal/Feedback';
+import Auth from '../../shared/ui/Modal/Auth/Auth';
+import { InstagramLinkNotice } from '../../shared/ui/Modal/InstagramLinkNotice';
+import { getAuthorAvatar } from '../../utils/imageUtils';
+import { getFormattedDate } from '../../utils/timeUtils';
+import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
+import { getPageSize } from '../../utils/pageSizeUtils';
+import { parsePagedResponse, universalApiRequest } from '../../utils/apiUtils';
+import { resolveApiError } from '../../utils/appMessagesUtils';
+import type { AvailableSocialNetwork as LocalAvailableSocialNetwork, UISocialNetwork } from '../../entities';
+import type { AddressFormData as LocalAddress } from '../../entities';
+import type { Phone as LocalPhone } from '../../entities';
+/** Alias for local use */
+
+/**
+ * Profile page — handles two modes:
+ *  - `/profile`       : private personal cabinet (edit mode, full data access).
+ *  - `/profile/:id`   : public profile of another user (read-only view).
+ *
+ * Fetches user data from /api/users/me (own profile) or /api/users/:id (public).
+ * Manages editing of personal info, education, work examples, social networks,
+ * addresses, and photos.
+ */
+function Profile() {
+    const navigate = useNavigate();
+    const { id } = useParams<{ id: string }>(); // Получаем id из URL
+    const { t, i18n } = useTranslation(['profile', 'components', 'common']);
+    const { theme } = useTheme();
+    
+    // Определяем, это публичный профиль или приватный
+    const readOnly = !!id; // readOnly = true для публичных профилей
+    const userId = id || null; // userId из URL параметра
+    
+    const [currentUser, setCurrentUser] = useState<{ id: number; email: string; name: string; surname: string } | null>(null);
+    const [editingField, setEditingField] = useState<'fullName' | 'specialty' | 'gender' | 'dateOfBirth' | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [userRole, setUserRole] = useState<'master' | 'client' | null>(null);
+    const [profileData, setProfileData] = useState<ProfileData | null>(null);
+    const [tempValue, setTempValue] = useState('');
+    const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
+    const [editingEducation, setEditingEducation] = useState<string | null>(null);
+    const [educationForm, setEducationForm] = useState<{
+        institution: string;
+        selectedSpecialty?: string | number;
+        startYear: string;
+        endYear: string;
+        currentlyStudying: boolean;
+    }>({
+        institution: '',
+        selectedSpecialty: undefined,
+        startYear: '',
+        endYear: '',
+        currentlyStudying: false
+    });
+    const [reviews, setReviews] = useState<ReviewType[]>([]);
+    const [reviewsLoading, setReviewsLoading] = useState(false);
+    const { page: reviewsPage, skipFetchRef: skipReviewsFetchRef, applyFetch: applyReviewsFetch, showMoreProps: reviewsShowMoreProps } = useShowMore<ReviewType>(setReviews);
+    const [servicesLoading, setServicesLoading] = useState(false);
+    const setServicesState = useCallback<Dispatch<SetStateAction<any[]>>>(
+        (updater) => setProfileData(prev => {
+            if (!prev) return prev;
+            const cur = prev.services || [];
+            return { ...prev, services: typeof updater === 'function' ? updater(cur) : updater };
+        }), []);
+    const { page: servicesPage, skipFetchRef: skipServicesFetchRef, applyFetch: applyServicesFetch, showMoreProps: servicesShowMoreProps } = useShowMore<any>(setServicesState);
+    const [visibleWorkExamplesCount, setVisibleWorkExamplesCount] = useState(() => window.innerWidth <= 768 ? 6 : 8);
+    const [isMobile, setIsMobile] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [showComplaintModal, setShowComplaintModal] = useState(false);
+    const [complaintReviewId, setComplaintReviewId] = useState<string | number | null>(null);
+    const [complaintReviewAuthorId, setComplaintReviewAuthorId] = useState<string | number | null>(null);
+    const [isReviewComplaintOpen, setIsReviewComplaintOpen] = useState(false);
+    const [showEditReviewModal, setShowEditReviewModal] = useState(false);
+    const [editingReview, setEditingReview] = useState<ReviewType | null>(null);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [authModalAction, setAuthModalAction] = useState<'review' | 'complaint' | null>(null);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showErrorModal, setShowErrorModal] = useState(false);
+    const [modalMessage, setModalMessage] = useState('');
+    // Instagram-only pre-linking notice (см. handleLinkProvider) — same explanation as
+    // Auth.tsx's AuthModalState.INSTAGRAM_NOTICE, just gating the link flow instead of login.
+    const [showInstagramLinkNotice, setShowInstagramLinkNotice] = useState(false);
+    const [occupations, setOccupations] = useState<Occupation[]>([]);
+    const [occupationsLoading, setOccupationsLoading] = useState(false);
+    const [isSocialNetworksRefreshing, setIsSocialNetworksRefreshing] = useState(false);
+    const [isPhonesRefreshing, setIsPhonesRefreshing] = useState(false);
+    const [isEducationRefreshing, setIsEducationRefreshing] = useState(false);
+    const [isWorkExamplesRefreshing, setIsWorkExamplesRefreshing] = useState(false);
+    const [isWorkAreasRefreshing, setIsWorkAreasRefreshing] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const workExampleInputRef = useRef<HTMLInputElement>(null);
+    // Refs that mirror server-side array state to avoid redundant GET requests before PATCH
+    // and prevent read-modify-write race conditions on rapid mutations.
+    const rawEducationRef = useRef<Education[]>([]);
+    const rawPhonesRef = useRef<LocalPhone[]>([]);
+    const rawAddressesRef = useRef<Address[]>([]);
+    const [editingSocialNetwork, setEditingSocialNetwork] = useState<string | null>(null);
+    const [socialNetworks, setSocialNetworks] = useState<UISocialNetwork[]>([]);
+    const [socialNetworkEditValue, setSocialNetworkEditValue] = useState('');
+    const [showAddSocialNetwork, setShowAddSocialNetwork] = useState(false);
+    const [selectedNewNetwork, setSelectedNewNetwork] = useState('');
+    const [availableSocialNetworks, setAvailableSocialNetworks] = useState<LocalAvailableSocialNetwork[]>([]);
+    const [socialNetworkValidationError, setSocialNetworkValidationError] = useState('');
+    const [isGalleryOperating, setIsGalleryOperating] = useState(false);
+    const [isAvatarUploading, setIsAvatarUploading] = useState(false);
+
+    // Состояния лайка/избранного на публичном профиле
+    const [isProfileLiked, setIsProfileLiked] = useState(false);
+    const [isProfileLikeLoading, setIsProfileLikeLoading] = useState(false);
+    const [profileEntryId, setProfileEntryId] = useState<string | number | null>(null); // FavoriteEntry id for DELETE
+    
+    // Состояния для адресов
+    const [editingAddress, setEditingAddress] = useState<string | null>(null);
+    const [addressForm, setAddressForm] = useState<AddressValue>({
+        provinceId: null,
+        cityId: null,
+        suburbIds: [],
+        districtIds: [],
+        settlementId: null,
+        communityId: null,
+        villageId: null
+    });
+
+    // Состояния для телефонов
+    const [editingPhone, setEditingPhone] = useState<string | null>(null);
+    const [phoneForm, setPhoneForm] = useState({ number: '', type: 'tj' as 'tj' | 'international' });
+
+    const [linkedProviders, setLinkedProviders] = useState<OAuthProvider[]>([]);
+    const [linkedProvidersLoading, setLinkedProvidersLoading] = useState(false);
+
+    // Загружаем привязанные OAuth-провайдеры (только для своей страницы)
+    // Вынесено из эффекта в useCallback — startProviderOAuthLink (popup-флоу для
+    // google/facebook/instagram) вызывает её напрямую после успешного связывания,
+    // ей нужно быть доступной за пределами замыкания эффекта.
+    const providersAbortRef = useRef<AbortController | null>(null);
+    const loadProviders = useCallback(() => {
+        providersAbortRef.current?.abort(); // отменяем предыдущий незавершённый запрос, если он ещё летит
+        const controller = new AbortController();
+        providersAbortRef.current = controller;
+        setLinkedProvidersLoading(true);
+        universalApiRequest(API_ROUTES.PROFILE_OAUTH_PROVIDERS, { locale: false, signal: controller.signal })
+            .then(data => setLinkedProviders(Array.isArray(data) ? data : ((data as any).providers ?? [])))
+            .catch(() => {})
+            .finally(() => setLinkedProvidersLoading(false));
+    }, []);
+
+    useEffect(() => {
+        // `readOnly` — это `!!id` из URL (свой профиль = /profile, без id), а не признак
+        // авторизации. После logout + reload на /profile этот эффект всё равно монтируется
+        // заново с readOnly=false, и без проверки токена стабильно слал запрос без
+        // Authorization → 401 сразу после выхода, даже до того как AbortController выше
+        // успевал что-то отменить (это был не гоночный запрос "в полёте", а совершенно
+        // новый, отправленный уже разлогиненной страницей).
+        if (readOnly || !getAuthToken()) return;
+
+        loadProviders();
+
+        // Слушаем успешную привязку Telegram из новой вкладки
+        const onStorage = (e: StorageEvent) => {
+            if (e.key === 'telegram_link_success') {
+                removeStorageItem('telegram_link_success');
+                document.getElementById('telegram-link-modal')?.remove();
+                loadProviders();
+            }
+        };
+        // Обрываем запрос сразу при logout, вместо того чтобы дать ему долететь до
+        // сервера и вернуться 401'ом уже после инвалидации токена — именно этот
+        // «лишний» запрос было видно в devtools сразу после выхода.
+        const onLogout = () => providersAbortRef.current?.abort();
+
+        window.addEventListener('storage', onStorage);
+        window.addEventListener('logout', onLogout);
+        return () => {
+            providersAbortRef.current?.abort();
+            window.removeEventListener('storage', onStorage);
+            window.removeEventListener('logout', onLogout);
+        };
+    }, [readOnly, loadProviders]);
+
+    // Actually kicks off the provider OAuth link — split out of handleLinkProvider
+    // so the Instagram notice below can defer it until the user confirms, instead
+    // of firing straight away like google/facebook do.
+    // Popup, а не window.location.href — тот и уводил в приложение провайдера
+    // без гарантированного возврата (см. utils/oauthPopup). Popup открываем
+    // синхронно, до await, иначе блокировщик всплывающих окон зарубит его —
+    // жест пользователя (клик) к моменту ответа сервера уже "остыл".
+    const startProviderOAuthLink = (provider: string) => {
+        const popup = openOAuthPopup(`oauth_link_${provider}`);
+        if (!popup) {
+            setModalMessage(t('common:oauth.popupBlocked', { provider }));
+            setShowErrorModal(true);
+            return;
+        }
+
+        universalApiRequest(API_ROUTES.AUTH_PROVIDER_URL(provider), { requiresAuth: false, locale: false })
+            .then(data => {
+                setSessionItem('oauthMode', 'link');
+                // На мобильных нативное приложение может открыть callback в новой
+                // вкладке, где sessionStorage пустой. Сохраняем mode по
+                // state-параметру в localStorage на такой случай.
+                try {
+                    const stateParam = new URL(data.url).searchParams.get('state');
+                    if (stateParam) {
+                        setStorageItem(`oauth_mode_${stateParam}`, 'link');
+                        // Помечаем именно этот state как popup-флоу — OAuthCallbackPage
+                        // сверится с этим по своему state и поймёт, что надо не
+                        // navigate(), а отчитаться нам и закрыться (см. utils/oauthPopup).
+                        markOAuthPopupFlow(stateParam);
+                    }
+                } catch { /* url parse error ignored */ }
+                // Проверяем протокол перед переходом (защита от open redirect)
+                try {
+                    const parsed = new URL(data.url);
+                    if (!['https:', 'http:'].includes(parsed.protocol)) { popup.close(); return; }
+                } catch { popup.close(); return; }
+
+                navigateOAuthPopup(popup, data.url);
+                waitForOAuthPopupResult(popup)
+                    .then(() => loadProviders())
+                    .catch((err: Error) => {
+                        // Popup закрылся без сигнала (postMessage/localStorage до нас не
+                        // долетели — например Facebook рвёт оба канала) — не считаем это
+                        // отменой вслепую: перезапрашиваем список привязанных провайдеров
+                        // в любом случае, это дёшево и корректно покажет реальный результат,
+                        // даже если уведомление о завершении так и не пришло.
+                        if (err.message === 'popup_closed') {
+                            loadProviders();
+                            return;
+                        }
+                        setModalMessage(resolveApiError(err, t('common:oauth.tryLater')));
+                        setShowErrorModal(true);
+                    })
+                    .finally(() => removeSessionItem('oauthMode'));
+            })
+            .catch(() => { popup.close(); });
+    };
+
+    const handleLinkProvider = (provider: string) => {
+        // Instagram больше не пускает через личные аккаунты (только Business/Creator) —
+        // как и в Auth.tsx, объясняем это и просим подтверждения до похода на Meta,
+        // вместо того чтобы сразу редиректить и ловить там невнятный отказ.
+        if (provider === 'instagram') {
+            setShowInstagramLinkNotice(true);
+            return;
+        }
+        if (provider === 'telegram') {
+            // Показываем всплывающий виджет Telegram (как в Auth)
+            // data-auth-url, не data-onauth — у telegram-widget.js data-onauth
+            // разбирает атрибут через eval() (window.__parseFunction), а наш CSP
+            // (script-src без 'unsafe-eval', см. index.html) такой eval блокирует —
+            // виджет ломается на инициализации, кнопка вообще не рендерится.
+            // Устойчивость к тому, что мобильное приложение может вернуть колбэк в
+            // другую вкладку — на стороне TelegramCallbackPage (localStorage-сигнал).
+            setSessionItem('oauthMode', 'link');
+            // На мобильных нативное приложение открывает callback в новой вкладке,
+            // где sessionStorage пустой — дублируем в localStorage
+            setStorageItem('oauth_mode_telegram', 'link');
+
+            const overlay = document.createElement('div');
+            overlay.id = 'telegram-link-modal';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
+
+            const isDark = theme === 'dark';
+            const box = document.createElement('div');
+            box.style.cssText = `background:${isDark ? '#2a2a2a' : '#fff'};border-radius:16px;padding:32px 28px;min-width:280px;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,.3)`;
+
+            const close = document.createElement('button');
+            close.textContent = '✕';
+            close.style.cssText = `position:absolute;top:12px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:${isDark ? '#888' : '#999'}`;
+            close.onclick = () => { removeSessionItem('oauthMode'); overlay.remove(); };
+
+            const title = document.createElement('p');
+            title.textContent = t('oauth.linkTelegramTitle');
+            title.style.cssText = `margin:0 0 18px;font-weight:600;font-size:15px;color:${isDark ? '#e5e5e5' : '#222'}`;
+
+            const widgetWrap = document.createElement('div');
+            widgetWrap.id = `tg-link-widget-${Date.now()}`;
+
+            const script = document.createElement('script');
+            script.src = 'https://telegram.org/js/telegram-widget.js?22';
+            script.async = true;
+            script.setAttribute('data-telegram-login', import.meta.env.VITE_TELEGRAM_BOT_NAME);
+            script.setAttribute('data-size', 'large');
+            script.setAttribute('data-userpic', 'false');
+            script.setAttribute('data-radius', '10');
+            script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
+            script.setAttribute('data-request-access', 'write');
+
+            widgetWrap.appendChild(script);
+            box.appendChild(close);
+            box.appendChild(title);
+            box.appendChild(widgetWrap);
+            overlay.appendChild(box);
+            overlay.onclick = (e: MouseEvent) => { if (e.target === overlay) { removeSessionItem('oauthMode'); overlay.remove(); } };
+            document.body.appendChild(overlay);
+            return;
+        }
+        startProviderOAuthLink(provider);
+    };
+
+    const handleUnlinkProvider = async (provider: string) => {
+        try {
+            const data: any = await universalApiRequest(API_ROUTES.PROFILE_OAUTH_UNLINK(provider), {
+                method: 'DELETE',
+                locale: false,
+            });
+            if (data.error === 'last_auth_method') {
+                setModalMessage(t('profile:oauth.lastAuthMethod'));
+                setShowErrorModal(true);
+                return;
+            }
+            if (data.error) {
+                setModalMessage(data.message || resolveApiError(null, t('profile:oauth.unlinkError', 'Ошибка при отвязке аккаунта')));
+                setShowErrorModal(true);
+                return;
+            }
+            if (data.providers) {
+                setLinkedProviders(data.providers);
+            } else if (Array.isArray(data)) {
+                setLinkedProviders(data);
+            }
+        } catch { /* silent */ }
+    };
+
+    // Проверяем начальный статус лайка при загрузке публичного профиля
+    useEffect(() => {
+        if (!readOnly || !profileData?.id) return;
+        const token = getAuthToken();
+        if (!token) {
+            // Проверяем localStorage для неавторизованных пользователей
+            const parsed = getStorageJSON<{ users?: (string | number)[] }>('favorites');
+            if (parsed) {
+                const users: (string | number)[] = Array.isArray(parsed.users) ? parsed.users : [];
+                setIsProfileLiked(users.includes(profileData.id));
+            }
+            return;
+        }
+
+        (async () => {
+            try {
+                const data: any = await universalApiRequest(API_ROUTES.FAVORITES_ME, { locale: false });
+                const entries: Array<{ id: string | number; type: string; user: { id: string | number } | null }> =
+                    data['hydra:member'] ?? (Array.isArray(data) ? data : []);
+                const match = entries.find(e => e.type === 'user' && e.user?.id === profileData.id);
+                setIsProfileLiked(!!match);
+                setProfileEntryId(match?.id ?? null);
+            } catch { /* silent */ }
+        })();
+    }, [readOnly, profileData?.id]);
+    
+    // Перезагружать данные при смене языка
+    useLanguageChange(() => {
+        void fetchUserData(); // fetchServices и fetchUserGallery вызываются внутри fetchUserData
+        void fetchReviews();
+    });
+
+    // Как в MyTickets - загрузка текущего пользователя для приватного профиля
+    const getCurrentUser = useCallback(async () => {
+        if (readOnly) {
+            // Для публичного профиля не требуется авторизация
+            setCurrentUser({ id: 0, email: '', name: '', surname: '' });
+            return true;
+        }
+
+        // Для приватного профиля — проверяем токен локально, без лишнего API-запроса.
+        // fetchUserData() уже вызывает /api/users/me?locale=... и там установит currentUser.
+        const token = getAuthToken();
+        if (!token) {
+            console.log('No auth token available');
+            setIsLoading(false);
+            return false;
+        }
+        // Токен есть — разрешаем рендер, реальные данные придут из fetchUserData
+        setCurrentUser({ id: 0, email: '', name: '', surname: '' });
+        return true;
+    }, [readOnly]);
+    
+    // Определение размера экрана
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+        
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    useEffect(() => {
+        setVisibleWorkExamplesCount(isMobile ? 6 : 8);
+    }, [isMobile]);
+
+
+    
+    // Preview hook для примеров работ
+    const handleLogout = async () => {
+        const confirmed = confirm(t('header:logoutConfirm', 'Вы уверены, что хотите выйти?'));
+        if (!confirmed) return;
+        try {
+            await logout();
+            window.dispatchEvent(new Event('logout'));
+            window.location.reload();
+        } catch (error) {
+            console.error('Logout error:', error);
+            window.location.reload();
+        }
+    };
+
+    const galleryImages = profileData?.workExamples.map(work => work.image) || [];
+    const {
+        isOpen: isGalleryOpen,
+        currentIndex: galleryCurrentIndex,
+        openGallery,
+        closeGallery,
+        goToNext,
+        goToPrevious,
+        selectImage
+    } = usePreview({
+        images: galleryImages
+    });
+
+    // Вспомогательная функция для получения индекса фото в галерее отзывов
+    const getReviewImageIndex = (reviewIndex: number, imageIndex: number): number => {
+        let totalIndex = 0;
+        for (let i = 0; i < reviewIndex; i++) {
+            totalIndex += reviews[i].images?.length || 0;
+        }
+        return totalIndex + imageIndex;
+    };
+
+    // Функция загрузки доступных социальных сетей
+    const fetchAvailableSocialNetworks = async () => {
+        try {
+            const data = await universalApiRequest(API_ROUTES.USERS_SOCIAL_NETWORKS, { requiresAuth: false }) as LocalAvailableSocialNetwork[];
+            setAvailableSocialNetworks(data);
+            console.log('Available social networks loaded:', data);
+        } catch (error) {
+            console.error('Error fetching available social networks:', error);
+        }
+    };
+
+    // Функция добавления новой социальной сети
+    const handleAddSocialNetwork = async () => {
+        if (!selectedNewNetwork) return;
+
+        const networkConfig = availableSocialNetworks.find(n => n.network === selectedNewNetwork);
+        if (!networkConfig) return;
+
+        const newNetwork: UISocialNetwork = {
+            id: `new-${Date.now()}`,
+            network: selectedNewNetwork,
+            handle: ''
+        };
+
+        const updatedNetworks = [...socialNetworks, newNetwork];
+        setSocialNetworks(updatedNetworks);
+
+        // Сразу переходим в режим редактирования новой сети
+        setEditingSocialNetwork(newNetwork.id);
+        setSocialNetworkEditValue('');
+        setSocialNetworkValidationError('');
+        setShowAddSocialNetwork(false);
+        setSelectedNewNetwork('');
+
+        // Сохраняем на сервер
+        await updateSocialNetworks(updatedNetworks);
+    };
+
+    // Функция удаления социальной сети
+    const handleRemoveSocialNetwork = async (networkId: string) => {
+        const updatedNetworks = socialNetworks.filter(n => n.id !== networkId);
+        setSocialNetworks(updatedNetworks);
+        await updateSocialNetworks(updatedNetworks);
+    };
+
+    // Получить доступные для добавления сети (исключить уже добавленные)
+    const getAvailableNetworks = () => {
+        const addedNetworks = socialNetworks.map((sn: UISocialNetwork) => sn.network);
+        return availableSocialNetworks.filter((an: LocalAvailableSocialNetwork) => !addedNetworks.includes(an.network));
+    };
+
+    // Рендер иконки социальной сети перенесён в shared/config/socialNetworkConfig.tsx
+
+    useEffect(() => {
+        const initializeProfile = async () => {
+            // Если авторизованный пользователь зашёл на свой публичный профиль — редиректим в ЛК
+            // Проверяем это ПЕРВЫМ, до любых других запросов
+            // Используем данные из localStorage — без лишнего API-запроса
+            if (id) {
+                const cachedUser = getUserData();
+                if (cachedUser && cachedUser.id && cachedUser.id.toString() === id) {
+                    navigate(ROUTES.PROFILE, { replace: true });
+                    return;
+                }
+            }
+
+            console.log('Initializing Profile...');
+            const authenticated = await getCurrentUser();
+            
+            if (!readOnly && !authenticated) {
+                // Для приватного профиля без авторизации - останавливаемся
+                return;
+            }
+
+            console.log('=== LOADING PROFILE PAGE ===');
+            console.log(`Loading ${readOnly ? 'public' : 'private'} profile`);
+            if (userId) console.log('User ID:', userId);
+            
+            void fetchUserData();
+            void fetchOccupationsList();
+            
+            // Загружаем доступные социальные сети только для приватных профилей
+            if (!readOnly) {
+                void fetchAvailableSocialNetworks();
+            }
+        };
+        initializeProfile();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [navigate, readOnly, userId]);
+
+    useEffect(() => {
+        if (profileData?.id) {
+            console.log('Profile loaded, fetching reviews, services, and occupations');
+            if (userRole === 'master') {
+                fetchUserGallery();
+            }
+            fetchReviews();
+            fetchServices();
+            fetchOccupationsList(); // Загружаем специальности сразу при загрузке профиля
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [profileData?.id, userRole]);
+
+    // Перезагружаем отзывы при смене страницы
+    useEffect(() => {
+        if (skipReviewsFetchRef.current) {
+            skipReviewsFetchRef.current = false;
+            return;
+        }
+        if (profileData?.id) {
+            fetchReviews();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reviewsPage]);
+
+    // Перезагружаем услуги при смене страницы
+    useEffect(() => {
+        if (skipServicesFetchRef.current) {
+            skipServicesFetchRef.current = false;
+            return;
+        }
+        if (profileData?.id) {
+            fetchServices();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [servicesPage]);
+
+
+
+    useEffect(() => {
+        console.log('editingField useEffect triggered:', editingField);
+        console.log('occupations.length:', occupations.length);
+        if (editingField === 'specialty' && occupations.length === 0) {
+            console.log('Calling fetchOccupationsList from editingField effect');
+            fetchOccupationsList();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editingField]);
+
+    useEffect(() => {
+        console.log('editingEducation useEffect triggered:', editingEducation);
+        console.log('occupations.length:', occupations.length);
+        if (editingEducation && occupations.length === 0) {
+            console.log('Calling fetchOccupationsList from editingEducation effect');
+            fetchOccupationsList();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editingEducation]);
+
+    // Обновляем selectedSpecialty когда загружаются occupations
+    useEffect(() => {
+        if (editingEducation && !editingEducation.startsWith('new-') && occupations.length > 0 && profileData && !occupationsLoading) {
+            const currentEducation = profileData.education.find(edu => edu.id === editingEducation);
+            console.log('useEffect: Checking for specialty update');
+            console.log('Current education found:', currentEducation);
+            console.log('Current selectedSpecialty:', educationForm.selectedSpecialty);
+            console.log('Available occupations:', occupations.length);
+            
+            if (currentEducation && currentEducation.specialty && !educationForm.selectedSpecialty) {
+                const foundOccupation = occupations.find(occ => {
+                    const occTitle = occ.title?.toLowerCase().trim() || '';
+                    const eduSpecialty = currentEducation.specialty?.toLowerCase().trim() || '';
+                    return occTitle === eduSpecialty;
+                });
+                
+                console.log('Looking for specialty match:');
+                console.log('Education specialty:', currentEducation.specialty);
+                console.log('Found occupation:', foundOccupation);
+                
+                if (foundOccupation) {
+                    console.log('Updating selectedSpecialty after occupations loaded:', foundOccupation);
+                    setEducationForm(prev => ({
+                        ...prev,
+                        selectedSpecialty: foundOccupation.id
+                    }));
+                } else {
+                    console.warn('No matching occupation found for specialty:', currentEducation.specialty);
+                }
+            }
+        }
+    }, [editingEducation, occupations, profileData, educationForm.selectedSpecialty, occupationsLoading]);
+
+    const updateSocialNetworks = async (updatedNetworks: UISocialNetwork[]) => {
+        if (!profileData?.id) {
+            console.error('No profile ID available');
+            return false;
+        }
+
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                // Нет токена - переходим на главную
+                navigate(ROUTES.HOME);
+                return false;
+            }
+
+            // Подготавливаем данные для отправки - отправляем ВСЕ социальные сети (даже пустые)
+            const socialNetworksData = updatedNetworks.map(network => {
+                const handle = network.handle.trim();
+
+                // Если handle пустой, отправляем null (это важно для очистки)
+                return {
+                    network: network.network.toLowerCase(),
+                    handle: handle || null  // Отправляем null для очистки
+                };
+            });
+
+            console.log('Sending social networks PATCH request...');
+            console.log('URL:', API_ROUTES.USER_BY_ID(profileData.id));
+            console.log('Data to send:', JSON.stringify({
+                socialNetworks: socialNetworksData
+            }, null, 2));
+
+            // Используем правильный Content-Type как указано в API
+            const updatedData: any = await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { socialNetworks: socialNetworksData },
+                locale: false,
+            });
+
+            console.log('Response received');
+
+            console.log('Social networks updated successfully on server:', updatedData.socialNetworks);
+
+            // Обновляем локальное состояние
+            setSocialNetworks(updatedNetworks);
+
+            // Обновляем профиль
+            setProfileData(prev => prev ? {
+                ...prev,
+                socialNetworks: updatedNetworks as unknown as SocialNetwork[]
+            } : null);
+
+            console.log('Социальные сети успешно обновлены');
+            return true;
+        } catch (error) {
+            console.error('Network error updating social networks:', error);
+            return false;
+        }
+    };
+
+    const handleResetSocialNetworks = async () => {
+        if (!confirm(t('profile:deleteAllNetworksConfirm'))) {
+            return;
+        }
+
+        // Очищаем все социальные сети
+        const emptyNetworks: UISocialNetwork[] = [];
+
+        // Обновляем локальное состояние сразу для лучшего UX
+        setSocialNetworks(emptyNetworks);
+
+        // Пытаемся обновить на сервере
+        const success = await updateSocialNetworks(emptyNetworks);
+
+        if (!success) {
+            // Если не удалось на сервере, возвращаем предыдущее состояние
+            await fetchUserData();
+            console.error('Не удалось обновить социальные сети на сервере');
+        }
+    };
+
+    // ===== Функции для работы с адресами =====
+    
+    // Вспомогательная функция для преобразования адреса из формата API (с объектами) в формат для отправки (с IRI)
+    const convertAddressToIRI = (address: Address): any => {
+        const iriAddress: any = {};
+        
+        // Сохраняем id если есть
+        if (address.id) {
+            iriAddress.id = address.id;
+        }
+        
+        // Преобразуем каждое поле из объекта в IRI-строку
+        if (address.province) {
+            if (typeof address.province === 'object' && address.province.id) {
+                iriAddress.province = API_ROUTES.PROVINCE_BY_ID(address.province.id);
+            } else if (typeof address.province === 'string') {
+                iriAddress.province = address.province;
+            }
+        }
+        
+        if (address.city) {
+            if (typeof address.city === 'object' && address.city.id) {
+                iriAddress.city = API_ROUTES.CITY_BY_ID(address.city.id);
+            } else if (typeof address.city === 'string') {
+                iriAddress.city = address.city;
+            }
+        }
+        
+        if (address.suburb) {
+            if (typeof address.suburb === 'object' && address.suburb.id) {
+                iriAddress.suburb = API_ROUTES.SUBURB_BY_ID(address.suburb.id);
+            } else if (typeof address.suburb === 'string') {
+                iriAddress.suburb = address.suburb;
+            }
+        }
+        
+        if (address.district) {
+            if (typeof address.district === 'object' && address.district.id) {
+                iriAddress.district = API_ROUTES.DISTRICT_BY_ID(address.district.id);
+            } else if (typeof address.district === 'string') {
+                iriAddress.district = address.district;
+            }
+        }
+        
+        if (address.settlement) {
+            if (typeof address.settlement === 'object' && address.settlement.id) {
+                iriAddress.settlement = API_ROUTES.SETTLEMENT_BY_ID(address.settlement.id);
+            } else if (typeof address.settlement === 'string') {
+                iriAddress.settlement = address.settlement;
+            }
+        }
+        
+        if (address.community) {
+            if (typeof address.community === 'object' && address.community.id) {
+                iriAddress.community = API_ROUTES.COMMUNITY_BY_ID(address.community.id);
+            } else if (typeof address.community === 'string') {
+                iriAddress.community = address.community;
+            }
+        }
+        
+        if (address.village) {
+            if (typeof address.village === 'object' && address.village.id) {
+                iriAddress.village = API_ROUTES.VILLAGE_BY_ID(address.village.id);
+            } else if (typeof address.village === 'string') {
+                iriAddress.village = address.village;
+            }
+        }
+        
+        return iriAddress;
+    };
+    
+    const handleAddAddress = () => {
+        const newAddressId = `new-${Date.now()}`;
+        setEditingAddress(newAddressId);
+        setAddressForm({
+            provinceId: null,
+            cityId: null,
+            suburbIds: [],
+            districtIds: [],
+            settlementId: null,
+            communityId: null,
+            villageId: null
+        });
+    };
+
+    const handleEditAddressStart = (address: LocalAddress) => {
+        setEditingAddress(address.id);
+        setAddressForm(address.addressValue);
+    };
+
+    const handleEditAddressCancel = () => {
+        setEditingAddress(null);
+        setAddressForm({
+            provinceId: null,
+            cityId: null,
+            suburbIds: [],
+            districtIds: [],
+            settlementId: null,
+            communityId: null,
+            villageId: null
+        });
+    };
+
+    const handleEditAddressSave = async () => {
+        if (!profileData?.id || !editingAddress) return;
+
+        // Проверяем, что выбрана область
+        if (!addressForm.provinceId) {
+            throw new Error(t('profile:selectProvince'));
+        }
+
+        // Проверяем, что выбран город или район
+        if (!addressForm.cityId && addressForm.districtIds.length === 0) {
+            throw new Error(t('profile:selectCity'));
+        }
+
+        // Преобразуем AddressValue в формат API (синхронно, до try)
+        const addressData = buildAddressData(addressForm);
+        if (!addressData) {
+            throw new Error(t('profile:addrError'));
+        }
+
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                console.error('No auth token');
+                return;
+            }
+
+            // Получаем текущие данные пользователя
+            const userData: User = await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id)) as User;
+            const currentAddresses = userData.addresses || [];
+
+            const addressIndex = editingAddress.startsWith('new-') 
+                ? -1 
+                : currentAddresses.findIndex((addr: Address) => addr.id?.toString() === editingAddress);
+
+            let updatedAddresses: any[];
+            if (addressIndex >= 0) {
+                // Обновляем существующий - преобразуем все адреса в IRI формат
+                updatedAddresses = currentAddresses.map((addr: Address, idx: number) => {
+                    if (idx === addressIndex) {
+                        // Заменяем редактируемый адрес на новые данные
+                        return {
+                            id: addr.id,
+                            ...addressData
+                        };
+                    } else {
+                        // Преобразуем остальные адреса из объектов в IRI
+                        return convertAddressToIRI(addr);
+                    }
+                });
+            } else {
+                // Добавляем новый - преобразуем существующие адреса в IRI формат
+                updatedAddresses = [
+                    ...currentAddresses.map((addr: Address) => convertAddressToIRI(addr)),
+                    addressData
+                ];
+            }
+
+            // Отправляем на сервер
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { addresses: updatedAddresses },
+                locale: false,
+            });
+
+            // Получаем обновленные данные пользователя
+            const currentLocale = getStorageItem('i18nextLng') || 'tj';
+            const updatedUserData: User = await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), { locale: currentLocale as any }) as User;
+            const updatedAddressesFromServer = updatedUserData.addresses || [];
+
+            // Преобразуем адреса в формат для отображения
+            const loadedAddresses: LocalAddress[] = [];
+            for (let i = 0; i < updatedAddressesFromServer.length; i++) {
+                const addr = updatedAddressesFromServer[i];
+                const addressText = await getFullAddressText(addr);
+                
+                if (addressText) {
+                    const addressValue: AddressValue = {
+                        provinceId: addr.province ? (typeof addr.province === 'object' ? (addr.province.id || null) : null) : null,
+                        cityId: addr.city ? (typeof addr.city === 'object' ? (addr.city.id || null) : null) : null,
+                        suburbIds: addr.suburb ? [(typeof addr.suburb === 'object' ? (addr.suburb.id || null) : null)].filter((id): id is number => id !== null) : [],
+                        districtIds: addr.district ? [(typeof addr.district === 'object' ? (addr.district.id || null) : null)].filter((id): id is number => id !== null) : [],
+                        settlementId: addr.settlement ? (typeof addr.settlement === 'object' ? (addr.settlement.id || null) : null) : null,
+                        communityId: addr.community ? (typeof addr.community === 'object' ? (addr.community.id || null) : null) : null,
+                        villageId: addr.village ? (typeof addr.village === 'object' ? (addr.village.id || null) : null) : null
+                    };
+
+                    loadedAddresses.push({
+                        id: addr.id?.toString() || `addr-${i}`,
+                        displayText: addressText,
+                        addressValue
+                    });
+                }
+            }
+
+            // Обновляем только addresses в profileData
+            setProfileData(prev => prev ? {
+                ...prev,
+                addresses: loadedAddresses
+            } : null);
+
+            handleEditAddressCancel();
+
+        } catch (error) {
+            console.error('Error saving address:', error);
+            if (error instanceof Error) throw error;
+            throw new Error(t('profile:addrSaveError'));
+        }
+    };
+
+    const handleDeleteAddress = async (addressId: string) => {
+        if (!profileData?.id) return;
+
+        if (!confirm(t('profile:deleteAddrConfirm'))) {
+            return;
+        }
+
+        const token = getAuthToken();
+        if (!token) {
+            console.error('No auth token');
+            return;
+        }
+
+        // Use the cached server-state ref — avoids a redundant GET and race conditions
+        const currentAddresses: Address[] = rawAddressesRef.current;
+
+        // Фильтруем адрес с указанным ID и преобразуем в IRI формат
+        const updatedAddresses = currentAddresses
+            .filter((addr: Address) => addr.id?.toString() !== addressId)
+            .map((addr: Address) => convertAddressToIRI(addr));
+
+        // Update ref synchronously before PATCH
+rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.toString() !== addressId);
+
+        // Отправляем на сервер
+        try {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { addresses: updatedAddresses },
+                locale: false,
+            });
+            // Обновляем только addresses в profileData без перезагрузки
+            setProfileData(prev => {
+                if (!prev) return null;
+                return {
+                    ...prev,
+                    addresses: prev.addresses.filter(addr => addr.id !== addressId)
+                };
+            });
+        } catch (patchError) {
+            // Roll back ref on failure
+            rawAddressesRef.current = currentAddresses;
+            console.error('Error deleting address:', patchError);
+            throw new Error(t('profile:addrDeleteError'));
+        }
+    };
+
+    // Функции для работы с телефонами
+    const validatePhone = (number: string, type: 'tj' | 'international'): boolean => {
+        if (!number.trim()) return false;
+        
+        if (type === 'tj') {
+            // Таджикистанский номер: +992 и 9 цифр после
+            return /^\+992\d{9}$/.test(number);
+        } else {
+            // Международный: начинается с + и содержит от 10 до 15 цифр
+            return /^\+\d{10,15}$/.test(number);
+        }
+    };
+
+    const handleAddPhone = () => {
+        if (!profileData) return;
+
+        if (profileData.phones.length >= 2) {
+            setModalMessage(t('profile:phoneMaxError'));
+            setShowErrorModal(true);
+            return;
+        }
+
+        const hasTj = profileData.phones.some(p => p.countryCode === '+992');
+        setPhoneForm({ number: hasTj ? '+' : '+992', type: hasTj ? 'international' : 'tj' });
+        setEditingPhone('new');
+    };
+
+    const handleEditPhoneStart = (phone: LocalPhone) => {
+        setEditingPhone(String(phone.id));
+        setPhoneForm({ number: phone.phone || '', type: phone.countryCode === '+992' ? 'tj' : 'international' });
+    };
+
+    const handleEditPhoneCancel = () => {
+        setEditingPhone(null);
+        setPhoneForm({ number: '', type: 'tj' });
+    };
+
+    const handleEditPhoneSave = async () => {
+        if (!profileData?.id) return;
+
+        const trimmedNumber = phoneForm.number.trim();
+        
+        if (!validatePhone(trimmedNumber, phoneForm.type)) {
+            throw new Error(phoneForm.type === 'tj'
+                ? t('profile:phoneTjFormatError')
+                : t('profile:phoneIntFormatError'));
+        }
+
+        const token = getAuthToken();
+        if (!token) {
+            console.error('No auth token');
+            return;
+        }
+
+        // GET actual server-side phones to avoid stale state
+            const userData: any = await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id));
+        const serverPhones: { id: number; phone: string; main: boolean }[] = userData.phones || [];
+
+        let phonesPayload;
+        if (editingPhone === 'new') {
+            const isFirst = serverPhones.length === 0;
+            phonesPayload = [
+                ...serverPhones.map(p => ({ id: p.id, phone: p.phone, main: p.main })),
+                { phone: trimmedNumber, main: isFirst },
+            ];
+        } else {
+            phonesPayload = serverPhones.map(p => ({
+                id: p.id,
+                phone: String(p.id) === editingPhone ? trimmedNumber : p.phone,
+                main: p.main,
+            }));
+        }
+
+        try {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { phones: phonesPayload },
+                locale: false,
+            });
+            await fetchUserData(true);
+            handleEditPhoneCancel();
+        } catch (err: any) {
+            const status = err?.status ?? err?.response?.status;
+            if (status === 422) {
+                const violation = err?.violations?.[0]?.message;
+                throw new Error(violation || t('profile:phoneBusy'));
+            }
+            throw new Error(t('profile:phoneSaveError'));
+        }
+    };
+
+    const handleDeletePhone = async (phoneId: string) => {
+        if (!profileData?.id) return;
+
+        if (!confirm(t('profile:deletePhoneConfirm'))) {
+            return;
+        }
+
+        const token = getAuthToken();
+        if (!token) {
+            console.error('No auth token');
+            return;
+        }
+
+        // Use the cached server-state ref — avoids a redundant GET and race conditions
+        const serverPhones = rawPhonesRef.current;
+        const phonesPayload = serverPhones
+            .filter(p => String(p.id) !== phoneId)
+            .map(p => ({ id: p.id, phone: p.phone, main: p.main }));
+
+        // Update ref synchronously before PATCH
+        rawPhonesRef.current = serverPhones.filter(p => String(p.id) !== phoneId);
+
+        try {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { phones: phonesPayload },
+                locale: false,
+            });
+            await fetchUserData(true);
+        } catch (patchError) {
+            // Roll back ref on failure
+            rawPhonesRef.current = serverPhones;
+            console.error('Error deleting phone:', patchError);
+            throw new Error(t('profile:phoneDeleteError'));
+        }
+    };
+
+    const handleCopyPhone = async (phoneNumber: string) => {
+        await navigator.clipboard.writeText(phoneNumber);
+    };
+
+    const handleCopySocialNetwork = async (handle: string) => {
+        try {
+            await navigator.clipboard.writeText(handle);
+            setModalMessage(t('profile:socialCopied'));
+            setShowSuccessModal(true);
+        } catch (error) {
+            console.error('Failed to copy social network handle:', error);
+            setModalMessage(t('profile:socialCopyError'));
+            setShowErrorModal(true);
+        }
+    };
+
+    const handleCanWorkRemotelyToggle = async () => {
+        if (!profileData?.id) return;
+
+        const newValue = !profileData.canWorkRemotely;
+
+        try {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { atHome: newValue },
+                locale: false,
+            });
+            setProfileData((prev) => {
+                if (!prev) return null;
+                return {
+                    ...prev,
+                    canWorkRemotely: newValue
+                };
+            });
+        } catch (error) {
+            console.error('Error updating remote work setting:', error);
+            setModalMessage(t('profile:remoteWorkSaveError'));
+            setShowErrorModal(true);
+        }
+    };
+
+    const fetchOccupationsList = async () => {
+        try {
+            setOccupationsLoading(true);
+            const occupationsData = await getOccupations();
+            
+            console.log('Occupations from cache:', occupationsData);
+            console.log('Occupations count:', occupationsData.length);
+            
+            // Проверяем, что у нас есть валидные данные
+            const validOccupations = occupationsData.filter(occ => occ && occ.id && occ.title);
+            console.log('Valid occupations count:', validOccupations.length);
+            console.log('Valid occupations sample:', validOccupations.slice(0, 3));
+            
+            setOccupations(validOccupations);
+        } catch (error) {
+            console.error('Error fetching occupations:', error);
+            setOccupations([]);
+        } finally {
+            setOccupationsLoading(false);
+        }
+    };
+
+    const checkImageExists = (url: string): Promise<boolean> => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = url;
+        });
+    };
+
+    const fetchUserData = async (silent = false) => {
+        try {
+            if (!silent) setIsLoading(true);
+            const token = getAuthToken();
+            
+            // Для приватных профилей требуется токен
+            if (!readOnly && !token) {
+                // Нет токена - переходим на главную
+                navigate(ROUTES.HOME);
+                return;
+            }
+
+            // Определяем endpoint: /api/users/me для приватного или /api/users/:id для публичного
+            const currentLocale = getStorageItem('i18nextLng') || 'tj';
+            const userPath = userId ? API_ROUTES.USER_BY_ID(userId) : API_ROUTES.USERS_ME;
+
+            // Загружаем данные пользователя + географию + профессии параллельно
+            const [userData, pRaw, cRaw, dRaw, localizedOccupations] = await Promise.all([
+                universalApiRequest(userPath, { locale: currentLocale as any }) as Promise<User>,
+                getProvinces(currentLocale),
+                getCities(currentLocale),
+                getDistricts(currentLocale),
+                getOccupations(currentLocale),
+            ]);
+
+            console.log('User data received:', userData);
+
+            // Sync server-state refs so subsequent mutations don't need a redundant GET
+            rawEducationRef.current = (userData as any).education || [];
+            rawPhonesRef.current = ((userData as any).phones as LocalPhone[]) || [];
+            rawAddressesRef.current = ((userData as any).addresses as Address[]) || [];
+
+            // Обновляем текущего пользователя из ответа (только для приватного профиля)
+            if (!readOnly) {
+                setCurrentUser({ id: (userData as any).id, email: (userData as any).email ?? '', name: (userData as any).name ?? '', surname: (userData as any).surname ?? '' });
+            }
+
+            // Строим lookup maps из переведённых географических данных
+            const toArr = (d: any) => Array.isArray(d) ? d : (d?.['hydra:member'] || []);
+            const provincesArr2: any[] = toArr(pRaw);
+            const citiesArr: any[] = toArr(cRaw);
+            const districtsArr: any[] = toArr(dRaw);
+
+            const provinceMap = new Map<number, string>(provincesArr2.map((p: any) => [p.id, p.title]));
+            const cityMap     = new Map<number, string>(citiesArr.map((c: any) => [c.id, c.title]));
+            const districtMap = new Map<number, string>(districtsArr.map((d: any) => [d.id, d.title]));
+            const suburbMap   = new Map<number, string>();
+            const settlementMap = new Map<number, string>();
+            const communityMap  = new Map<number, string>();
+            const villageMap    = new Map<number, string>();
+            citiesArr.forEach((city: any) => {
+                (city.suburbs || []).forEach((s: any) => suburbMap.set(s.id, s.title));
+            });
+            districtsArr.forEach((dist: any) => {
+                (dist.settlements || []).forEach((s: any) => {
+                    settlementMap.set(s.id, s.title);
+                    (s.village || s.villages || []).forEach((v: any) => villageMap.set(v.id, v.title));
+                });
+                (dist.communities || []).forEach((c: any) => communityMap.set(c.id, c.title));
+            });
+
+            const addrId = (part: any): number | null => part ? (typeof part === 'object' ? part.id : null) : null;
+            const resolveAddr = (part: any, map: Map<number, string>): string => {
+                const id = addrId(part);
+                if (id && map.has(id)) return map.get(id)!;
+                if (typeof part === 'object' && part?.title) return String(part.title);
+                return '';
+            };
+            const buildAddressText = (addr: Address): string => {
+                const parts = [
+                    resolveAddr(addr.province, provinceMap),
+                    resolveAddr(addr.city, cityMap),
+                    resolveAddr(addr.district, districtMap),
+                    resolveAddr(addr.suburb, suburbMap),
+                    resolveAddr(addr.settlement, settlementMap),
+                    resolveAddr(addr.community, communityMap),
+                    resolveAddr(addr.village, villageMap),
+                ].filter(Boolean);
+                return parts.join(', ');
+            };
+
+            // Определяем роль пользователя
+            const roles = Array.isArray(userData.roles) ? userData.roles : [];
+            const role = roles.includes('ROLE_MASTER') ? 'master' : 'client';
+            setUserRole(role);
+            console.log('User role:', role);
+
+            const avatarUrl: string | null = (userData.image || userData.imageExternalUrl)
+                ? getAuthorAvatar(userData)
+                : null;
+
+            // Получаем все адреса пользователя
+            const userAddresses = userData.addresses as Address[] | undefined;
+
+            // Строим displayText для каждого адреса через lookup maps (переведённые названия)
+            const loadedAddresses: LocalAddress[] = [];
+            let workArea = '';
+            if (userAddresses && Array.isArray(userAddresses)) {
+                const addressStrings: string[] = [];
+                userAddresses.forEach((addr, i) => {
+                    const addressText = buildAddressText(addr);
+                    if (addressText) {
+                        addressStrings.push(addressText);
+                        const addressValue: AddressValue = {
+                            provinceId: addrId(addr.province),
+                            cityId: addrId(addr.city),
+                            suburbIds: addr.suburb ? [addrId(addr.suburb)].filter((id): id is number => id !== null) : [],
+                            districtIds: addr.district ? [addrId(addr.district)].filter((id): id is number => id !== null) : [],
+                            settlementId: addrId(addr.settlement),
+                            communityId: addrId(addr.community),
+                            villageId: addrId(addr.village),
+                        };
+                        loadedAddresses.push({
+                            id: addr.id?.toString() || `addr-${i}`,
+                            displayText: addressText,
+                            addressValue,
+                        });
+                    }
+                });
+                workArea = [...new Set(addressStrings)].join(', ');
+            }
+
+            // Создаем пустой массив социальных сетей - показываем только те, что есть в API
+            const loadedSocialNetworks: UISocialNetwork[] = [];
+
+            // Если в API есть социальные сети, добавляем их
+            if (userData.socialNetworks && Array.isArray(userData.socialNetworks)) {
+                console.log('Found social networks in API:', userData.socialNetworks);
+
+                userData.socialNetworks.forEach((sn) => {
+                    const networkType = sn.network?.toLowerCase();
+                    const handle = sn.handle || '';
+
+                    // Добавляем только те сети, которые реально заполнены или есть в API
+                    if (networkType && (handle || (userData.socialNetworks && userData.socialNetworks.length > 0))) {
+                        loadedSocialNetworks.push({
+                            id: sn.id?.toString() || `network-${Date.now()}-${Math.random()}`,
+                            network: networkType,
+                            handle: handle
+                        });
+                    }
+                });
+            } else {
+                console.log('No social networks found in API');
+            }
+
+            // Обновляем состояние социальных сетей
+            setSocialNetworks(loadedSocialNetworks);
+
+            // Загружаем телефоны напрямую из backend-ответа (Phone entity)
+            const loadedPhones: LocalPhone[] = ((userData.phones as LocalPhone[]) || [])
+                .sort((a: LocalPhone, b: LocalPhone) => ((b.main ?? false) ? 1 : 0) - ((a.main ?? false) ? 1 : 0));
+
+            // localizedOccupations уже получены выше через Promise.all
+            setOccupations(localizedOccupations);
+
+            const transformedData: ProfileData = {
+                id: userData.id,
+                fullName: [userData.surname, userData.name, userData.patronymic]
+                    .filter(Boolean)
+                    .join(' ') || t('profile:defaultFullName'),
+                email: userData.email || undefined,
+                gender: (userData as any).gender || (userData as any).sex || undefined,
+                dateOfBirth: userData.dateOfBirth || undefined,
+                specialties: Array.isArray(userData.occupation) ? (userData.occupation as Occupation[]) : [],
+                rating: userData.rating || 0,
+                reviews: 0,
+                avatar: avatarUrl,
+                education: transformEducation(userData.education || [], localizedOccupations),
+                workExamples: [],
+                workArea: workArea,
+                addresses: loadedAddresses,
+                canWorkRemotely: userData.atHome || false,
+                services: [],
+                socialNetworks: loadedSocialNetworks as unknown as SocialNetwork[], 
+                phones: loadedPhones,
+                isOnline: (userData as any).isOnline ?? false,
+                lastSeen: (userData as any).lastSeen ?? null,
+            };
+
+            setProfileData(prev => ({
+                ...transformedData,
+                // В тихом режиме сохраняем данные секций, которые не перезагружаются
+                services: silent ? (prev?.services ?? []) : [],
+                workExamples: silent ? (prev?.workExamples ?? []) : [],
+            }));
+
+            // Подгружаем услуги и галерею после обновления профиля (нужны переведённые данные)
+            // При тихом обновлении (silent) не трогаем другие секции
+            if (!silent) {
+                fetchServices();
+                if (role === 'master') {
+                    fetchUserGallery();
+                }
+            }
+
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+            // При ошибке устанавливаем пустой массив социальных сетей
+            setSocialNetworks([]);
+            setProfileData({
+                id: 0,
+                fullName: t('profile:defaultFullName'),
+                email: undefined,
+                gender: undefined,
+                specialties: [],
+                rating: 0,
+                reviews: 0,
+                avatar: null,
+                phones: [],
+                education: [],
+                workExamples: [],
+                workArea: '',
+                addresses: [],
+                canWorkRemotely: false,
+                services: [],
+                socialNetworks: []
+            });
+        } finally {
+            if (!silent) setIsLoading(false);
+        }
+    };
+
+    const extractAddressPart = async (addressPart: string | { title?: string; [key: string]: unknown }): Promise<{ title: string } | null> => {
+        try {
+            if (typeof addressPart === 'string') {
+                return { title: addressPart };
+            } else if (addressPart && typeof addressPart === 'object' && 'title' in addressPart && addressPart.title) {
+                return { title: String(addressPart.title) };
+            }
+            return null;
+        } catch (error) {
+            console.error('Error extracting address part:', error);
+            return null;
+        }
+    };
+
+    const getFullAddressText = async (address: Address): Promise<string> => {
+        const addressParts: string[] = [];
+
+        try {
+            // Провинция
+            if (address.province) {
+                const provinceInfo = await extractAddressPart(address.province);
+                if (provinceInfo?.title) addressParts.push(provinceInfo.title);
+            }
+
+            // Город
+            if (address.city) {
+                const cityInfo = await extractAddressPart(address.city);
+                if (cityInfo?.title) addressParts.push(cityInfo.title);
+            }
+
+            // Район (district)
+            if (address.district) {
+                const districtInfo = await extractAddressPart(address.district);
+                if (districtInfo?.title) addressParts.push(districtInfo.title);
+            }
+
+            // Квартал (suburb)
+            if (address.suburb) {
+                const suburbInfo = await extractAddressPart(address.suburb);
+                if (suburbInfo?.title) addressParts.push(suburbInfo.title);
+            }
+
+            // Поселение (settlement)
+            if (address.settlement) {
+                const settlementInfo = await extractAddressPart(address.settlement);
+                if (settlementInfo?.title) addressParts.push(settlementInfo.title);
+            }
+
+            // ПГТ (community)
+            if (address.community) {
+                const communityInfo = await extractAddressPart(address.community);
+                if (communityInfo?.title) addressParts.push(communityInfo.title);
+            }
+
+            // Село (village)
+            if (address.village) {
+                const villageInfo = await extractAddressPart(address.village);
+                if (villageInfo?.title) addressParts.push(villageInfo.title);
+            }
+
+        } catch (error) {
+            console.error('Error getting full address text:', error);
+        }
+
+        return addressParts.join(', ');
+    };
+
+    const fetchReviews = async () => {
+        try {
+            setReviewsLoading(true);
+            const token = getAuthToken();
+            
+            // Для публичных профилей токен необязателен
+            if (!readOnly && !token) {
+                console.log('No token available for fetching reviews');
+                return;
+            }
+
+            if (!profileData?.id) {
+                console.log('No profile data ID available');
+                return;
+            }
+
+            console.log(`Fetching reviews for ${userRole} ID:`, profileData.id);
+            const endpoint = userRole === 'client' 
+                ? `${API_ROUTES.REVIEWS}?exists[ticket]=true&exists[master]=true&exists[client]=true&type=client&client=${profileData.id}`
+                : `${API_ROUTES.REVIEWS}?exists[ticket]=true&exists[master]=true&exists[client]=true&type=master&master=${profileData.id}`;
+            const pageSize = getPageSize();
+            const paginatedEndpoint = `${endpoint}&page=${reviewsPage}&itemsPerPage=${pageSize}`;
+            console.log(`Trying endpoint: ${paginatedEndpoint}`);
+
+            let reviewsRaw: any;
+            try {
+                reviewsRaw = await universalApiRequest(paginatedEndpoint);
+            } catch (err: any) {
+                if (err?.status === 404) {
+                    console.log('No reviews found for this master');
+                    applyReviewsFetch([], false);
+                    return;
+                }
+                throw err;
+            }
+
+            console.log('Raw reviews data:', reviewsRaw);
+            const reviewsArray: ReviewType[] = Array.isArray(reviewsRaw)
+                ? reviewsRaw
+                : (reviewsRaw?.['hydra:member'] ?? (reviewsRaw?.id ? [reviewsRaw] : []));
+            const { hasMore: reviewsHasMoreFlag } = parsePagedResponse<ReviewType>(reviewsArray, reviewsPage, pageSize);
+
+            console.log(`Processing ${reviewsArray.length} reviews`);
+            if (reviewsArray.length > 0) {
+                // Убираем фильтрацию - отзывы уже приходят отфильтрованными из API
+                console.log(`Found ${reviewsArray.length} reviews for ${userRole} ${profileData.id}`);
+                const transformedReviews = await Promise.all(
+                    reviewsArray.map(async (review) => {
+                        console.log('Processing review:', review);
+
+                        // Use embedded master/client data from the review response instead of
+                        // making separate GET /api/users/{id} requests for each review.
+                        const masterRaw = review.master as any;
+                        const clientRaw = review.client as any;
+
+                        const masterData = masterRaw ? {
+                            id: masterRaw.id,
+                            email: '',
+                            name: masterRaw.name || '',
+                            surname: masterRaw.surname || '',
+                            rating: typeof masterRaw.rating === 'number' ? masterRaw.rating : 0,
+                            image: masterRaw.image || '',
+                            imageExternalUrl: masterRaw.imageExternalUrl || undefined,
+                        } : null;
+
+                        const clientData = clientRaw ? {
+                            id: clientRaw.id,
+                            email: '',
+                            name: clientRaw.name || '',
+                            surname: clientRaw.surname || '',
+                            rating: typeof clientRaw.rating === 'number' ? clientRaw.rating : 0,
+                            image: clientRaw.image || '',
+                            imageExternalUrl: clientRaw.imageExternalUrl || undefined,
+                        } : null;
+
+                        console.log('Master data:', masterData);
+                        console.log('Client data:', clientData);
+
+                        const getFullNameParts = (fullName: string) => {
+                            if (!fullName) {
+                                return { firstName: 'Специалист', lastName: '' };
+                            }
+                            const parts = fullName.trim().split(/\s+/);
+                            return {
+                                firstName: parts[1] || 'Специалист',
+                                lastName: parts[0] || ''
+                            };
+                        };
+
+                        const nameParts = getFullNameParts(profileData.fullName);
+                        const user = masterData || {
+                            id: profileData.id,
+                            email: '',
+                            name: nameParts.firstName,
+                            surname: nameParts.lastName,
+                            rating: profileData.rating,
+                            image: profileData.avatar || ''
+                        };
+
+                        const reviewer = clientData || {
+                            id: 0,
+                            email: '',
+                            name: 'Заказчик',
+                            surname: '',
+                            rating: 0,
+                            image: ''
+                        };
+
+                        const serviceTitle = String(review.ticket?.title || 'Услуга');
+                        console.log(`Review ${review.id} has service title: ${serviceTitle}`);
+
+                        const transformedReview: ReviewType = {
+                            id: review.id,
+                            rating: review.rating || 0,
+                            description: review.description || '',
+                            services: {
+                                id: review.ticket?.id || 0,
+                                title: String(serviceTitle) // Ensure it's always a string
+                            },
+                            ticket: review.ticket,
+                            images: review.images || [],
+                            master: user,
+                            client: reviewer,
+                            vacation: String(serviceTitle), // Ensure string
+                            worker: clientData ?
+                                smartNameTranslator(
+                                    `${clientData.surname || ''} ${clientData.name || 'Заказчик'}`.trim(),
+                                    i18n.language as 'ru' | 'tj' | 'eng'
+                                ) :
+                                smartNameTranslator('Заказчик', i18n.language as 'ru' | 'tj' | 'eng'),
+                            date: review.createdAt ?
+                                new Date(review.createdAt).toLocaleDateString('ru-RU') :
+                                getFormattedDate(),
+                            createdAt: review.createdAt || undefined
+                        };
+
+                        console.log('Transformed review:', transformedReview);
+                        return transformedReview;
+                    })
+                );
+
+                console.log('All transformed reviews:', transformedReviews);
+                applyReviewsFetch(transformedReviews, reviewsHasMoreFlag);
+
+                // Для специалистов фильтруем по user.id (получатели отзывов)
+                // Для заказчиков фильтруем по reviewer.id (оставляющие отзывы) 
+                const userReviews = userRole === 'client' 
+                    ? transformedReviews.filter(r => r.client?.id === profileData.id)
+                    : transformedReviews.filter(r => r.master?.id === profileData.id);
+                const newRating = calculateAverageRating(userReviews);
+
+                console.log('User reviews for rating calculation:', userReviews);
+                console.log('Calculated new rating from', userReviews.length, 'reviews:', newRating);
+
+                setProfileData(prev => prev ? {
+                    ...prev,
+                    reviews: userReviews.length,
+                    rating: newRating
+                } : null);
+
+
+
+            } else {
+                console.log(`No reviews data found for this ${userRole}`);
+                applyReviewsFetch([], false);
+                setProfileData(prev => prev ? {
+                    ...prev,
+                    reviews: 0
+                } : null);
+            }
+
+        } catch (error) {
+            console.error('Error fetching reviews:', error);
+            applyReviewsFetch([], false);
+            setProfileData(prev => prev ? {
+                ...prev,
+                reviews: 0
+            } : null);
+        } finally {
+            setReviewsLoading(false);
+        }
+    };
+
+    const fetchServices = async () => {
+        try {
+            setServicesLoading(true);
+            const token = getAuthToken();
+            
+            // Для публичных профилей токен необязателен
+            if (!readOnly && !token) {
+                console.log('No token available for fetching services');
+                return;
+            }
+
+            if (!profileData?.id) {
+                console.log('No profile data ID available');
+                return;
+            }
+
+            console.log(`Fetching services for ${userRole} ID:`, profileData.id);
+            const pageSize = getPageSize();
+            // order[priority] reflects the drag-reorder from handleReorderServices below —
+            // matches the persisted manual order instead of the collection's default order.
+            const serviceParams = new URLSearchParams({
+                locale: getStorageItem('i18nextLng') || 'tj',
+                service: userRole === 'client' ? 'false' : 'true',
+                'order[priority]': 'asc',
+                page: String(servicesPage),
+                itemsPerPage: String(pageSize),
+            });
+            const endpoint = readOnly
+                ? `${API_ROUTES.TICKETS}?${serviceParams.toString()}&${userRole === 'client'
+                    ? `exists[master]=false&exists[author]=true&author=${profileData.id}`
+                    : `exists[author]=false&exists[master]=true&master=${profileData.id}`}`
+                : `${API_ROUTES.TICKETS_ME}?${serviceParams.toString()}`;
+            console.log(`Trying endpoint: ${endpoint}`);
+
+            let servicesRaw: any;
+            try {
+                servicesRaw = await universalApiRequest(endpoint, { locale: false });
+            } catch (err: any) {
+                if (err?.status === 404) {
+                    console.log(`No services found for this ${userRole}`);
+                    setProfileData(prev => prev ? { ...prev, services: [] } : null);
+                    applyServicesFetch([], false);
+                    return;
+                }
+                setProfileData(prev => prev ? { ...prev, services: [] } : null);
+                applyServicesFetch([], false);
+                return;
+            }
+
+            console.log('Raw services data:', servicesRaw);
+            const { items: servicesArray, hasMore: servicesHasMoreFlag } = parsePagedResponse<any>(servicesRaw, servicesPage, pageSize);
+
+            console.log(`Processing ${servicesArray.length} services`);
+            
+            const transformedServices: Ticket[] = servicesArray.map(service => {
+                // Преобразуем изображения в правильный формат
+                let serviceImages: Array<{id: number; image: string}> = [];
+                if (service.images && Array.isArray(service.images)) {
+                    serviceImages = service.images
+                        .filter((img: any) => img && typeof img === 'object')
+                        .map((img: any) => ({
+                            id: img.id || 0,
+                            image: img.image || img.url || img.path || ''
+                        }))
+                        .filter((img: any) => img.image); // Оставляем только изображения с путём
+                }
+
+                return {
+                    id: service.id,
+                    title: service.title || t('components:app.service'),
+                    description: service.description || '',
+                    budget: service.budget || 0,
+                    price: service.budget || 0,
+                    negotiableBudget: service.negotiableBudget ?? false,
+                    unit: service.unit || undefined,
+                    service: service.service ?? true,
+                    createdAt: service.createdAt,
+                    active: service.active !== false,
+                    approved: service.approved,
+                    banned: service.banned,
+                    priority: service.priority ?? undefined,
+                    images: serviceImages,
+                };
+            });
+
+            // Sort client-side rather than trusting `order[priority]=asc` alone — API Platform's
+            // OrderFilter only sorts by properties explicitly whitelisted server-side, and nothing
+            // in API_REFERENCE.md's filter list for /api/tickets confirms `priority` is one of them.
+            // Same fallback-to-end pattern used for Occupation/Category priority sort elsewhere.
+            transformedServices.sort((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity));
+
+            console.log('Transformed services:', transformedServices);
+
+            applyServicesFetch(transformedServices, servicesHasMoreFlag);
+
+        } catch (error) {
+            console.error('Error fetching services:', error);
+            setProfileData(prev => prev ? {
+                ...prev,
+                services: []
+            } : null);
+        } finally {
+            setServicesLoading(false);
+        }
+    };
+
+    const handleWorkExampleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        setIsGalleryOperating(true);
+
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                navigate(ROUTES.HOME);
+                return;
+            }
+
+            console.log('Starting batch photo upload...');
+            
+            // Валидация файлов
+            const validFiles: File[] = [];
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+
+                if (!file.type.startsWith('image/')) {
+                    setModalMessage(t('profile:workExampleNotImage', { name: file.name }));
+                    setShowErrorModal(true);
+                    continue;
+                }
+
+                if (file.size > 5 * 1024 * 1024) {
+                    setModalMessage(t('profile:workExampleTooLarge', { name: file.name }));
+                    setShowErrorModal(true);
+                    continue;
+                }
+
+                validFiles.push(file);
+            }
+
+            if (validFiles.length === 0) {
+                setModalMessage(t('profile:workExampleNoFiles'));
+                setShowErrorModal(true);
+                setIsGalleryOperating(false);
+                return;
+            }
+
+            // Получаем или создаем галерею (один GET запрос)
+            console.log('Fetching gallery...');
+            const galleryData = await getUserGallery(token);
+            let galleryId = galleryData?.id || null;
+
+            if (!galleryId) {
+                console.log('No gallery found, creating new one...');
+                galleryId = await createUserGallery(token);
+                
+                if (!galleryId) {
+                    setModalMessage(t('profile:galleryCreateError'));
+                    setShowErrorModal(true);
+                    setIsGalleryOperating(false);
+                    return;
+                }
+                
+                console.log('Gallery ready with ID:', galleryId);
+            }
+
+            console.log(`Uploading ${validFiles.length} photos to gallery ${galleryId}`);
+
+            // Загружаем фото в галерею
+            await uploadPhotos('galleries', galleryId, validFiles, token);
+
+            // Обновляем галерею
+            await fetchUserGallery();
+            setModalMessage(t('profile:workExamplesAdded', { count: validFiles.length }));
+            setShowSuccessModal(true);
+
+        } catch (error) {
+            console.error("Ошибка при загрузке фото в портфолио:", error);
+            setModalMessage(t('profile:workExamplesAddError'));
+            setShowErrorModal(true);
+        } finally {
+            setIsGalleryOperating(false);
+            if (workExampleInputRef.current) workExampleInputRef.current.value = "";
+        }
+    };
+
+    const getUserGallery = async (_token: string): Promise<Gallery | null> => {
+        try {
+            console.log('Fetching user gallery via /api/galleries/me...');
+            const galleriesData: any = await universalApiRequest(API_ROUTES.GALLERIES_ME, { locale: false });
+            console.log('Galleries data:', galleriesData);
+            
+            let galleryArray: Gallery[] = [];
+
+            if (Array.isArray(galleriesData)) {
+                galleryArray = galleriesData;
+            } else if (galleriesData && typeof galleriesData === 'object') {
+                const apiResponse = galleriesData as ApiResponse<Gallery>;
+                if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+                    galleryArray = apiResponse['hydra:member'];
+                } else if ((galleriesData as Gallery).id) {
+                    galleryArray = [galleriesData as Gallery];
+                }
+            }
+
+            if (galleryArray.length > 0) {
+                console.log('Found gallery:', galleryArray[0].id);
+                return galleryArray[0];
+            }
+
+            console.log('No galleries found');
+            return null;
+        } catch (error) {
+            console.error('Error getting user gallery:', error);
+            return null;
+        }
+    };
+
+    const handleDeleteWorkExample = async (workExampleId: string | number) => {
+        console.log('Delete triggered for ID:', workExampleId);
+
+        if (!profileData?.id) return;
+
+        if (!confirm(t('profile:deleteWorkPhotoConfirm'))) {
+            return;
+        }
+
+        setIsGalleryOperating(true);
+
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                navigate(ROUTES.HOME);
+                return;
+            }
+
+            console.log('Getting gallery for deletion...');
+            const gallery = await getUserGallery(token);
+
+            if (!gallery || !gallery.id) {
+                console.log('No gallery found for user');
+                setModalMessage(t('profile:galleryNotFound'));
+                setShowErrorModal(true);
+                setIsGalleryOperating(false);
+                return;
+            }
+
+            const galleryId = gallery.id;
+            console.log('Found gallery ID for deletion:', galleryId);
+
+            // Проверяем, есть ли изображение в галерее
+            const imageToDelete = gallery.images?.find(img => img.id === workExampleId);
+
+            if (!imageToDelete) {
+                console.log('Image not found in gallery:', workExampleId);
+                // Удаляем из локального состояния, если изображение не найдено на сервере
+                setProfileData(prev => {
+                    if (!prev) return null;
+                    return {
+                        ...prev,
+                        workExamples: prev.workExamples.filter(work => work.id !== workExampleId)
+                    };
+                });
+                setModalMessage(t('profile:photoNotFound'));
+                setShowErrorModal(true);
+                setIsGalleryOperating(false);
+                return;
+            }
+
+            console.log('Image to delete found:', imageToDelete);
+
+            // Формируем новый массив изображений без удаляемого
+            const updatedImages = gallery.images
+                ?.filter(img => img.id !== workExampleId)
+                .map(img => ({ image: img.image })) || [];
+
+            console.log(`Filtered images: ${gallery.images?.length} -> ${updatedImages.length}`);
+
+            // Отправляем PATCH запрос с обновленным массивом
+            try {
+                await universalApiRequest(API_ROUTES.GALLERY_BY_ID(galleryId), {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/merge-patch+json' },
+                    body: { images: updatedImages },
+                    locale: false,
+                });
+            } catch (patchErr) {
+                console.error('PATCH failed:', patchErr);
+                setModalMessage(t('profile:photoDeleteError'));
+                setShowErrorModal(true);
+                setIsGalleryOperating(false);
+                return;
+            }
+
+            console.log('Gallery updated successfully via PATCH');
+
+            // Обновляем локальное состояние сразу - удаляем из workExamples
+            setProfileData(prev => {
+                if (!prev) return null;
+                return {
+                    ...prev,
+                    workExamples: prev.workExamples.filter(work => work.id !== workExampleId)
+                };
+            });
+            
+            setModalMessage(t('profile:photoDeleted'));
+            setShowSuccessModal(true);
+
+        } catch (error) {
+            console.error('Error deleting work example:', error);
+            setModalMessage(t('profile:photoDeleteErrorRetry'));
+            setShowErrorModal(true);
+        } finally {
+            setIsGalleryOperating(false);
+        }
+    };
+
+    const handleDeleteAllWorkExamples = async () => {
+        if (!profileData?.id) return;
+
+        if (!confirm(t('profile:deleteAllWorkPhotosConfirm'))) {
+            return;
+        }
+
+        setIsGalleryOperating(true);
+
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                navigate(ROUTES.HOME);
+                return;
+            }
+
+            console.log('Getting gallery for deletion of all images...');
+            const gallery = await getUserGallery(token);
+
+            if (!gallery || !gallery.id) {
+                console.log('No gallery found for user');
+                setModalMessage(t('profile:galleryNotFound'));
+                setShowErrorModal(true);
+                setIsGalleryOperating(false);
+                return;
+            }
+
+            const galleryId = gallery.id;
+            console.log('Found gallery ID for deletion:', galleryId);
+
+            // Отправляем PATCH запрос с пустым массивом изображений
+            try {
+                await universalApiRequest(API_ROUTES.GALLERY_BY_ID(galleryId), {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/merge-patch+json' },
+                    body: { images: [] },
+                    locale: false,
+                });
+            } catch (patchErr) {
+                console.error('PATCH failed:', patchErr);
+                setModalMessage(t('profile:allPhotosDeleteError'));
+                setShowErrorModal(true);
+                setIsGalleryOperating(false);
+                return;
+            }
+
+            console.log('All images deleted successfully via PATCH');
+
+            // Обновляем локальное состояние - очищаем workExamples
+            setProfileData(prev => {
+                if (!prev) return null;
+                return {
+                    ...prev,
+                    workExamples: []
+                };
+            });
+            
+            setModalMessage(t('profile:allPhotosDeleted'));
+            setShowSuccessModal(true);
+
+        } catch (error) {
+            console.error('Error deleting all work examples:', error);
+            setModalMessage(t('profile:allPhotosDeleteErrorRetry'));
+            setShowErrorModal(true);
+        } finally {
+            setIsGalleryOperating(false);
+        }
+    };
+
+    const createUserGallery = async (_token: string): Promise<string | number | null> => {
+        try {
+            console.log('Creating new gallery...');
+
+            let responseData: any;
+            try {
+                responseData = await universalApiRequest(API_ROUTES.GALLERIES, {
+                    method: 'POST',
+                    body: { images: [] },
+                    locale: false,
+                });
+            } catch (err: any) {
+                if (err?.status === 422) {
+                    console.log('422 error - checking if gallery exists...');
+                    const existingGallery = await getUserGallery('');
+                    return existingGallery?.id || null;
+                }
+                return null;
+            }
+
+            console.log('Create gallery response:', responseData);
+
+            // Галерея создана успешно
+            console.log('Gallery created successfully, parsing response...');
+            
+            if (responseData?.id) {
+                console.log('Gallery ID from response:', responseData.id);
+                return responseData.id;
+            }
+            
+            console.log('Response parsed but no ID found:', responseData);
+            
+            // Если нет ID - делаем GET запрос
+            console.log('Fetching created gallery as fallback...');
+            await new Promise(resolve => setTimeout(resolve, 300));
+            const createdGallery = await getUserGallery('');
+            
+            if (createdGallery?.id) {
+                console.log('Created gallery ID from GET:', createdGallery.id);
+                return createdGallery.id;
+            }
+            
+            console.error('Could not get gallery ID after creation');
+            return null;
+        } catch (error) {
+            console.error('Error creating gallery:', error);
+            return null;
+        }
+    };
+
+    const getImageUrl = (imagePath: string): string => {
+        if (!imagePath) return "/img/icons/misc/fonTest6.png";
+        if (imagePath.startsWith("http")) return imagePath;
+        if (imagePath.startsWith("/")) return `${API_BASE_URL}${imagePath}`;
+        return `${API_BASE_URL}/uploads/galleries/${imagePath}`;
+    };
+
+    const fetchUserGallery = async () => {
+        try {
+            console.log('Fetching user gallery...');
+
+            if (userId) {
+                // Публичный профиль — грузим галерею по ID пользователя, без токена
+                let data: any;
+                try {
+                    data = await universalApiRequest(`${API_ROUTES.GALLERIES}?user=${userId}`, { requiresAuth: false, locale: false });
+                } catch {
+                    setProfileData(prev => prev ? { ...prev, workExamples: [] } : null);
+                    return;
+                }
+
+                let galleryArray: Gallery[] = [];
+                if (Array.isArray(data)) {
+                    galleryArray = data;
+                } else if (data?.['hydra:member']) {
+                    galleryArray = data['hydra:member'];
+                } else if (data?.id) {
+                    galleryArray = [data];
+                }
+
+                const gallery = galleryArray[0] ?? null;
+                if (gallery?.images && gallery.images.length > 0) {
+                    const workExamplesLocal = await Promise.all(
+                        gallery.images.map(async (image: Image) => {
+                            const imageUrl = getImageUrl(image.image);
+                            const exists = await checkImageExists(imageUrl).catch(() => false);
+                            return {
+                                id: image.id ?? Date.now(),
+                                image: exists ? imageUrl : '/img/icons/misc/fonTest6.png',
+                                title: 'Пример работы'
+                            };
+                        })
+                    );
+                    setProfileData(prev => prev ? { ...prev, workExamples: workExamplesLocal } : null);
+                } else {
+                    setProfileData(prev => prev ? { ...prev, workExamples: [] } : null);
+                }
+                return;
+            }
+
+            // Приватный профиль — грузим свою галерею
+            const gallery = await getUserGallery('');
+
+            if (gallery) {
+                console.log('Gallery found:', gallery);
+                if (gallery.images && gallery.images.length > 0) {
+                    console.log(`Found ${gallery.images.length} images in gallery`);
+                    const workExamplesLocal = await Promise.all(
+                        gallery.images.map(async (image: Image) => {
+                            const imagePath = image.image;
+                            const imageUrl = getImageUrl(imagePath);
+
+                            console.log(`Processing image ${image.id}: ${imagePath}`);
+                            console.log(`Image URL: ${imageUrl}`);
+
+                            try {
+                                const exists = await checkImageExists(imageUrl);
+                                console.log(`Image exists: ${exists}`);
+
+                                return {
+                                    id: image.id ?? Date.now(),
+                                    image: exists ? imageUrl : "/img/icons/misc/fonTest6.png",
+                                    title: "Пример работы"
+                                };
+                            } catch (error) {
+                                console.error(`Error checking image ${image.id}:`, error);
+                                return {
+                                    id: image.id ?? Date.now(),
+                                    image: "/img/icons/misc/fonTest6.png",
+                                    title: "Пример работы"
+                                };
+                            }
+                        })
+                    );
+
+                    console.log("Work examples loaded:", workExamplesLocal.length);
+                    setProfileData(prev => prev ? {
+                        ...prev,
+                        workExamples: workExamplesLocal
+                    } : null);
+                } else {
+                    console.log('Gallery exists but has no images');
+                    setProfileData(prev => prev ? {
+                        ...prev,
+                        workExamples: []
+                    } : null);
+                }
+            } else {
+                console.log('No gallery found for user');
+                setProfileData(prev => prev ? {
+                    ...prev,
+                    workExamples: []
+                } : null);
+            }
+
+        } catch (error) {
+            console.error('Error fetching user gallery:', error);
+            setProfileData(prev => prev ? {
+                ...prev,
+                workExamples: []
+            } : null);
+        }
+    };
+
+    const fetchUserAvatar = async () => {
+        try {
+            const currentLocale = getStorageItem('i18nextLng') || 'tj';
+            const userPath = userId ? API_ROUTES.USER_BY_ID(userId) : API_ROUTES.USERS_ME;
+            const userData: any = await universalApiRequest(userPath, { locale: currentLocale as any });
+            const avatarUrl = (userData.image || userData.imageExternalUrl)
+                ? getAuthorAvatar(userData)
+                : null;
+            setProfileData(prev => prev ? { ...prev, avatar: avatarUrl } : null);
+        } catch (error) {
+            console.error('Error fetching user avatar:', error);
+        }
+    };
+
+    const transformEducation = (education: Education[], occupationsList?: { id: string | number; title: string }[]): EducationItem[] => {
+        const resolvedOccupations = occupationsList && occupationsList.length > 0 ? occupationsList : occupations;
+        return education.map(edu => {
+            let specialty = '';
+            
+            // Обрабатываем occupation в разных форматах
+            if (edu.occupation) {
+                if (typeof edu.occupation === 'string') {
+                    // occupation как IRI строка API-ресурса.
+                    // id теперь UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md) — parseInt() дал бы
+                    // NaN и find() тихо ничего бы не находил. Сравниваем последний сегмент IRI строкой.
+                    const occupationId = edu.occupation.split('/').pop() || '';
+                    const foundOccupation = resolvedOccupations.find(occ => String(occ.id) === occupationId);
+                    specialty = foundOccupation?.title || '';
+                } else if (Array.isArray(edu.occupation)) {
+                    // occupation как массив объектов
+                    specialty = edu.occupation.map((occ) => {
+                        if (typeof occ === 'object' && occ.title) {
+                            return occ.title;
+                        }
+                        return '';
+                    }).filter(Boolean).join(', ');
+                } else if (typeof edu.occupation === 'object' && edu.occupation.title) {
+                    // occupation как единичный объект {id, title, image}
+                    specialty = String(edu.occupation.title);
+                }
+            }
+            
+            // Дополнительная проверка: если specialty по какой-то причине объект, преобразуем его
+            if (typeof specialty === 'object' && specialty !== null) {
+                if ('title' in specialty) {
+                    specialty = String((specialty as any).title);
+                } else {
+                    specialty = '';
+                }
+            }
+            
+            return {
+                id: edu.id?.toString() || Date.now().toString(),
+                institution: edu.title || '',
+                specialty: String(specialty), // Принудительно преобразуем в строку
+                startYear: edu.beginning?.toString() || '',
+                endYear: edu.ending?.toString() || '',
+                currentlyStudying: !edu.graduated
+            };
+        });
+    };
+
+    const updateUserData = async (updatedData: Partial<ProfileData>) => {
+        if (!profileData?.id) return;
+
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                navigate(ROUTES.HOME);
+                return;
+            }
+
+            const apiData: Record<string, unknown> = {};
+
+            // Обработка имени
+            if (updatedData.fullName !== undefined) {
+                const nameParts = updatedData.fullName.split(' ');
+                apiData.surname = nameParts[0] || '';
+                apiData.name = nameParts[1] || '';
+                apiData.patronymic = nameParts.slice(2).join(' ') || '';
+            }
+
+            // Обработка специальности
+            if (updatedData.specialties !== undefined) {
+                apiData.occupation = updatedData.specialties.map(o => API_ROUTES.OCCUPATION_BY_ID(o.id));
+            }
+
+            // Обработка пола
+            if (updatedData.gender !== undefined) {
+                if (updatedData.gender === 'male') {
+                    apiData.gender = 'gender_male';
+                } else if (updatedData.gender === 'female') {
+                    apiData.gender = 'gender_female';
+                } else {
+                    apiData.gender = 'gender_neutral';
+                }
+            }
+
+            // Обработка даты рождения
+            if (updatedData.dateOfBirth !== undefined) {
+                apiData.dateOfBirth = updatedData.dateOfBirth || null;
+            }
+
+            console.log('Sending update data:', apiData);
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: apiData,
+                locale: false,
+            });
+
+            console.log('User data updated successfully');
+            
+            setProfileData(prev => prev ? { ...prev, ...updatedData } : null);
+
+        } catch (error) {
+            console.error('Error updating user data:', error);
+            setModalMessage(t('profile:updateError'));
+            setShowErrorModal(true);
+        }
+    };
+
+    // Функция для нормализации всех элементов образования - преобразует occupation в IRI формат
+    const normalizeEducationArray = (educationArray: Education[]): Education[] => {
+        return educationArray.map(edu => {
+            let occupationIri: string | undefined = undefined;
+            
+            if (edu.occupation) {
+                if (typeof edu.occupation === 'string') {
+                    // Уже IRI - оставляем как есть
+                    occupationIri = edu.occupation;
+                } else if (Array.isArray(edu.occupation) && edu.occupation.length > 0) {
+                    // Массив объектов - берем первый элемент и преобразуем в IRI
+                    occupationIri = API_ROUTES.OCCUPATION_BY_ID(edu.occupation[0].id);
+                } else if (typeof edu.occupation === 'object' && 'id' in edu.occupation) {
+                    // Единичный объект - преобразуем в IRI
+                    occupationIri = API_ROUTES.OCCUPATION_BY_ID(edu.occupation.id);
+                }
+            }
+            
+            return {
+                id: edu.id,
+                title: edu.title,
+                beginning: edu.beginning,
+                ending: edu.ending,
+                graduated: edu.graduated,
+                ...(occupationIri && { occupation: occupationIri })
+            };
+        });
+    };
+
+    const updateEducation = async (educationId: string, updatedEducation: Omit<EducationItem, 'id'>) => {
+    if (!profileData?.id) return;
+
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            // Нет токена - переходим на главную
+            navigate(ROUTES.HOME);
+            return;
+        }
+
+        // Use the cached server-state ref — no extra GET needed
+        const currentEducation = rawEducationRef.current;
+        
+        // Нормализуем ВСЕ элементы массива образования
+        const normalizedEducation = normalizeEducationArray(currentEducation);
+
+        // Находим индекс редактируемого образования
+        const existingIndex = normalizedEducation.findIndex(edu =>
+            edu.id?.toString() === educationId
+        );
+
+        // Подготавливаем данные для обновления/создания
+        let occupationIri: string | undefined = undefined;
+        if (educationForm.selectedSpecialty) {
+            occupationIri = API_ROUTES.OCCUPATION_BY_ID(educationForm.selectedSpecialty);
+        }
+
+        const educationData: Record<string, unknown> = {
+            title: updatedEducation.institution,
+            beginning: parseInt(updatedEducation.startYear) || new Date().getFullYear(),
+            ending: updatedEducation.currentlyStudying ? null : (parseInt(updatedEducation.endYear) || null),
+            graduated: !updatedEducation.currentlyStudying,
+            ...(occupationIri && { occupation: occupationIri })
+        };
+
+        // Только добавляем id если это обновление существующей записи ("new-..." — ещё
+        // не сохранённая на бэке запись, для неё id подставлять нельзя).
+        // id теперь UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md) — parseInt(uuid) давал
+        // NaN, isNaN(...) было всегда true, и id никогда не подставлялся для существующих
+        // записей, из-за чего бэкенд создавал дубликат вместо обновления.
+        if (!educationId.startsWith('new-')) {
+            educationData.id = educationId;
+        }
+
+        console.log('Education data to save:', educationData);
+
+        // Обновляем или добавляем запись
+        if (existingIndex >= 0) {
+            normalizedEducation[existingIndex] = educationData as any;
+        } else {
+            normalizedEducation.push(educationData as any);
+        }
+
+        console.log('Final normalized education array to send:', normalizedEducation);
+
+        // Update the ref synchronously before PATCH so concurrent ops see the new state
+        rawEducationRef.current = normalizedEducation;
+
+        await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/merge-patch+json' },
+            body: { education: normalizedEducation },
+            locale: false,
+        });
+
+        setEditingEducation(null);
+        setEducationForm({
+            institution: '',
+            selectedSpecialty: undefined,
+            startYear: '',
+            endYear: '',
+            currentlyStudying: false
+        });
+
+        await fetchUserData(true);
+
+    } catch (error) {
+        console.error('Error updating education:', error);
+        if (error instanceof Error) throw error;
+        throw new Error(t('profile:eduSaveError') || 'Failed to update education');
+    }
+};
+
+    const deleteEducation = async (educationId: string) => {
+        if (!profileData?.id) return;
+
+        const token = getAuthToken();
+        if (!token) {
+            navigate(ROUTES.HOME);
+            return;
+        }
+
+        // Use the cached server-state ref — avoids a redundant GET and race conditions
+        // when multiple deletes fire before the previous PATCH response arrives.
+        const currentEducation = rawEducationRef.current;
+
+        // Нормализуем ВСЕ элементы массива образования перед фильтрацией
+        const normalizedEducation = normalizeEducationArray(currentEducation);
+
+        // Фильтруем нормализованный массив, удаляя элемент с указанным ID
+        const updatedEducationArray = normalizedEducation.filter(edu =>
+            edu.id?.toString() !== educationId
+        );
+
+        // Update the ref synchronously so that any concurrent delete/reorder
+        // immediately sees the post-deletion state (JS is single-threaded).
+        rawEducationRef.current = updatedEducationArray;
+
+        console.log(`Deleting education ${educationId}. Before: ${normalizedEducation.length}, after: ${updatedEducationArray.length}`);
+        console.log('Sending normalized education array:', updatedEducationArray);
+
+        try {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                    body: { education: updatedEducationArray },
+                    locale: false,
+                });
+                console.log('Education deleted successfully on server');
+            } catch (patchError) {
+                // Roll back the ref on failure
+                rawEducationRef.current = currentEducation;
+                console.error('Failed to delete education:', patchError);
+                throw new Error('Failed to delete education');
+            }
+    };
+
+    const handleDeleteEducation = async (educationId: string) => {
+        if (!confirm(t('profile:educationDeleteConfirm'))) {
+            return;
+        }
+
+        // Получаем элемент и его индекс для возможного восстановления
+        const educationToDelete = profileData?.education.find(edu => edu.id === educationId);
+        const deletedIndex = profileData?.education.findIndex(edu => edu.id === educationId) ?? -1;
+        
+        // Оптимистическое обновление UI - сразу удаляем из списка
+        setProfileData(prev => prev ? {
+            ...prev,
+            education: prev.education.filter(edu => edu.id !== educationId)
+        } : null);
+
+        // Отправляем запрос на сервер в фоне
+        try {
+            await deleteEducation(educationId);
+            console.log('Образование успешно удалено с сервера');
+        } catch (error) {
+            console.error('Error deleting education from server:', error);
+            // Восстанавливаем удаленный элемент на том же месте при ошибке
+            if (educationToDelete && deletedIndex !== -1) {
+                setProfileData(prev => {
+                    if (!prev) return null;
+                    const newEducation = [...prev.education];
+                    newEducation.splice(deletedIndex, 0, educationToDelete);
+                    return {
+                        ...prev,
+                        education: newEducation
+                    };
+                });
+            }
+            throw error;
+        }
+    };
+
+    const handleAddEducation = () => {
+        const newEducationId = `new-${Date.now()}`;
+        setEditingEducation(newEducationId);
+        setEducationForm({
+            institution: '',
+            selectedSpecialty: undefined,
+            startYear: new Date().getFullYear().toString(),
+            endYear: new Date().getFullYear().toString(),
+            currentlyStudying: false
+        });
+        
+        // Загружаем список специальностей, если еще не загружен
+        console.log('Starting new education, checking occupations:', occupations.length);
+        if (occupations.length === 0) {
+            console.log('Loading occupations for new education');
+            fetchOccupationsList();
+        }
+    };
+
+    // ===== Обработчики переупорядочивания =====
+
+    const handleReorderEducation = async (newEducation: EducationItem[]) => {
+        if (!profileData?.id) return;
+        setProfileData(prev => prev ? { ...prev, education: newEducation } : null);
+        const token = getAuthToken();
+        if (!token) return;
+        try {
+            const serverEducation: Education[] = rawEducationRef.current;
+            const reordered = newEducation
+                .map(localEdu => serverEducation.find((se: Education) => se.id?.toString() === localEdu.id))
+                .filter(Boolean) as Education[];
+            const normalized = normalizeEducationArray(reordered);
+            rawEducationRef.current = normalized;
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { education: normalized },
+                locale: false,
+            });
+        } catch (error) {
+            console.error('Error reordering education:', error);
+        }
+    };
+
+    const handleReorderAddresses = async (newAddresses: LocalAddress[]) => {
+        if (!profileData?.id) return;
+        setProfileData(prev => prev ? { ...prev, addresses: newAddresses } : null);
+        const token = getAuthToken();
+        if (!token) return;
+        try {
+            const serverAddresses: Address[] = rawAddressesRef.current;
+            const reordered = newAddresses
+                .map(localAddr => serverAddresses.find((sa: Address) => sa.id?.toString() === localAddr.id))
+                .filter(Boolean)
+                .map(addr => convertAddressToIRI(addr as Address));
+            rawAddressesRef.current = newAddresses
+                .map(localAddr => serverAddresses.find((sa: Address) => sa.id?.toString() === localAddr.id))
+                .filter((a): a is Address => !!a);
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { addresses: reordered },
+                locale: false,
+            });
+        } catch (error) {
+            console.error('Error reordering addresses:', error);
+        }
+    };
+
+    const handleReorderPhones = async (newPhones: LocalPhone[]) => {
+        // Top phone is always main:true, rest are main:false
+        const phonesWithMain = newPhones.map((p, i) => ({ ...p, main: i === 0 }));
+        setProfileData(prev => prev ? { ...prev, phones: phonesWithMain } : null);
+
+        const token = getAuthToken();
+        if (!token || !profileData?.id) return;
+
+        try {
+            const phonesPayload = phonesWithMain.map(p => ({
+                id: p.id,
+                phone: p.phone,
+                main: p.main,
+            }));
+
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { phones: phonesPayload },
+                locale: false,
+            });
+        } catch (error) {
+            console.error('Error reordering phones:', error);
+        }
+    };
+
+    const handleReorderWorkExamples = async (newWorkExamples: WorkExample[]) => {
+        setProfileData(prev => prev ? { ...prev, workExamples: newWorkExamples } : null);
+
+        const token = getAuthToken();
+        if (!token) return;
+
+        try {
+            const gallery = await getUserGallery('');
+            if (!gallery?.id) return;
+
+            const newOrderIds = newWorkExamples.map(w => w.id);
+            const reordered = newOrderIds
+                .map(id => gallery.images?.find(img => img.id === id))
+                .filter(Boolean);
+
+            await universalApiRequest(API_ROUTES.GALLERY_BY_ID(gallery.id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { images: reordered.map(img => ({ image: img!.image })) },
+                locale: false,
+            });
+        } catch (error) {
+            console.error('Error reordering work examples:', error);
+        }
+    };
+
+    const handleReorderServices = async (newActiveServices: Ticket[]) => {
+        // ServicesSection only ever hands ProfileSection the active-tab subset (it filters
+        // services by tab before passing `items` down), so `newActiveServices` here is just
+        // that subset — not the full list. Re-merge with the untouched past/inactive services
+        // instead of replacing `services` outright, or every reorder would silently drop them.
+        const reindexed = newActiveServices.map((service, index) => ({ ...service, priority: index }));
+        setProfileData(prev => {
+            if (!prev) return null;
+            const pastServices = (prev.services ?? []).filter(s => !s.active);
+            return { ...prev, services: [...reindexed, ...pastServices] };
+        });
+        const token = getAuthToken();
+        if (!token) return;
+        try {
+            // No bulk-update endpoint exists for tickets (§4 — PATCH is per-resource only), so this
+            // is still one request per ticket — but Promise.allSettled fires them as a single batch
+            // and, per your ask, lets individual failures be skipped instead of Promise.all's
+            // fail-one-fail-all behaviour, which would leave the rest silently unpatched too.
+            const results = await Promise.allSettled(
+                reindexed.map(service =>
+                    universalApiRequest(API_ROUTES.TICKET_BY_ID(service.id), {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/merge-patch+json' },
+                        body: { priority: service.priority },
+                        locale: false,
+                    })
+                )
+            );
+            const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+            if (failed.length > 0) {
+                console.error(`Error reordering ${failed.length}/${reindexed.length} services:`, failed.map(f => f.reason));
+            }
+        } catch (error) {
+            console.error('Error reordering services:', error);
+        }
+    };
+
+    const handleEditStart = (field: 'fullName' | 'specialty' | 'gender' | 'dateOfBirth') => {
+        setEditingField(field);
+        if (field === 'fullName') {
+            setTempValue(profileData?.fullName || '');
+        } else if (field === 'specialty') {
+            // Инициализируем массив специальностей из готового массива или парсим строку
+            // Обязательно преобразуем в строки на случай, если API вернул объекты
+            const currentSpecialties = profileData?.specialties?.map(o => o.title).filter(Boolean) ?? [];
+            setSelectedSpecialties(currentSpecialties);
+            setTempValue('');
+        } else if (field === 'gender') {
+            const g = profileData?.gender || '';
+            const normalized = (g === 'gender_male' || g === 'male') ? 'male'
+                : (g === 'gender_female' || g === 'female') ? 'female' : '';
+            setTempValue(normalized);
+        } else if (field === 'dateOfBirth') {
+            setTempValue(profileData?.dateOfBirth || '');
+        }
+    };
+
+    const handleAddSpecialty = (specialty: string) => {
+        if (specialty && !selectedSpecialties.includes(specialty)) {
+            setSelectedSpecialties(prev => [...prev, specialty]);
+        }
+    };
+
+    const handleRemoveSpecialty = (specialty: string) => {
+        setSelectedSpecialties(prev => prev.filter(s => s !== specialty));
+    };
+
+    const handleSpecialtySave = async () => {
+        if (selectedSpecialties.length === 0) {
+            setEditingField(null);
+            return;
+        }
+
+        const safeOccupations = selectedSpecialties
+            .map(title => occupations.find(o => o.title === title))
+            .filter((o): o is Occupation => !!o);
+        
+        // Обновляем данные в API
+        await updateUserData({ specialties: safeOccupations });
+        
+        // Обновляем локальное состояние профиля
+        setProfileData(prev => prev ? { ...prev, specialties: safeOccupations } : null);
+        
+        setEditingField(null);
+        setTempValue('');
+        setSelectedSpecialties([]);
+    };
+
+    const handleInputSave = async (field: 'fullName' | 'specialty' | 'gender' | 'dateOfBirth') => {
+        if (!profileData) {
+            setEditingField(null);
+            return;
+        }
+
+        const trimmedValue = (tempValue || '').trim();
+        if (!trimmedValue && field !== 'gender' && field !== 'dateOfBirth') {
+            setEditingField(null);
+            setTempValue('');
+            return;
+        }
+
+        const currentValue = field === 'fullName' ? profileData.fullName :
+            field === 'specialty' ? profileData.specialties?.map(o => o.title).join(', ') ?? '' :
+            field === 'gender' ? (
+                (profileData.gender === 'gender_male' || profileData.gender === 'male') ? 'male' :
+                (profileData.gender === 'gender_female' || profileData.gender === 'female') ? 'female' : ''
+            ) :
+            (profileData.dateOfBirth || '');
+
+        if (field === 'dateOfBirth' && trimmedValue) {
+            const birthDate = new Date(trimmedValue);
+            if (!isNaN(birthDate.getTime())) {
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const m = today.getMonth() - birthDate.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+                if (age < 18) {
+                    setModalMessage(t('profile:ageMinError'));
+                    setShowErrorModal(true);
+                    return;
+                }
+            }
+        }
+
+        if (trimmedValue !== currentValue) {
+            await updateUserData({ [field]: trimmedValue } as Partial<ProfileData>);
+        }
+
+        setEditingField(null);
+        setTempValue('');
+    };
+
+    const handleInputKeyPress = (e: React.KeyboardEvent, field: 'fullName' | 'specialty' | 'gender' | 'dateOfBirth') => {
+        if (e.key === 'Enter') {
+            handleInputSave(field);
+        } else if (e.key === 'Escape') {
+            setEditingField(null);
+            setTempValue('');
+        }
+    };
+
+    const handleEditEducationStart = (education: EducationItem) => {
+        setEditingEducation(education.id);
+        
+        console.log('Starting edit for education:', education);
+        console.log('Current occupations loaded:', occupations.length);
+        console.log('Occupations loading state:', occupationsLoading);
+        
+        // Если специальности еще загружаются, попробуем найти позже
+        if (occupationsLoading || occupations.length === 0) {
+            console.log('Occupations not ready, initializing form without specialty selection');
+            setEducationForm({
+                institution: education.institution,
+                selectedSpecialty: undefined,
+                startYear: education.startYear,
+                endYear: education.endYear,
+                currentlyStudying: education.currentlyStudying
+            });
+            return;
+        }
+        
+        // Находим специальность в списке occupations с более гибким поиском
+        const foundOccupation = occupations.find(occ => {
+            const occTitle = occ.title?.toLowerCase().trim() || '';
+            const eduSpecialty = education.specialty?.toLowerCase().trim() || '';
+            return occTitle === eduSpecialty;
+        });
+        
+        console.log('Looking for specialty:', education.specialty);
+        console.log('Available occupations:', occupations.map(o => ({ id: o.id, title: o.title })));
+        console.log('Found occupation:', foundOccupation);
+        
+        setEducationForm({
+            institution: education.institution,
+            selectedSpecialty: foundOccupation?.id,
+            startYear: education.startYear,
+            endYear: education.endYear,
+            currentlyStudying: education.currentlyStudying
+        });
+    };
+
+    const handleEditEducationSave = async () => {
+        if (!editingEducation || !educationForm.institution || !educationForm.startYear) {
+            throw new Error(t('profile:fillRequiredFields'));
+        }
+
+        const currentYear = new Date().getFullYear();
+        const startYearNum = parseInt(educationForm.startYear, 10);
+        if (isNaN(startYearNum) || startYearNum < 1900 || startYearNum > currentYear) {
+            throw new Error(t('profile:invalidStartYear'));
+        }
+
+        if (!educationForm.currentlyStudying) {
+            const endYearNum = parseInt(educationForm.endYear, 10);
+            if (isNaN(endYearNum) || endYearNum < startYearNum) {
+                throw new Error(t('profile:invalidEndYear'));
+            }
+        }
+
+        // Формируем данные для сохранения (occupation обрабатывается внутри updateEducation)
+        const educationToSave = {
+            institution: educationForm.institution,
+            specialty: '', // Больше не используется, occupation отправляется как IRI
+            startYear: educationForm.startYear,
+            endYear: educationForm.endYear,
+            currentlyStudying: educationForm.currentlyStudying
+        };
+
+        await updateEducation(editingEducation, educationToSave);
+    };
+
+    const handleEditEducationCancel = () => {
+        setEditingEducation(null);
+        setEducationForm({
+            institution: '',
+            selectedSpecialty: undefined,
+            startYear: '',
+            endYear: '',
+            currentlyStudying: false
+        });
+    };
+
+    const handleEducationFormChange = (field: keyof Omit<EducationItem, 'id'>, value: string | boolean) => {
+        setEducationForm(prev => {
+            const updated = { ...prev, [field]: value };
+            // When currentlyStudying is toggled ON, clear endYear
+            if (field === 'currentlyStudying' && value === true) {
+                updated.endYear = '';
+            }
+            return updated;
+        });
+    };
+
+    const handleAvatarClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !profileData?.id) return;
+
+        if (!file.type.startsWith("image/")) {
+            setModalMessage(t('profile:notImageFile'));
+            setShowErrorModal(true);
+            return;
+        }
+
+        if (file.size > 2 * 1024 * 1024) {
+            setModalMessage(t('profile:fileTooLarge'));
+            setShowErrorModal(true);
+            return;
+        }
+
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                navigate(ROUTES.HOME);
+                return;
+            }
+
+            setIsAvatarUploading(true);
+
+            await uploadPhotos('users', profileData.id, [file], token);
+
+            console.log("Фото успешно загружено");
+
+            // Получаем актуальный аватар с сервера — реактивный ре-рендер компонента
+            await fetchUserAvatar();
+
+            setModalMessage(t('profile:photoUpdated'));
+            setShowSuccessModal(true);
+
+        } catch (error) {
+            console.error("Ошибка при загрузке фото:", error);
+            setModalMessage(t('profile:photoUploadError'));
+            setShowErrorModal(true);
+        } finally {
+            setIsAvatarUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
+
+    const handleImageError = async (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+        console.log('Image loading error, trying fallback sources');
+        const img = e.currentTarget;
+
+        if (!profileData?.id) {
+            img.src = "/img/icons/misc/fonTest6.png";
+            return;
+        }
+
+        const fallbackSources = [
+            profileData.avatar?.includes("uploads/") ? `${API_BASE_URL}${API_ROUTES.USER_PROFILE_PHOTO(profileData.id)}` : null,
+            profileData.avatar?.includes("uploads/") ? `/uploads/avatars/${profileData.avatar.split("/").pop()}` : null,
+            "/img/icons/misc/fonTest6.png"
+        ].filter(Boolean) as string[];
+
+        for (const source of fallbackSources) {
+            if (source && source !== img.src) {
+                try {
+                    if (await checkImageExists(source)) {
+                        img.src = source;
+                        console.log('Fallback image loaded:', source);
+                        return;
+                    }
+                } catch {
+                    console.log('Fallback image failed:', source);
+                }
+            }
+        }
+
+        img.src = "/img/icons/misc/fonTest6.png";
+    };
+
+    const calculateAverageRating = (reviews: ReviewType[]): number => {
+        if (reviews.length === 0) return 0;
+        const validReviews = reviews.filter(review =>
+            review.rating && review.rating > 0 && review.rating <= 5
+        );
+
+        if (validReviews.length === 0) return 0;
+        const sum = validReviews.reduce((total, review) => total + review.rating, 0);
+        const average = sum / validReviews.length;
+        return Math.round(average * 10) / 10;
+    };
+
+    const getImageUrlWithCacheBust = (url: string): string => {
+        if (!url || url === "/img/icons/misc/fonTest6.png") return url;
+        const timestamp = new Date().getTime();
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}t=${timestamp}`;
+    };
+
+    const getMasterName = (review: ReviewType) => {
+        if (!review.master?.name && !review.master?.surname) {
+            return t('components:app.defaultMaster');
+        }
+        const fullName = `${review.master?.surname || ''} ${review.master?.name || ''}`.trim();
+        return smartNameTranslator(fullName, i18n.language as 'ru' | 'tj' | 'eng');
+    };
+
+    const getClientName = (review: ReviewType) => {
+        if (!review.client?.name && !review.client?.surname) {
+            return t('components:app.defaultClient');
+        }
+        const fullName = `${review.client?.surname || ''} ${review.client?.name || ''}`.trim();
+        return smartNameTranslator(fullName, i18n.language as 'ru' | 'tj' | 'eng');
+    };
+
+    const handleClientProfileClick = (clientId: string | number) => {
+        console.log('Navigating to client profile:', clientId);
+        navigate(ROUTES.PROFILE_BY_ID(clientId));
+    };
+
+    const handleMasterProfileClick = (masterId: string | number) => {
+        console.log('Navigating to master profile:', masterId);
+        navigate(ROUTES.PROFILE_BY_ID(masterId));
+    };
+
+    const handleServiceClick = (ticketId: string | number) => {
+        console.log('Navigating to ticket:', ticketId);
+        navigate(ROUTES.TICKET_BY_ID(ticketId));
+    };
+
+    const handleCloseReviewModal = () => {
+        setShowReviewModal(false);
+    };
+
+    const handleCloseComplaintModal = () => {
+        setShowComplaintModal(false);
+    };
+
+    const handleComplaintSuccess = (_message: string) => {};
+
+    const handleComplaintError = (_message: string) => {};
+
+    const handleReviewSuccess = (_message: string) => {
+        // Обновляем список отзывов
+        fetchReviews();
+    };
+
+    const handleReviewError = (_message: string) => {};
+
+    const handleReviewSubmitted = async (updatedCount: number) => {
+        // Обновляем количество отзывов в профиле
+        setProfileData(prev => prev ? {
+            ...prev,
+            reviews: updatedCount
+        } : null);
+    };
+
+    const handleReviewButtonClick = () => {
+        const token = getAuthToken();
+        if (!token) {
+            setAuthModalAction('review');
+            setShowAuthModal(true);
+            return;
+        }
+        setShowReviewModal(true);
+    };
+
+    const handleComplaintClick = () => {
+        setShowComplaintModal(true);
+    };
+
+    const handleAuthSuccess = () => {
+        setShowAuthModal(false);
+        // После успешной авторизации открываем нужную модалку
+        if (authModalAction === 'review') {
+            setShowReviewModal(true);
+        } else if (authModalAction === 'complaint') {
+            setShowComplaintModal(true);
+        }
+        setAuthModalAction(null);
+    };
+
+    // Написать сообщение (публичный профиль)
+    const handleProfileChat = async () => {
+        const token = getAuthToken();
+        if (!token) {
+            setAuthModalAction(null);
+            setShowAuthModal(true);
+            return;
+        }
+        if (!profileData?.id) return;
+        const chat = await createChatWithAuthor(profileData.id);
+        if (chat) {
+            navigate(`${ROUTES.CHATS}?chatId=${chat.id}`);
+        }
+    };
+
+    // Лайк / снятие лайка (публичный профиль)
+    const handleProfileLike = async () => {
+        const token = getAuthToken();
+        if (!profileData?.id) return;
+
+        // Неавторизованный пользователь — сохраняем в localStorage
+        if (!token) {
+            const parsed = getStorageJSON<Record<string, unknown>>('favorites') ?? {};
+            const users: (string | number)[] = Array.isArray(parsed.users) ? parsed.users as (string | number)[] : [];
+            const userId = profileData.id;
+            const nowLiked = users.includes(userId);
+            const updatedUsers = nowLiked
+                ? users.filter(id => id !== userId)
+                : [...users, userId];
+            setStorageJSON('favorites', { ...parsed, users: updatedUsers });
+            setIsProfileLiked(!nowLiked);
+            window.dispatchEvent(new Event('favoritesUpdated'));
+            return;
+        }
+
+        setIsProfileLikeLoading(true);
+        try {
+            if (isProfileLiked && profileEntryId) {
+                // Unlike — DELETE /api/favorites/{entryId}
+                await universalApiRequest(API_ROUTES.FAVORITE_BY_ID(profileEntryId), {
+                    method: 'DELETE',
+                    locale: false,
+                });
+                setIsProfileLiked(false);
+                setProfileEntryId(null);
+                window.dispatchEvent(new Event('favoritesUpdated'));
+            } else {
+                // Like — POST /api/favorites { user: IRI }
+                try {
+                    const entry: any = await universalApiRequest(API_ROUTES.FAVORITES, {
+                        method: 'POST',
+                        body: { user: API_ROUTES.USER_BY_ID(profileData.id) },
+                        locale: false,
+                    });
+                    setIsProfileLiked(true);
+                    setProfileEntryId(entry.id ?? null);
+                    window.dispatchEvent(new Event('favoritesUpdated'));
+                } catch (postErr: any) {
+                    if (postErr?.status === 409) {
+                        // Already in favorites — re-fetch to get entryId
+                        const data: any = await universalApiRequest(API_ROUTES.FAVORITES_ME, { locale: false });
+                        const entries: Array<{ id: string | number; type: string; user: { id: string | number } | null }> =
+                            data['hydra:member'] ?? [];
+                        const match = entries.find(e => e.type === 'user' && e.user?.id === profileData.id);
+                        if (match) { setIsProfileLiked(true); setProfileEntryId(match.id); }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling profile like:', error);
+        } finally {
+            setIsProfileLikeLoading(false);
+        }
+    };
+
+    // Sync redirect: if the logged-in user visits their own public profile, skip the flash
+    if (id) {
+        const cachedUser = getUserData();
+        if (cachedUser && cachedUser.id && cachedUser.id.toString() === id) {
+            return <Navigate to={ROUTES.PROFILE} replace />;
+        }
+    }
+
+    if (isLoading) {
+        return <PageLoader text={t('profile:loading')} />;
+    }
+
+    // Если это приватный профиль и нет currentUser - показать Auth
+    if (!readOnly && !currentUser) {
+        return (
+            <Auth
+                isOpen={true}
+                onClose={() => navigate(ROUTES.HOME)}
+                // No onLoginSuccess here (was `() => window.location.reload()`) — that reload
+                // fired synchronously inside handleSuccessfulAuth, racing ahead of its own
+                // setTimeout-gated admin redirect (isAdmin() ? TECH_SUPPORT : reload) and
+                // winning every time, so an admin logging back in through *this* auto-shown
+                // instance (right after logout on /profile, the exact "still on /profile,
+                // modal already open" state) always landed back on /profile instead of
+                // /support. The other <Auth> instance on this page never had this bug because
+                // its onLoginSuccess (handleAuthSuccess) only flips local modal state — leaving
+                // this one's post-login behavior (reload for everyone else, redirect for admins)
+                // entirely to Auth's own handleSuccessfulAuth is what actually fixes it.
+            />
+        );
+    }
+
+    if (!profileData) {
+        return <div className={styles.profileSet}>{t('profile:loadError')}</div>;
+    }
+
+    return (
+        <div className={styles.profile}>
+            <div className={styles.profile_wrap}>
+                {/* ProfileHeader Component */}
+                <ProfileHeader
+                    avatar={profileData.avatar}
+                    fullName={profileData.fullName}
+                    email={profileData.email}
+                    gender={profileData.gender}
+                    dateOfBirth={profileData.dateOfBirth}
+                    specialty={profileData.specialties?.map(o => o.title).join(', ') ?? ''}
+                    specialties={profileData.specialties?.map(o => o.title) ?? []}
+                    rating={parseFloat(profileData.rating?.toString() ?? '0')}
+                    reviewsCount={reviews.length}
+                    editingField={editingField}
+                    tempValue={tempValue}
+                    selectedSpecialties={selectedSpecialties}
+                    occupations={occupations}
+                    fileInputRef={fileInputRef}
+                    isLoading={isLoading}
+                    isAvatarUploading={isAvatarUploading}
+                    readOnly={readOnly}
+                    userRole={userRole}
+                    isOnline={profileData.isOnline}
+                    lastSeen={profileData.lastSeen ?? undefined}
+                    onAvatarClick={handleAvatarClick}
+                    onFileChange={handleFileChange}
+                    onImageError={handleImageError}
+                    onEditStart={handleEditStart}
+                    onTempValueChange={setTempValue}
+                    onInputSave={handleInputSave}
+                    onInputKeyPress={handleInputKeyPress}
+                    onSpecialtySave={handleSpecialtySave}
+                    onEditCancel={() => {
+                        setEditingField(null);
+                        setTempValue('');
+                        setSelectedSpecialties([]);
+                    }}
+                    onAddSpecialty={handleAddSpecialty}
+                    onRemoveSpecialty={handleRemoveSpecialty}
+                    {...(!readOnly && { onLogout: handleLogout })}
+                    {...(readOnly && {
+                        onChat: handleProfileChat,
+                        ...(getUserRole() === null || getUserRole() !== userRole ? { onReview: handleReviewButtonClick } : {}),
+                        onComplaint: handleComplaintClick,
+                        onLike: handleProfileLike,
+                        isLiked: isProfileLiked,
+                        isLikeLoading: isProfileLikeLoading,
+                    })}
+                />
+
+                {/* Секция "О себе" */}
+                <div className={styles.about_section}>
+                    {/* LinkedAccountsSection Component - только для своего профиля */}
+                    {!readOnly && (
+                        <LinkedAccountsSection
+                            providers={linkedProviders}
+                            loading={linkedProvidersLoading}
+                            readOnly={readOnly}
+                            onLink={handleLinkProvider}
+                            onUnlink={handleUnlinkProvider}
+                        />
+                    )}
+
+                    {/* SocialNetworksSection Component */}
+                    <SocialNetworksSection
+                        socialNetworks={socialNetworks}
+                        SOCIAL_NETWORK_CONFIG={SOCIAL_NETWORK_CONFIG}
+                        editingSocialNetwork={editingSocialNetwork}
+                        socialNetworkEditValue={socialNetworkEditValue}
+                        socialNetworkValidationError={socialNetworkValidationError}
+                        showAddSocialNetwork={showAddSocialNetwork}
+                        selectedNewNetwork={selectedNewNetwork}
+                        availableSocialNetworks={getAvailableNetworks()}
+                        readOnly={readOnly}
+                        setEditingSocialNetwork={setEditingSocialNetwork}
+                        setSocialNetworkEditValue={setSocialNetworkEditValue}
+                        setSocialNetworkValidationError={setSocialNetworkValidationError}
+                        setShowAddSocialNetwork={setShowAddSocialNetwork}
+                        setSelectedNewNetwork={setSelectedNewNetwork}
+                        setSocialNetworks={setSocialNetworks}
+                        onUpdateSocialNetworks={updateSocialNetworks}
+                        onRemoveSocialNetwork={handleRemoveSocialNetwork}
+                        onAddSocialNetwork={handleAddSocialNetwork}
+                        onResetSocialNetworks={handleResetSocialNetworks}
+                        onCopySocialNetwork={handleCopySocialNetwork}
+                        renderSocialIcon={renderSocialIcon}
+                        getAvailableNetworks={getAvailableNetworks}
+                        onRefresh={async () => { setIsSocialNetworksRefreshing(true); await fetchUserData(true); setIsSocialNetworksRefreshing(false); }}
+                        isLoading={isSocialNetworksRefreshing}
+                    />
+
+                    {/* PhonesSection Component */}
+                    <PhonesSection
+                        phones={profileData.phones}
+                        editingPhone={editingPhone}
+                        phoneForm={phoneForm}
+                        readOnly={readOnly}
+                        onEditPhoneStart={handleEditPhoneStart}
+                        onEditPhoneSave={handleEditPhoneSave}
+                        onEditPhoneCancel={handleEditPhoneCancel}
+                        setPhoneForm={setPhoneForm}
+                        onDeletePhone={handleDeletePhone}
+                        onAddPhone={handleAddPhone}
+                        onCopyPhone={handleCopyPhone}
+                        onReorder={!readOnly ? handleReorderPhones : undefined}
+                        onRefresh={async () => { setIsPhonesRefreshing(true); await fetchUserData(true); setIsPhonesRefreshing(false); }}
+                        isLoading={isPhonesRefreshing}
+                        onLoginClick={readOnly ? () => setShowAuthModal(true) : undefined}
+                    />
+
+                    {/* EducationSection Component - только для специалистов */}
+                    {userRole === 'master' && (
+                        <EducationSection
+                            education={profileData.education}
+                            editingEducation={editingEducation}
+                            educationForm={educationForm}
+                            occupations={occupations}
+                            occupationsLoading={occupationsLoading}
+                            readOnly={readOnly}
+                            onEditEducationStart={handleEditEducationStart}
+                            onEditEducationSave={handleEditEducationSave}
+                            onEditEducationCancel={handleEditEducationCancel}
+                            onEducationFormChange={handleEducationFormChange}
+                            onDeleteEducation={handleDeleteEducation}
+                            onAddEducation={handleAddEducation}
+                            setEducationForm={setEducationForm}
+                            onReorder={!readOnly ? handleReorderEducation : undefined}
+                            onRefresh={async () => { setIsEducationRefreshing(true); await fetchUserData(true); setIsEducationRefreshing(false); }}
+                            isLoading={isEducationRefreshing}
+                        />
+                    )}
+
+                    {/* WorkExamplesSection Component - только для специалистов */}
+                    {userRole === 'master' && (
+                        <WorkExamplesSection
+                            workExamples={profileData.workExamples}
+                            visibleWorkExamples={visibleWorkExamplesCount}
+                            isMobile={isMobile}
+                            isGalleryOperating={isGalleryOperating}
+                            galleryImages={galleryImages}
+                            isGalleryOpen={isGalleryOpen}
+                            galleryCurrentIndex={galleryCurrentIndex}
+                            readOnly={readOnly}
+                            onOpenGallery={openGallery}
+                            onCloseGallery={closeGallery}
+                            onGalleryNext={goToNext}
+                            onGalleryPrevious={goToPrevious}
+                            onSelectGalleryImage={selectImage}
+                            onDeleteWorkExample={handleDeleteWorkExample}
+                            onDeleteAllWorkExamples={handleDeleteAllWorkExamples}
+                            onWorkExampleUpload={handleWorkExampleUpload}
+                            onShowMoreWorkExamples={() => setVisibleWorkExamplesCount(c => Math.min(c + (isMobile ? 6 : 8), profileData.workExamples.length))}
+                            onShowLessWorkExamples={() => setVisibleWorkExamplesCount(c => Math.max(c - (isMobile ? 6 : 8), isMobile ? 6 : 8))}
+                            onClearWorkExamples={() => setVisibleWorkExamplesCount(isMobile ? 6 : 8)}
+                            getImageUrlWithCacheBust={getImageUrlWithCacheBust}
+                            API_BASE_URL={API_BASE_URL}
+                            onReorder={!readOnly ? handleReorderWorkExamples : undefined}
+                            onRefresh={async () => { setIsWorkExamplesRefreshing(true); await fetchUserGallery(); setIsWorkExamplesRefreshing(false); }}
+                            isLoading={isWorkExamplesRefreshing}
+                        />
+                    )}
+
+                    {/* ServicesSection Component */}
+                    <ServicesSection
+                        services={profileData.services}
+                        servicesLoading={servicesLoading}
+                        readOnly={readOnly}
+                        userRole={userRole}
+                        API_BASE_URL={API_BASE_URL}
+                        onReorder={!readOnly ? handleReorderServices : undefined}
+                        onRefresh={fetchServices}
+                        footerSlot={
+                            <ShowMore
+                                {...servicesShowMoreProps}
+                                showMoreText={t('common:app.showMore')}
+                                showLessText={t('common:app.showLess')}
+                                loading={servicesLoading}
+                                horizontal
+                            />
+                        }
+                    />
+
+                    {/* WorkAreasSection Component */}
+                    <WorkAreasSection
+                        addresses={profileData.addresses}
+                        canWorkRemotely={profileData.canWorkRemotely}
+                        editingAddress={editingAddress}
+                        addressForm={addressForm}
+                        readOnly={readOnly}
+                        userRole={userRole}
+                        setAddressForm={setAddressForm}
+                        onAddAddress={handleAddAddress}
+                        onEditAddressStart={handleEditAddressStart}
+                        onEditAddressSave={handleEditAddressSave}
+                        onEditAddressCancel={handleEditAddressCancel}
+                        onDeleteAddress={handleDeleteAddress}
+                        onCanWorkRemotelyToggle={handleCanWorkRemotelyToggle}
+                        onReorder={!readOnly ? handleReorderAddresses : undefined}
+                        onRefresh={async () => { setIsWorkAreasRefreshing(true); await fetchUserData(true); setIsWorkAreasRefreshing(false); }}
+                        isLoading={isWorkAreasRefreshing}
+                    />
+                </div>
+
+                {/* ReviewsSection Component */}
+                <ReviewsSection
+                    reviews={reviews}
+                    reviewsLoading={reviewsLoading}
+                    visibleCount={reviews.length}
+                    API_BASE_URL={API_BASE_URL}
+                    userRole={userRole || 'master'}
+                    getClientName={getClientName}
+                    getMasterName={getMasterName}
+                    onClientProfileClick={handleClientProfileClick}
+                    onMasterProfileClick={handleMasterProfileClick}
+                    onServiceClick={handleServiceClick}
+                    getReviewImageIndex={getReviewImageIndex}
+                    onRefresh={fetchReviews}
+                    currentUserId={getUserData()?.id}
+                    onEditClick={(review) => { setEditingReview(review); setShowEditReviewModal(true); }}
+                    onComplaintClick={(reviewId, authorId) => {
+                        setComplaintReviewId(reviewId);
+                        setComplaintReviewAuthorId(authorId);
+                        setIsReviewComplaintOpen(true);
+                    }}
+                    footerSlot={
+                        <ShowMore
+                            {...reviewsShowMoreProps}
+                            showMoreText={t('common:app.showMore')}
+                            showLessText={t('common:app.showLess')}
+                            loading={reviewsLoading}
+                            horizontal
+                        />
+                    }
+                />
+            </div>
+
+            {readOnly && (
+                <div className={styles.profile_actions}>
+                    {(getUserRole() === null || getUserRole() !== userRole) && (
+                        <button 
+                            className={styles.review_button}
+                            onClick={handleReviewButtonClick}
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                            </svg>
+                            {t('profile:leaveReview')}
+                        </button>
+                    )}
+                    <button 
+                        className={styles.complaint_button}
+                        onClick={handleComplaintClick}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2L2 20H22L12 2ZM12 17C11.45 17 11 16.55 11 16C11 15.45 11.45 15 12 15C12.55 15 13 15.45 13 16C13 16.55 12.55 17 12 17ZM13 13H11V8H13V13Z"/>
+                        </svg>
+                        {t('profile:complaint')}
+                    </button>
+                </div>
+            )}
+
+            <Feedback
+                mode="review"
+                isOpen={showReviewModal}
+                onClose={handleCloseReviewModal}
+                onSuccess={handleReviewSuccess}
+                onError={handleReviewError}
+                ticketId={0}
+                targetUserId={profileData?.id ?? 0}
+                onReviewSubmitted={handleReviewSubmitted}
+                showServiceSelector={true}
+            />
+
+            <Feedback
+                mode="complaint"
+                isOpen={showComplaintModal}
+                onClose={handleCloseComplaintModal}
+                onSuccess={handleComplaintSuccess}
+                onError={handleComplaintError}
+                targetUserId={profileData?.id ?? 0}
+                targetUserRole={userRole ?? undefined}
+                showUserComplaintToggle
+            />
+
+            <Feedback
+                mode="complaint"
+                isOpen={isReviewComplaintOpen}
+                onClose={() => setIsReviewComplaintOpen(false)}
+                onSuccess={() => {}}
+                onError={() => {}}
+                targetUserId={complaintReviewAuthorId ?? 0}
+                reviewId={complaintReviewId ?? undefined}
+                complaintType="review"
+            />
+
+            {editingReview && (
+                <Feedback
+                    mode="review"
+                    isOpen={showEditReviewModal}
+                    onClose={() => { setShowEditReviewModal(false); setEditingReview(null); }}
+                    onSuccess={() => fetchReviews()}
+                    targetUserId={editingReview.master?.id ?? editingReview.client?.id ?? 0}
+                    ticketId={editingReview.ticket?.id}
+                    editReviewId={editingReview.id}
+                    initialRating={editingReview.rating}
+                    initialText={editingReview.description}
+                    initialImages={editingReview.images}
+                    initialCreatedAt={editingReview.createdAt}
+                />
+            )}
+
+            <Auth
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+                onLoginSuccess={handleAuthSuccess}
+            />
+
+            <Status
+                type="success"
+                isOpen={showSuccessModal}
+                onClose={() => setShowSuccessModal(false)}
+                message={modalMessage}
+            />
+
+            <Status
+                type="error"
+                isOpen={showErrorModal}
+                onClose={() => setShowErrorModal(false)}
+                message={modalMessage}
+            />
+
+            <InstagramLinkNotice
+                isOpen={showInstagramLinkNotice}
+                onClose={() => setShowInstagramLinkNotice(false)}
+                onContinue={() => { setShowInstagramLinkNotice(false); startProviderOAuthLink('instagram'); }}
+            />
+
+            <CookieConsentBanner/>
+        </div>
+    );
+}
+
+export default Profile;

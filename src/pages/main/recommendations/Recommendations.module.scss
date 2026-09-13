@@ -1,0 +1,31 @@
+@use '../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.recommendation {
+  max-width: 1150px;
+  width: 100%;
+  margin: 0 auto;
+
+  &__wrap {
+    width: 100%;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  &__loading,
+  &__empty {
+    text-align: center;
+    color: var(--color-text-secondary);
+    padding: 20px;
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .recommendation {
+    // Темная тема для компонента
+  }
+}

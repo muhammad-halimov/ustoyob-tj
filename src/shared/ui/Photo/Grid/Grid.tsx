@@ -1,0 +1,127 @@
+/* eslint-disable react-refresh/only-export-components */
+import React from 'react';
+import { useDragReorder, DragHandle } from '../../../../widgets/DragReorder';
+import styles from './Grid.module.scss';
+
+export type PhotoItem =
+    | { type: 'existing'; id: string | number; image: string }
+    | { type: 'new'; file: File; previewUrl: string };
+
+export function buildOrderedImagePayload(
+    photoItems: PhotoItem[],
+    currentImages: Array<{ id: string | number; image: string }>
+): Array<{ id: string | number; image: string }> {
+    const existingIds = new Set(photoItems.filter(p => p.type === 'existing').map(p => p.id));
+    const uploadedNewImages = currentImages.filter(img => !existingIds.has(img.id));
+    let uploadedIndex = 0;
+
+    return photoItems
+        .map(item => {
+            if (item.type === 'existing') {
+                return { id: item.id, image: item.image };
+            }
+            return uploadedNewImages[uploadedIndex++] ?? null;
+        })
+        .filter((img): img is { id: number; image: string } => img !== null);
+}
+
+interface PhotoGridProps {
+    photos: PhotoItem[];
+    onChange: (photos: PhotoItem[]) => void;
+    getImageUrl: (path: string) => string;
+    onOpenGallery?: (existingIndex: number) => void;
+    onClickPhoto?: (index: number) => void;
+    inputId?: string;
+    photoAlt?: string;
+    disabled?: boolean;
+}
+
+const Grid: React.FC<PhotoGridProps> = ({
+    photos,
+    onChange,
+    getImageUrl,
+    onOpenGallery,
+    onClickPhoto,
+    inputId = 'photo-grid-upload',
+    photoAlt = 'Photo',
+    disabled = false,
+}) => {
+    const drag = useDragReorder(photos, onChange);
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const newItems: PhotoItem[] = Array.from(e.target.files).map(file => ({
+                type: 'new' as const,
+                file,
+                previewUrl: URL.createObjectURL(file),
+            }));
+            onChange([...photos, ...newItems]);
+            e.target.value = '';
+        }
+    };
+
+    const removePhoto = (index: number) => {
+        onChange(photos.filter((_, i) => i !== index));
+    };
+
+    return (
+        <div className={styles.photoGrid}>
+            {photos.map((photo, index) => (
+                <div
+                    key={photo.type === 'existing' ? `existing-${photo.id}` : `new-${index}`}
+                    className={`${styles.photoItem} ${drag.draggingIndex === index ? styles.photoItemDragging : ''} ${drag.dragOverIndex === index ? styles.photoItemDragOver : ''}`}
+                    data-drag-index={index}
+                    draggable={!disabled}
+                    onDragStart={!disabled ? () => drag.handleDragStart(index) : undefined}
+                    onDragEnter={!disabled ? () => drag.handleDragEnter(index) : undefined}
+                    onDragEnd={!disabled ? () => drag.handleDragEnd() : undefined}
+                    onDragOver={!disabled ? (e) => e.preventDefault() : undefined}
+                    onTouchStart={!disabled ? (e) => drag.handleTouchStart(index, e) : undefined}
+                    onClick={
+                        photo.type === 'existing' && onOpenGallery
+                            ? () => onOpenGallery(photos.slice(0, index).filter(p => p.type === 'existing').length)
+                            : onClickPhoto
+                                ? () => onClickPhoto(index)
+                                : undefined
+                    }
+                >
+                    <DragHandle
+                        className={styles.dragHandleOverlay}
+                        draggable={false}
+                    />
+                    <img
+                        draggable={false}
+                        onContextMenu={(e) => e.preventDefault()}
+                        src={photo.type === 'existing' ? getImageUrl(photo.image) : photo.previewUrl}
+                        alt={`${photoAlt} ${index + 1}`}
+                    />
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removePhoto(index); }}
+                        className={styles.removePhotoButton}
+                        disabled={disabled}
+                    >
+                        ×
+                    </button>
+                </div>
+            ))}
+
+            <div className={styles.photoAddBtn}>
+                <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className={styles.fileInput}
+                    id={inputId}
+                    disabled={disabled}
+                />
+                <label htmlFor={inputId} className={styles.uploadLabel}>
+                    <span className={styles.plusIcon}>+</span>
+                </label>
+            </div>
+        </div>
+    );
+};
+
+export default Grid;

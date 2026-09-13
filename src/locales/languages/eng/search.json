@@ -1,0 +1,23 @@
+{
+  "search": {
+    "placeholder": "Search for services...",
+    "find": "Find",
+    "advancedSearch": "Advanced search",
+    "category": "Category",
+    "price": "Price",
+    "location": "Location",
+    "date": "Date",
+    "rating": "Rating",
+    "sortBy": "Sort by",
+    "relevance": "Relevance",
+    "newest": "Newest",
+    "oldest": "Oldest",
+    "priceLowToHigh": "Price: Low to High",
+    "priceHighToLow": "Price: High to Low",
+    "ratingHighToLow": "Rating: High to Low",
+    "noResults": "No results found",
+    "tryDifferentKeywords": "Try different keywords",
+    "clearFilters": "Clear filters",
+    "applyFilters": "Apply filters"
+  }
+}

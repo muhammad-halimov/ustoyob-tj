@@ -1,0 +1,113 @@
+{
+  "pageTitle": "Technical Support",
+  "pageSubtitle": "Describe your issue and we will do our best to help",
+  "tabs": {
+    "create": "New Request",
+    "my": "My Requests",
+    "allTickets": "All Requests"
+  },
+  "myTickets": {
+    "empty": "You have no support requests yet",
+    "loadError": "Failed to load your requests",
+    "statusLabel": "Status",
+    "priorityLabel": "Priority",
+    "noTitle": "No subject",
+    "noResults": "No requests match the selected filters",
+    "resetFilters": "Reset",
+    "searchPlaceholder": "Search requests",
+    "table": {
+      "title": "Subject",
+      "category": "Category",
+      "status": "Status",
+      "priority": "Priority",
+      "created": "Created",
+      "updated": "Updated"
+    },
+    "filters": {
+      "toggle": "Filters & sorting",
+      "sort": "Sort",
+      "sortNewest": "Newest first",
+      "sortOldest": "Oldest first",
+      "category": "Category",
+      "categoryAll": "All categories",
+      "status": "Status",
+      "statusAll": "Any status",
+      "priority": "Priority",
+      "priorityAll": "Any priority"
+    },
+    "statuses": {
+      "new": "New",
+      "renewed": "Renewed",
+      "in_progress": "In progress",
+      "resolved": "Resolved",
+      "closed": "Closed",
+      "banned": "Banned"
+    }
+  },
+  "thread": {
+    "loadError": "Failed to load the request",
+    "sendError": "Failed to send the message",
+    "originalRequest": "Description",
+    "you": "You",
+    "support": "Support",
+    "executorRole": "Executor",
+    "authorRole": "Author",
+    "youExecutor": "You - executor",
+    "youAuthor": "You - author",
+    "placeholder": "Type a message...",
+    "send": "Send",
+    "noMessages": "No replies yet",
+    "bannedNotice": "This ticket has been banned — it's read-only now, sending messages and files is disabled.",
+    "bannedNoticeAdmin": "This ticket is banned for its author — they can't send messages or files anymore, but as an admin you can still reply.",
+    "editTicket": "Edit request",
+    "editMessage": "Edit message",
+    "editWindowExpired": "Editing is only available within 15 minutes of sending",
+    "editLockedByOperator": "Operator has already read or replied — editing is locked",
+    "deleteMessage": "Delete message",
+    "deleteMessageConfirm": "Delete this message?",
+    "deleteMessageError": "Failed to delete the message",
+    "messageDeleted": "Message deleted",
+    "edited": " (edited)",
+    "editError": "Failed to save changes",
+    "media": "Media",
+    "openGallery": "Open gallery",
+    "mediaThumbnail": "Image {{index}}",
+    "deleteImage": "Delete photo",
+    "deleteImageConfirm": "Delete this photo?",
+    "emptyMessagePhotoDeleteConfirm": "This is the last photo on a message with no text — deleting it would leave the message empty. Delete the whole message instead?"
+  },
+  "form": {
+    "titleLabel": "Subject",
+    "titlePlaceholder": "Briefly describe the issue",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Describe the problem in detail...",
+    "reasonLabel": "Category",
+    "reasonPlaceholder": "Select category",
+    "priorityLabel": "Priority",
+    "priorityPlaceholder": "Select priority",
+    "emailLabel": "Your email",
+    "emailPlaceholder": "example@mail.com",
+    "photosLabel": "Attach screenshots",
+    "photoAlt": "Screenshot",
+    "submit": "Submit request",
+    "submitting": "Submitting..."
+  },
+  "priority": {
+    "1": "Low",
+    "2": "Medium",
+    "3": "High",
+    "4": "Urgent"
+  },
+  "validation": {
+    "titleRequired": "Please enter a subject",
+    "descriptionRequired": "Please describe the issue",
+    "reasonRequired": "Please select a category",
+    "priorityRequired": "Please select a priority",
+    "emailRequired": "Please enter your email",
+    "emailInvalid": "Please enter a valid email"
+  },
+  "success": "Your request has been received. We will contact you shortly.",
+  "error": "Failed to submit the request. Please try again.",
+  "loadError": "Failed to load support categories.",
+  "adminCreateDisabled": "The administrator role is currently active — submitting a request is not recommended."
+}

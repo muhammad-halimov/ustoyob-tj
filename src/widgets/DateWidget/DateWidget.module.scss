@@ -1,0 +1,43 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.label {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: var(--color-background-btn2, #f5f5f5);
+  color: var(--color-text-black, #333);
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    background-color: var(--color-background-primary, #fff);
+    box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  // Compact variant used inside ProfileHeader
+  .compact & {
+    padding: 6px 10px;
+    font-size: 14px;
+    border-radius: 6px;
+  }
+}

@@ -1,0 +1,935 @@
+.backButtonSpacing {
+  margin-bottom: 12px;
+}
+
+.container {
+  max-width: 1150px; // Оптимизировано для 60% ширины на больших экранах
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px 0;
+
+  @media screen and (max-width: 1200px) {
+    padding: 40px 20px;
+  }
+
+  &_wrap {
+    padding: 40px;
+    background: #fff;
+    border-radius: 20px;
+  }
+}
+
+.header {
+  text-align: start;
+  margin-bottom: 40px;
+
+  h1 {
+    font-size: 32px;
+    font-weight: 400;
+    color: #333;
+    margin: 0;
+  }
+}
+
+.formWrapper {
+  position: relative;
+}
+
+.form {
+  background: var(--color-background-primary);
+  padding: 20px;
+  border-radius: 10px;
+
+  h3 {
+    margin-bottom: 20px;
+    font-size: 24px;
+  }
+}
+
+.section {
+  width: 100%;
+  margin-bottom: 40px;
+
+  h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 20px 0;
+    color: #333;
+  }
+}
+
+.serviceSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.categorySection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Адресная секция */
+/* Стили для выбора области */
+.province_section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.province_section h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.province_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.province_card {
+  padding: 16px 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+
+  &:hover {
+    background-color: #e9ecef;
+    border-color: #3A54DA;
+  }
+}
+
+.province_card_selected {
+  background-color: #3A54DA;
+  color: white;
+  border-color: #3A54DA;
+}
+
+/* Combined section (cities + districts in one row) */
+.combined_section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e0e0e0;
+
+  h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 24px 0;
+    color: #333;
+  }
+}
+
+.combined_container {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 24px;
+  }
+}
+
+.cities_container,
+.districts_container {
+  flex: 1;
+  min-width: 300px;
+}
+
+.cities_container h4,
+.districts_container h4 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #333;
+}
+
+.suburbs_section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e0e0e0;
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: #333;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 20px;
+  }
+}
+
+.nested_selection_section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e0e0e0;
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: #333;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 24px;
+  }
+}
+
+.nested_type_selector {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 24px;
+  }
+}
+
+.communities_container,
+.settlements_container {
+  flex: 1;
+  min-width: 300px;
+}
+
+.communities_container h4,
+.settlements_container h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #333;
+}
+
+.settlement_info {
+  font-size: 11px;
+  color: #666;
+  opacity: 0.7;
+  margin-top: 4px;
+}
+
+.villages_section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e0e0e0;
+
+  h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 16px 0;
+    color: #333;
+  }
+}
+
+/* Стили для выбора города */
+.city_section {
+  margin-bottom: 20px;
+}
+
+.city_section h3 {
+  font-size: 16px;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.city_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.city_card {
+  padding: 16px 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+
+  &:hover {
+    background-color: #e9ecef;
+    border-color: #3A54DA;
+  }
+}
+
+.city_card_selected {
+  background-color: #3A54DA;
+  color: white;
+  border-color: #3A54DA;
+}
+
+.city_name {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.city_districts_count {
+  font-size: 12px;
+  color: #666;
+}
+
+.city_card_selected .city_districts_count {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Стили для выбора районов */
+.district_section {
+  margin-bottom: 20px;
+}
+
+.district_section h3 {
+  font-size: 16px;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.district_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.district_card {
+  padding: 14px 10px;
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+
+  &:hover {
+    background-color: #e9ecef;
+    border-color: #3A54DA;
+  }
+}
+
+.district_card_selected {
+  background-color: #3A54DA;
+  color: white;
+  border-color: #3A54DA;
+}
+
+.district_name {
+  font-weight: 500;
+}
+
+.addressInput {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: #3A54DA;
+  }
+
+  &::placeholder {
+    color: #999;
+  }
+}
+
+/* Стили для отображения выбранных элементов */
+.selected_summary {
+  margin-top: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.selected_items {
+  margin-bottom: 8px;
+  font-size: 14px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  strong {
+    color: #333;
+    margin-right: 5px;
+  }
+}
+
+/* Бюджет */
+.budgetSection {
+  margin-top: 20px;
+}
+
+.negotiableCheckbox {
+  margin-bottom: 14px;
+}
+
+.budgetRowDisabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.budgetFieldDisabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.budgetRow {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.budgetField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 24px;
+}
+
+.budgetField:first-child {
+  flex: 1;
+  // Без этого флекс-айтем не сжимается уже своего контента (дефолтный min-width:auto) —
+  // цена упирается в собственную минимальную ширину раньше, чем в неё стоит упираться,
+  // и не отдаёт место соседней колонке юнита.
+  min-width: 0;
+}
+
+.budgetField:last-child {
+  flex: 0 0 180px;
+}
+
+/* Фотографии - единая сетка для существующих и новых */
+.photoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 5px;
+  width: 100%;
+}
+
+.photoItem, .photoAddBtn {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid #e0e0e0;
+  transition: opacity 0.2s, outline 0.1s;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.photoAddBtn {
+  border: none;
+}
+
+.photoItemDragging {
+  opacity: 0.5;
+  outline: 2px dashed #3A54DA;
+  outline-offset: 2px;
+}
+
+.photoItemDragOver {
+  outline: 2px solid #3A54DA;
+  outline-offset: 2px;
+}
+
+.dragHandleOverlay {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.52);
+  border-radius: 6px;
+  padding: 2px;
+  z-index: 2;
+  opacity: 1;
+  cursor: grab;
+  color: #fff;
+}
+
+.removePhotoButton {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  background: rgba(0, 0, 0, 0.52);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  line-height: 1;
+  transition: background 0.2s;
+
+  &:hover {
+    background: rgba(255, 0, 0, 0.8);
+  }
+}
+
+.fileInput {
+  display: none;
+}
+
+.uploadLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 2px dashed #e0e0e0;
+  border-radius: 8px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: #3A54DA;
+    background: #f5f7ff;
+  }
+}
+
+.plusIcon {
+  font-size: clamp(20px, 3vw, 32px);
+  color: #666;
+  font-weight: 300;
+  line-height: 1;
+}
+
+/* Описание */
+.descriptionSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.descriptionTextarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+  background: #fff;
+
+  &::placeholder {
+    color: #999;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #3A54DA;
+  }
+}
+
+/* Кнопки */
+.submitSection {
+  display: flex;
+  gap: 16px;
+  padding-top: 30px;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 40px;
+  justify-content: center;
+  align-items: center;
+}
+
+.editActionsLarge {
+  gap: 16px;
+
+  button {
+    width: 52px !important;
+    height: 52px !important;
+
+    svg {
+      width: 24px !important;
+      height: 24px !important;
+    }
+  }
+}
+
+.cancelButton {
+  flex: 1;
+  padding: 16px;
+  background: #f2f2f5;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #e8e8eb;
+    border-color: #ccc;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.submitButton {
+  flex: 2;
+  padding: 16px;
+  background: #3A54DA;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #2a44ca;
+  }
+
+  &:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+}
+
+/* Состояния загрузки и ошибки */
+.loading {
+  text-align: center;
+  padding: 100px 20px;
+  font-size: 18px;
+  color: #666;
+}
+
+.error {
+  text-align: center;
+  padding: 100px 20px;
+  font-size: 18px;
+  color: #d32f2f;
+}
+
+/* Адаптивность */
+@media screen and (max-width: 768px) {
+  .header h1 {
+    font-size: 24px;
+  }
+
+  .form {
+    padding: 15px;
+  }
+
+  .section h2 {
+    font-size: 18px;
+  }
+
+  .province_grid,
+  .city_grid,
+  .district_grid,
+  .settlement_grid,
+  .community_grid,
+  .village_grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+  }
+
+  .budgetRow {
+    gap: 12px;
+  }
+
+  .budgetField:last-child {
+    flex: 0 0 140px;
+  }
+
+  .submitSection {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .cancelButton,
+  .submitButton {
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .form {
+    h3 {
+      font-size: 18px;
+    }
+
+    .section {
+      margin-bottom: 30px;
+
+      h2 {
+        font-size: 16px;
+      }
+    }
+  }
+
+  // Юнит держит фиксированную flex-basis (180px → 140px на ≤768px) с flex-shrink:0 —
+  // сама не сжимается, но вместе с min-width:0 у цены (см. .budgetField:first-child)
+  // ряд помещается: цена дожимается до своего минимума, юнит остаётся в строке рядом.
+  .budgetRow {
+    gap: 8px;
+  }
+
+  .budgetField:last-child {
+    flex: 0 0 110px;
+  }
+
+  .existingPhotoGrid,
+  .newPhotoPreview {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+  }
+}
+
+/* Стили для модальных окон */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+
+  &.successModal {
+    background: white;
+  }
+
+  h2 {
+    margin-bottom: 20px;
+    font-size: 24px;
+    font-weight: 600;
+
+    &.successTitle {
+      color: #2e7d32;
+    }
+
+    &.errorTitle {
+      color: #c62828;
+    }
+  }
+
+  .successIcon,
+  .errorIcon {
+    margin: 20px 0;
+
+    img {
+      max-width: 80px;
+      height: auto;
+    }
+  }
+
+  p {
+    margin: 20px 0;
+    font-size: 16px;
+    color: #333;
+    line-height: 1.5;
+
+    &.successMessage {
+      color: #666;
+    }
+
+    &.errorMessage {
+      color: #666;
+    }
+  }
+
+  button {
+    background: #3A54DA;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: 20px;
+
+    &.successButton,
+    &.errorButton {
+      width: 100%;
+    }
+
+    &:hover {
+      background: #2a44ca;
+    }
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .container_wrap,
+  .form {
+    background: var(--color-background-primary);
+  }
+
+  .header h1,
+  .section h2 {
+    color: var(--color-text-primary);
+  }
+
+  .province_section h3,
+  .combined_section h3,
+  .cities_container h4,
+  .districts_container h4,
+  .suburbs_section h3,
+  .nested_selection_section h3,
+  .communities_container h4,
+  .settlements_container h4,
+  .villages_section h4,
+  .city_section h3 {
+    color: var(--color-text-primary);
+  }
+
+
+  .province_card,
+  .city_card {
+    background-color: var(--color-background-all);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+
+    &:hover {
+      background-color: var(--color-background-secondary);
+    }
+  }
+
+  .province_section,
+  .combined_section,
+  .suburbs_section,
+  .nested_selection_section,
+  .villages_section {
+    border-bottom-color: var(--color-stroke);
+  }
+
+  .district_card {
+    background-color: var(--color-background-all);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+
+    &:hover {
+      background-color: var(--color-background-secondary);
+    }
+  }
+
+  .district_section {
+    border-bottom-color: var(--color-stroke);
+    h3 {
+      color: var(--color-text-primary);
+    }
+  }
+
+  .addressInput {
+    background-color: var(--color-background-all);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+
+    &::placeholder {
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .budgetSection h3,
+  .budgetSection h2 {
+    color: var(--color-text-primary);
+  }
+
+  .descriptionSection h2 {
+    color: var(--color-text-primary);
+  }
+
+  .descriptionTextarea {
+    background-color: var(--color-background-all);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+
+    &::placeholder {
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .photoSection h2,
+  .photoSection h4 {
+    color: var(--color-text-primary);
+  }
+
+  .uploadLabel {
+    background-color: var(--color-background-all);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+  }
+
+  .existingPhoto {
+    border-color: var(--color-stroke);
+  }
+
+  .cancelButton {
+    background: var(--color-background-all);
+    color: var(--color-text-secondary);
+    border-color: var(--color-stroke);
+
+    &:hover {
+      background: var(--color-background-secondary);
+    }
+  }
+
+  .modalContent {
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+
+    h2 {
+      color: var(--color-text-primary);
+    }
+
+    p {
+      color: var(--color-text-secondary);
+    }
+  }
+}

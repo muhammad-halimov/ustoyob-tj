@@ -1,0 +1,469 @@
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.container {
+  max-width: 1150px;
+  margin: 0 auto;
+  padding: map.get(vars.$spacing, 8) map.get(vars.$spacing, 4);
+
+  @media screen and (max-width: 1200px) {
+    padding: map.get(vars.$spacing, 8) map.get(vars.$spacing, 5);
+  }
+}
+
+// When rendered as a tab inside the Legal page — no extra outer padding
+.embeddedContainer {
+  width: 100%;
+}
+
+.header {
+  margin-bottom: map.get(vars.$spacing, 8);
+}
+
+.title {
+  font-size: map.get(vars.$font-sizes, '2xl');
+  font-weight: 600;
+  color: var(--color-text-black);
+  margin: 0 0 map.get(vars.$spacing, 2) 0;
+}
+
+.subtitle {
+  font-size: map.get(vars.$font-sizes, base);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.formWrapper {
+  position: relative;
+}
+
+// InfoBanner itself no longer sets margin (a shared atom shouldn't dictate its own external
+// spacing) — restores the vertical gap for this normal-flow placement, above the form.
+.adminNotice {
+  margin: 0 0 map.get(vars.$spacing, 5);
+}
+
+.form {
+  background: var(--color-background-primary);
+  border-radius: map.get(vars.$border-radius, lg);
+  padding: map.get(vars.$spacing, 6);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.section {
+  margin-bottom: map.get(vars.$spacing, 8);
+
+  h2 {
+    font-size: map.get(vars.$font-sizes, base);
+    font-weight: 600;
+    color: var(--color-text-black);
+    margin: 0 0 map.get(vars.$spacing, 3) 0;
+  }
+}
+
+.textarea {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: var(--color-background-all);
+  border: none;
+  border-radius: map.get(vars.$border-radius, base);
+  font-size: map.get(vars.$font-sizes, base);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  resize: vertical;
+  min-height: 120px;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: var(--color-text-placeholder);
+  }
+
+  &:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+
+.submitSection {
+  margin-top: map.get(vars.$spacing, 4);
+  padding-top: map.get(vars.$spacing, 6);
+  border-top: 1px solid var(--color-stroke);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.editActionsLarge {
+  gap: 16px;
+
+  button {
+    width: 52px !important;
+    height: 52px !important;
+
+    svg {
+      width: 24px !important;
+      height: 24px !important;
+    }
+  }
+}
+
+.submitButton {
+  width: 100%;
+  padding: 14px 24px;
+  background: var(--color-background-btn);
+  color: var(--color-primary-text-white);
+  border: none;
+  border-radius: map.get(vars.$border-radius, base);
+  font-size: map.get(vars.$font-sizes, base);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+@media screen and (max-width: map.get(vars.$breakpoints, mobile)) {
+  .form {
+    padding: map.get(vars.$spacing, 4);
+  }
+
+  .title {
+    font-size: map.get(vars.$font-sizes, xl);
+  }
+}
+
+// ─── Tabs ────────────────────────────────────────────────────
+
+.tabsWrapper {
+  margin-bottom: map.get(vars.$spacing, 6);
+}
+
+// ─── My Tickets ──────────────────────────────────────────────
+
+.myTicketsSection {
+  display: flex;
+  flex-direction: column;
+  gap: map.get(vars.$spacing, 5);
+}
+
+.ticketsSearchBar {
+  width: 100%;
+}
+
+// Loading / empty / error placeholders only — the populated table below is top-aligned, not centered.
+.myTicketsStateWrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 40vh;
+}
+
+// ─── Table-header quick filters ────────────────────────────────
+// (The collapsible sort/filter panel itself is now the TechSupportSortingFilter
+// widget — widgets/Sorting/TechSupportCriteriaFilter — sharing SortingFilter's
+// own CSS module, so its styles no longer live here.)
+// The visible label is a Marquee sitting on top of a fully transparent native
+// <select> that covers the whole cell — the <select> handles the actual click
+// / option list (native popups aren't clipped by the table's own
+// `overflow: hidden`, unlike a custom dropdown would be), while the Marquee
+// gives long option text somewhere to scroll instead of just cutting off.
+// The arrow is a plain adjacent glyph, not select background-image, so its
+// position is never at the mercy of the (invisible) select's own box width.
+
+// No `justify-self` override — it stretches to fill its grid column like every
+// other header cell, so the visual gap between columns is always exactly the
+// grid `gap` (content still sits flush left inside it, via the flex default).
+// A `justify-self: start` cell instead hugs its own content, leaving a
+// content-dependent chunk of unused track space before the next column —
+// which is what made the header's column spacing look uneven.
+.headFilterCell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: map.get(vars.$spacing, 1);
+  max-width: 100%;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-within {
+    .headFilterLabel,
+    .headFilterArrow {
+      color: var(--color-primary);
+    }
+  }
+}
+
+// `inline-block` (not a flex item) so Marquee's own `flex: 1` (flex-basis: 0)
+// never collapses it — inside a shrink-to-fit flex row, a flex-basis:0 child
+// is measured against 0 during the row's own intrinsic sizing, which made
+// Marquee's container end up narrower than the actual text and scroll text
+// that already fit. As a plain inline-block, this wrapper just hugs its
+// content's real width, which Marquee then measures correctly.
+.headFilterLabel {
+  display: inline-block;
+  max-width: 100%;
+  font-size: map.get(vars.$font-sizes, sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  transition: color 0.15s ease;
+}
+
+.headFilterArrow {
+  flex-shrink: 0;
+  font-size: 8px;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  transition: color 0.15s ease;
+}
+
+.headFilterNative {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  opacity: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  option {
+    color: var(--color-text-primary);
+    background-color: var(--color-background-primary);
+    font-weight: 400;
+  }
+}
+
+// Created/Updated — a plain `role="button"` div (same as .headFilterCell next to
+// it, and the same pattern .ticketRow itself uses), not a real <button>. No
+// amount of resetting (appearance/outline/::-moz-focus-inner/all:unset) fully
+// stripped every browser's native button chrome; a div simply never has any
+// to begin with.
+.sortableHead {
+  display: inline-flex;
+  align-items: center;
+  gap: map.get(vars.$spacing, 1);
+  font-size: map.get(vars.$font-sizes, sm);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--color-primary);
+    outline: none;
+  }
+}
+
+.sortArrow {
+  font-size: map.get(vars.$font-sizes, xs);
+  line-height: 1;
+  color: var(--color-primary);
+}
+
+// ─── Tickets table ───────────────────────────────────────────
+
+$ticketsColumns: minmax(180px, 2.2fr) minmax(110px, 1.3fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(90px, 1fr);
+
+.ticketsTable {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-stroke);
+  border-radius: map.get(vars.$border-radius, lg);
+  overflow: hidden;
+}
+
+.ticketsTableHead {
+  display: grid;
+  grid-template-columns: $ticketsColumns;
+  align-items: center;
+  gap: map.get(vars.$spacing, 6);
+  padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 5);
+  background: var(--color-background-all);
+  font-size: map.get(vars.$font-sizes, sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.ticketRow {
+  display: grid;
+  grid-template-columns: $ticketsColumns;
+  gap: map.get(vars.$spacing, 6);
+  align-items: center;
+  padding: map.get(vars.$spacing, 4) map.get(vars.$spacing, 5);
+  background: var(--color-background-primary);
+  border-top: 1px solid var(--color-stroke);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--color-background-all);
+    outline: none;
+  }
+}
+
+.ticketCell {
+  min-width: 0;
+  font-size: map.get(vars.$font-sizes, sm);
+  color: var(--color-text-secondary);
+}
+
+// Block-level flex (not inline-flex) so it stretches to the cell's full width — a
+// shrink-to-fit flex container would give Marquee's own flex:1 a near-zero basis to
+// measure against, falsely triggering its overflow-scroll behavior.
+.cellRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cellIcon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-secondary);
+}
+
+.ticketCellTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ticketTitleRow {
+  display: flex;
+  align-items: center;
+  gap: map.get(vars.$spacing, 2);
+  min-width: 0;
+}
+
+// Overflow is handled by Marquee itself (scrolls on overflow) — no ellipsis/nowrap needed here.
+.ticketRowTitle {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: map.get(vars.$font-sizes, base);
+  color: var(--color-text-black);
+}
+
+// Count of unread support replies — same shape/color as Chat's sidebar unread badge
+// (Chat.module.scss), sitting to the left of the ticket title instead of the row's edge.
+.unreadBadge {
+  flex-shrink: 0;
+  background: #3A54DA;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+}
+
+.ticketRowDesc {
+  font-size: map.get(vars.$font-sizes, sm);
+  color: var(--color-text-secondary);
+}
+
+.badge {
+  display: inline-block;
+  font-size: map.get(vars.$font-sizes, xs);
+  padding: 3px map.get(vars.$spacing, 2);
+  border-radius: map.get(vars.$border-radius, sm);
+  background: var(--color-background-all);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+}
+
+.status_new { background: rgba(58, 84, 218, 0.12); color: #3A54DA; }
+.status_renewed { background: rgba(158, 94, 218, 0.12); color: #9E5EDA; }
+.status_in_progress { background: rgba(230, 162, 40, 0.14); color: #B87400; }
+.status_resolved { background: rgba(41, 168, 105, 0.14); color: #1F9D5D; }
+.status_closed { background: rgba(120, 120, 120, 0.14); color: var(--color-text-secondary); }
+// Terminal/blocked — deliberately alarming and distinct from both `closed` (neutral gray)
+// and `priority_4` (bright red), signalling "no further interaction possible".
+.status_banned { background: rgba(139, 0, 0, 0.16); color: #8B0000; }
+
+// Escalating severity: calm green → neutral blue → amber → red (mirrors TechSupportThread).
+.priority_1 { background: rgba(41, 168, 105, 0.12); color: #1F9D5D; }
+.priority_2 { background: rgba(58, 84, 218, 0.12); color: #3A54DA; }
+.priority_3 { background: rgba(230, 162, 40, 0.14); color: #B87400; }
+.priority_4 { background: rgba(220, 53, 69, 0.14); color: #DC3545; }
+
+@media screen and (max-width: 860px) {
+  .ticketsTable {
+    border: none;
+    border-radius: 0;
+    gap: map.get(vars.$spacing, 3);
+  }
+
+  .ticketsTableHead {
+    display: none;
+  }
+
+  .ticketRow {
+    grid-template-columns: 1fr;
+    gap: map.get(vars.$spacing, 2);
+    border: 1px solid var(--color-stroke);
+    border-radius: map.get(vars.$border-radius, base);
+    margin-bottom: map.get(vars.$spacing, 3);
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .ticketCell::before {
+    content: attr(data-label);
+    display: block;
+    font-size: map.get(vars.$font-sizes, xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--color-text-secondary);
+    opacity: 0.7;
+    margin-bottom: 2px;
+  }
+}
+

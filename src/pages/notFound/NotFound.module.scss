@@ -1,0 +1,13 @@
+@use '../../app/styles/variables' as vars;
+
+.container {
+  @include vars.Container;
+  min-height: 60vh;
+  padding: 40px 0;
+  display: flex;
+  flex-direction: column;
+
+  @media screen and (max-width: 1200px) {
+    padding: 40px 20px;
+  }
+}
