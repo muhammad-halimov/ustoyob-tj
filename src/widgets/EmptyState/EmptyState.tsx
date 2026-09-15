@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageLoader from '../PageLoader/PageLoader';
 import styles from './EmptyState.module.scss';
@@ -15,13 +15,15 @@ interface EmptyStateProps {
     className?: string;
     /** When true, shows a spinner instead of the empty-state illustration. */
     isLoading?: boolean;
+    /** Overrides the default illustration (e.g. a wifi-off icon for an offline state). */
+    icon?: ReactNode;
 }
 
 /**
  * Generic empty-state placeholder shown when a list has no items.
  * Displays a title, optional subtitle, and optional action / refresh buttons.
  */
-export function EmptyState({ title, subtitle, actionText, onAction, onRefresh, className, isLoading }: EmptyStateProps) {
+export function EmptyState({ title, subtitle, actionText, onAction, onRefresh, className, isLoading, icon }: EmptyStateProps) {
     const { t } = useTranslation(['common']);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -46,13 +48,15 @@ export function EmptyState({ title, subtitle, actionText, onAction, onRefresh, c
     return (
         <div className={`${styles.container} ${className || ''}`}>
             <div className={styles.icon}>
-                <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="8" y="20" width="48" height="36" rx="4" stroke="currentColor" strokeWidth="3" strokeLinejoin="round"/>
-                    <path d="M8 28H56" stroke="currentColor" strokeWidth="3"/>
-                    <path d="M22 8L16 20M42 8L48 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                    <circle cx="32" cy="42" r="7" stroke="currentColor" strokeWidth="3"/>
-                    <path d="M29 42H35M32 39V45" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-                </svg>
+                {icon ?? (
+                    <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="8" y="20" width="48" height="36" rx="4" stroke="currentColor" strokeWidth="3" strokeLinejoin="round"/>
+                        <path d="M8 28H56" stroke="currentColor" strokeWidth="3"/>
+                        <path d="M22 8L16 20M42 8L48 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                        <circle cx="32" cy="42" r="7" stroke="currentColor" strokeWidth="3"/>
+                        <path d="M29 42H35M32 39V45" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+                    </svg>
+                )}
             </div>
             <p className={styles.title}>
                 {title ?? t('common:emptyState.title')}

@@ -22,6 +22,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- OAuth deep-link return: the in-app browser (Chrome Custom Tabs) navigates
+                 here (tj.ustoyob.app://oauth-callback?...) once our own web callback page
+                 has exchanged the provider's code for a token — see utils/mobileOAuth.ts.
+                 Caught by @capacitor/app's appUrlOpen listener (registered in main.tsx). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="@string/custom_url_scheme" />
+            </intent-filter>
+
         </activity>
 
         <provider

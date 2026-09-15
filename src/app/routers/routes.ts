@@ -40,6 +40,13 @@ export const ROUTES = {
     AUTH_INSTAGRAM: '/auth/instagram',
     AUTH_INSTAGRAM_CALLBACK: '/auth/instagram/callback',
     AUTH_TELEGRAM_CALLBACK: '/auth/telegram/callback',
+
+    // OAuth — mobile app only (opened in the in-app browser via utils/mobileOAuth.ts,
+    // never used on the desktop web build). See OAuthMobileStartPage/TelegramStartPage.
+    AUTH_GOOGLE_MOBILE_START: '/auth/google/start',
+    AUTH_FACEBOOK_MOBILE_START: '/auth/facebook/start',
+    AUTH_INSTAGRAM_MOBILE_START: '/auth/instagram/start',
+    AUTH_TELEGRAM_MOBILE_START: '/auth/telegram/start',
 } as const;
 
 /**
@@ -186,4 +193,10 @@ export const ROUTE_PATTERNS = {
     AUTH_INSTAGRAM: '/auth/instagram',
     AUTH_INSTAGRAM_CALLBACK: '/auth/instagram/callback',
     AUTH_TELEGRAM_CALLBACK: '/auth/telegram/callback',
+
+    // OAuth — mobile app only, see ROUTES above
+    AUTH_GOOGLE_MOBILE_START: '/auth/google/start',
+    AUTH_FACEBOOK_MOBILE_START: '/auth/facebook/start',
+    AUTH_INSTAGRAM_MOBILE_START: '/auth/instagram/start',
+    AUTH_TELEGRAM_MOBILE_START: '/auth/telegram/start',
 } as const;

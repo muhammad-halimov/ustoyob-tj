@@ -10,7 +10,9 @@ import MyTickets from "../../pages/tickets/me/MyTickets";
 import Category from "../../pages/tickets/category/Category";
 import OAuthCallbackPage from "../../pages/OAuth/OAuthCallbackPage";
 import OAuthRedirectPage from "../../pages/OAuth/OAuthRedirectPage";
+import OAuthMobileStartPage from "../../pages/OAuth/OAuthMobileStartPage";
 import TelegramCallbackPage from "../../pages/OAuth/TelegramCallbackPage";
+import TelegramMobileStartPage from "../../pages/OAuth/TelegramMobileStartPage";
 import { Legal } from "../../pages/legal";
 import ConfirmAccountPage from "../../pages/auth/ConfirmAccountPage";
 import NotFound from "../../pages/notFound/NotFound";
@@ -95,6 +97,28 @@ const router = createBrowserRouter([
     {
         path: ROUTE_PATTERNS.AUTH_TELEGRAM_CALLBACK,
         element: <TelegramCallbackPage />,
+        errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
+    },
+    // Mobile-app-only entry points — opened by the packaged app's in-app browser, never
+    // linked to from the desktop web UI. See utils/mobileOAuth.ts.
+    {
+        path: ROUTE_PATTERNS.AUTH_GOOGLE_MOBILE_START,
+        element: <OAuthMobileStartPage />,
+        errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
+    },
+    {
+        path: ROUTE_PATTERNS.AUTH_FACEBOOK_MOBILE_START,
+        element: <OAuthMobileStartPage />,
+        errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
+    },
+    {
+        path: ROUTE_PATTERNS.AUTH_INSTAGRAM_MOBILE_START,
+        element: <OAuthMobileStartPage />,
+        errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
+    },
+    {
+        path: ROUTE_PATTERNS.AUTH_TELEGRAM_MOBILE_START,
+        element: <TelegramMobileStartPage />,
         errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
     },
     {
