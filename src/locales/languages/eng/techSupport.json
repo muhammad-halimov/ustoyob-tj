@@ -109,5 +109,7 @@
   "success": "Your request has been received. We will contact you shortly.",
   "error": "Failed to submit the request. Please try again.",
   "loadError": "Failed to load support categories.",
-  "adminCreateDisabled": "The administrator role is currently active — submitting a request is not recommended."
+  "adminCreateDisabled": "The administrator role is currently active — submitting a request is not recommended.",
+  "guestLoginBanner": "Have an account? Sign in — replies will show up right here, not in your inbox.",
+  "guestLoginBannerAction": "Sign in"
 }

@@ -19,7 +19,12 @@
 }
 
 .tabs_underline {
-  border-bottom: 1px solid var(--color-border-light);
+  // Not --color-border-light here — Tabs has no background of its own, so this divider
+  // sits directly on the page background (body { background: var(--color-background-all) }).
+  // In light theme --color-border-light (#f0f0f0) is a hair off --color-background-all
+  // (#F2F2F5) — same near-zero-contrast bug as the footer's border-top had (same fix:
+  // hover-with-border-btn, an actually-darker gray in both themes).
+  border-bottom: 1px solid var(--color-hover-with-border-btn);
 
   .tab {
     flex: 1;

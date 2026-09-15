@@ -23,7 +23,11 @@
   align-items: flex-start;
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 1px solid map.get(vars.$colors, color-stroke);
+  // Not color-stroke — .container has no background of its own, so this divider sits
+  // directly on the page background (body's --color-background-all), and in light theme
+  // --color-stroke is the exact same hex as --color-background-all (#F2F2F5) — zero
+  // contrast, invisible. Same bug/fix as Footer's border-top and Tabs' underline.
+  border-bottom: 1px solid map.get(vars.$colors, hover-with-borderBtn);
 
   h1 {
     font-size: 36px;
