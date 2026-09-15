@@ -68,6 +68,11 @@
     "subtitle": "This page doesn't exist, or it was moved or deleted.",
     "goHome": "Go Home"
   },
+  "offline": {
+    "title": "No internet connection",
+    "subtitle": "Check your Wi-Fi or mobile data and try again.",
+    "retry": "Retry"
+  },
   "oauth": {
     "loading": "Authorizing...",
     "pleaseWait": "Please wait",

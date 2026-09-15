@@ -21,6 +21,7 @@ import { universalApiRequest } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
 import { getStorageItem, removeStorageItem, getSessionItem, removeSessionItem, removeSessionItems } from '../../utils/storageUtils';
 import { finishOAuthPopup } from '../../utils/oauthPopup';
+import { finishMobileOAuthFlow } from '../../utils/mobileOAuth';
 
 // Определяем провайдер по URL
 const getProviderFromUrl = (pathname: string): OAuthProviderName | null => {
@@ -67,6 +68,17 @@ const OAuthCallbackPage = () => {
         fallbackRoute: string,
         fallbackOptions?: { replace?: boolean },
     ) => {
+        // Мобильное приложение проверяем первым: у него нет ни window.opener, ни
+        // реального popup'а (см. utils/mobileOAuth.ts) — finishOAuthPopup для него
+        // всегда вернёт false и просто уведёт на fallbackRoute ВНУТРИ in-app browser'а,
+        // а не обратно в приложение.
+        if (result.status === 'success') {
+            const token = getAuthToken();
+            if (token && finishMobileOAuthFlow({ status: 'success', token })) return;
+        } else if (finishMobileOAuthFlow({ status: 'error', message: result.message })) {
+            return;
+        }
+
         if (!finishOAuthPopup(oauthStateRef.current, result)) {
             navigate(fallbackRoute, fallbackOptions);
             return;
@@ -205,7 +217,8 @@ const OAuthCallbackPage = () => {
                 }
 
                 if (data.token && data.user) {
-                    setAuthToken(data.token);
+                    const token = data.token;
+                    setAuthToken(token);
                     const expiryTime = new Date();
                     expiryTime.setHours(expiryTime.getHours() + 1);
                     setAuthTokenExpiry(expiryTime.toISOString());
@@ -218,7 +231,7 @@ const OAuthCallbackPage = () => {
 
                     if ((data as any).status === 204) {
                         // Новый пользователь — показываем выбор роли
-                        setPendingToken(data.token);
+                        setPendingToken(token);
                         setLoading(false);
                         setShowRoleSelect(true);
                     } else {
@@ -235,6 +248,7 @@ const OAuthCallbackPage = () => {
 
                         setSuccess(true);
                         setTimeout(() => {
+                            if (finishMobileOAuthFlow({ status: 'success', token })) return;
                             // dispatchEvent('login') нужен только когда мы реально живём на
                             // этой же вкладке (fallback-ветка) — в popup'е это событие никто
                             // не услышит, опенер сам разберётся по своему собственному
@@ -295,6 +309,8 @@ const OAuthCallbackPage = () => {
                     locale: false,
                 });
                 setUserRole(role);
+                const currentToken = getAuthToken();
+                if (currentToken && finishMobileOAuthFlow({ status: 'success', token: currentToken })) return;
                 if (!finishOAuthPopup(oauthStateRef.current, { status: 'success' })) {
                     navigate(ROUTES.HOME);
                     window.dispatchEvent(new Event('login'));

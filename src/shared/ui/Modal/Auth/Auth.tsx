@@ -15,8 +15,10 @@ import {
     setUserRole,
     setUserOccupation,
     isAdmin,
+    fetchCurrentUser,
 } from '../../../../utils/authUtils';
 import { openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult, markOAuthPopupFlow } from '../../../../utils/oauthPopup';
+import { isNativePlatform, startNativeOAuth } from '../../../../utils/mobileOAuth';
 import { getOccupations } from '../../../../utils/dataCacheUtils';
 import { DateWidget } from '../../../../widgets/DateWidget/DateWidget';
 import { Marquee } from '../../Text/Marquee';
@@ -223,6 +225,50 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // В пакетном (Capacitor) приложении window.open() не даёт настоящий popup — ОС молча
+    // передаёт навигацию во внешний, никак не связанный с нами Chrome (проверено вживую
+    // через Chrome DevTools Protocol), так что вся popup-механика ниже там бессмысленна.
+    // См. utils/mobileOAuth.ts — там же объяснение, почему in-app browser открывается на
+    // РЕАЛЬНОМ домене сайта, а не на localhost внутри собранного приложения.
+    const applyNativeAuthToken = async (token: string) => {
+        setAuthToken(token);
+        setTokenExpiry();
+
+        const user = await fetchCurrentUser();
+        if (user) {
+            const roles = (user.roles || []).map(r => r.toLowerCase());
+            setUserRole(roles.includes('role_master') || roles.includes('master') ? 'master' : 'client');
+            if (user.occupation) setUserOccupation(user.occupation as Occupation[]);
+        } else if (!getUserRole()) {
+            setUserRole('client');
+        }
+
+        handleSuccessfulAuth(token, user?.email);
+    };
+
+    const handleNativeOAuthStart = async (provider: OAuthProviderName) => {
+        const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
+        const startPath = provider === 'google' ? ROUTES.AUTH_GOOGLE_MOBILE_START
+            : provider === 'facebook' ? ROUTES.AUTH_FACEBOOK_MOBILE_START
+            : ROUTES.AUTH_INSTAGRAM_MOBILE_START;
+
+        const params = new URLSearchParams({ role: formData.role });
+        if (formData.role === 'master' && formData.specialty) params.set('specialty', formData.specialty);
+
+        setIsLoading(true);
+        try {
+            const { token } = await startNativeOAuth(`${startPath}?${params.toString()}`);
+            await applyNativeAuthToken(token);
+        } catch (err) {
+            // Пользователь сам закрыл in-app browser, не дойдя до конца — не ошибка.
+            if (!(err instanceof Error && err.message === 'popup_closed')) {
+                setError(resolveApiError(err, `Ошибка при авторизации через ${providerLabel}`));
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     // Общая функция для начала OAuth авторизации (Google/Facebook/Instagram).
     // Открываем popup, а не window.location.href — полный переход вкладки на
     // домен провайдера как раз и даёт ОС повод перехватить навигацию и увести
@@ -231,6 +277,11 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     // саму нашу вкладку — OAuthCallbackPage внутри popup'а сам сообщает
     // результат через postMessage и закрывается (см. utils/oauthPopup).
     const handleOAuthStart = (provider: OAuthProviderName) => {
+        if (isNativePlatform()) {
+            handleNativeOAuthStart(provider);
+            return;
+        }
+
         const roleKey = `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`;
         const specialtyKey = `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`;
         const csrfKey = `${provider}CsrfState`;
@@ -384,8 +435,32 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         }
     };
 
+    // Приложение: тот же in-app browser + deep link, что и для Google/Facebook/Instagram
+    // (см. handleNativeOAuthStart выше). Для Telegram это не просто удобнее, а необходимо:
+    // виджет проверяет data-auth-url против домена, зарегистрированного в BotFather —
+    // внутри пакетного приложения это https://localhost ("Bot domain invalid"), а на
+    // реальном сайте, куда открывается in-app browser — настоящий домен.
+    const handleNativeTelegramAuthClick = async () => {
+        setIsLoading(true);
+        try {
+            const { token } = await startNativeOAuth(ROUTES.AUTH_TELEGRAM_MOBILE_START);
+            await applyNativeAuthToken(token);
+        } catch (err) {
+            if (!(err instanceof Error && err.message === 'popup_closed')) {
+                setError(resolveApiError(err, 'Ошибка при авторизации через Telegram'));
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     // Функция для Telegram Widget
     const handleTelegramAuthClick = () => {
+        if (isNativePlatform()) {
+            handleNativeTelegramAuthClick();
+            return;
+        }
+
         // Сохраняем роль перед началом авторизации
         setSessionItem('pendingTelegramRole', formData.role);
         if (formData.role === 'master' && formData.specialty) {
