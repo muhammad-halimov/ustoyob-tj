@@ -43,6 +43,11 @@
   margin: 0 0 map.get(vars.$spacing, 5);
 }
 
+// Same spacing, above the guest-email field instead of the form as a whole.
+.guestLoginNotice {
+  margin: 0 0 map.get(vars.$spacing, 5);
+}
+
 .form {
   background: var(--color-background-primary);
   border-radius: map.get(vars.$border-radius, lg);

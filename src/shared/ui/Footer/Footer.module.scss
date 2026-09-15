@@ -4,7 +4,11 @@
 .footer {
   margin-top: 50px;
   padding: 40px 20px 20px;
-  border-top: 1px solid map.get(vars.$colors, color-stroke);
+  // Not color-stroke here — in light theme --color-stroke (#F2F2F5) is the exact same hex
+  // as --color-background-all (#F2F2F5) that the footer sits on, so a border in that color
+  // is invisible (zero contrast), not just faint. hover-with-borderBtn is an actual shade
+  // darker than background-all in both themes, so the line reads properly in both.
+  border-top: 1px solid map.get(vars.$colors, hover-with-borderBtn);
   background-color: map.get(vars.$colors, color-background-all);
 }
 
@@ -75,7 +79,7 @@
 // Стили для темной темы
 :global(html[data-theme="dark"]) {
   .footer {
-    border-color: var(--color-stroke);
+    border-color: var(--color-hover-with-border-btn);
     background-color: var(--color-background-all);
   }
   
