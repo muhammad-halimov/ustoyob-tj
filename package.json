@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/core": "^8.5.2",
     "@reduxjs/toolkit": "^2.9.2",
     "@types/dompurify": "^3.0.5",
     "dompurify": "^3.4.5",
