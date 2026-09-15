@@ -756,6 +756,13 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                             {/* Guest email — only for unauthenticated users */}
                             {!isAuth && (
                                 <div className={styles.section}>
+                                    <InfoBanner
+                                        icon={<IoInformationCircleOutline />}
+                                        message={t('guestLoginBanner')}
+                                        buttonLabel={t('guestLoginBannerAction')}
+                                        onButtonClick={() => window.dispatchEvent(new CustomEvent('openAuthModal'))}
+                                        className={styles.guestLoginNotice}
+                                    />
                                     <h2>{t('form.emailLabel')}</h2>
                                     <SelectSearch
                                         altMode
