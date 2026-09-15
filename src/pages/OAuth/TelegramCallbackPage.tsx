@@ -17,6 +17,7 @@ import type { TelegramUserData, BackendAuthCallbackResponse } from '../../entiti
 import { universalApiRequest } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
 import { getStorageItem, setStorageItem, removeStorageItem, getSessionItem, removeSessionItem, removeSessionItems } from '../../utils/storageUtils';
+import { finishMobileOAuthFlow } from '../../utils/mobileOAuth';
 
 /**
  * Handles the Telegram login callback.
@@ -32,6 +33,12 @@ const TelegramCallbackPage = () => {
     const [success, setSuccess] = useState(false);
     const { t } = useTranslation('common');
 
+    // Мобильное приложение (in-app browser) — отдаём ошибку через deep link вместо
+    // того, чтобы оставлять пользователя на странице сайта внутри Custom Tab / SFSafari.
+    // Возвращает true, если это был как раз такой случай (вызывающий тогда не планирует
+    // свой обычный navigate(ROUTES.HOME)).
+    const finishMobileOrNull = (message?: string): boolean => finishMobileOAuthFlow({ status: 'error', message });
+
     useEffect(() => {
         const processTelegramCallback = async () => {
             try {
@@ -46,9 +53,10 @@ const TelegramCallbackPage = () => {
 
                 // Проверяем что все необходимые параметры есть
                 if (!id || !firstName || !hash || !authDate) {
-                    setError(t('oauth.insufficientData'));
+                    const message = t('oauth.insufficientData');
+                    setError(message);
                     setLoading(false);
-                    setTimeout(() => navigate(ROUTES.HOME), 3000);
+                    if (!finishMobileOrNull(message)) setTimeout(() => navigate(ROUTES.HOME), 3000);
                     return;
                 }
 
@@ -56,9 +64,10 @@ const TelegramCallbackPage = () => {
                 const currentTime = Math.floor(Date.now() / 1000);
                 const authTime = parseInt(authDate, 10);
                 if (currentTime - authTime > 600) {
-                    setError(t('oauth.expiredRequest'));
+                    const message = t('oauth.expiredRequest');
+                    setError(message);
                     setLoading(false);
-                    setTimeout(() => navigate(ROUTES.HOME), 3000);
+                    if (!finishMobileOrNull(message)) setTimeout(() => navigate(ROUTES.HOME), 3000);
                     return;
                 }
 
@@ -201,7 +210,12 @@ const TelegramCallbackPage = () => {
 
                     setSuccess(true);
                     setLoading(false);
-                    // На мобильном приложение Telegram может вернуть этот колбэк в
+
+                    // Приложение (in-app browser, см. utils/mobileOAuth.ts) — отдаём токен
+                    // через deep link и на этом всё, дальше приложение само разбирается.
+                    if (finishMobileOAuthFlow({ status: 'success', token: data.token })) return;
+
+                    // На мобильном ВЕБЕ приложение Telegram может вернуть этот колбэк в
                     // НОВУЮ вкладку, а не в ту, где была открыта Auth-модалка — сигналим
                     // localStorage'ом (см. слушатель в Auth.tsx) и пробуем закрыться,
                     // как уже делает ветка привязки провайдера выше. window.close()
@@ -216,16 +230,18 @@ const TelegramCallbackPage = () => {
                         }, 300);
                     }, 2000);
                 } else {
-                    setError(resolveApiError(null, t('oauth.tokenNotReceived')));
+                    const message = resolveApiError(null, t('oauth.tokenNotReceived'));
+                    setError(message);
                     setLoading(false);
-                    setTimeout(() => navigate(ROUTES.HOME), 3000);
+                    if (!finishMobileOrNull(message)) setTimeout(() => navigate(ROUTES.HOME), 3000);
                 }
 
             } catch (err) {
                 console.error('Telegram OAuth error:', err);
-                setError(resolveApiError(err));
+                const message = resolveApiError(err);
+                setError(message);
                 setLoading(false);
-                setTimeout(() => navigate(ROUTES.HOME), 3000);
+                if (!finishMobileOrNull(message)) setTimeout(() => navigate(ROUTES.HOME), 3000);
             }
         };
 
