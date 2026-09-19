@@ -45,6 +45,8 @@ export const APP_WEB_ORIGIN: string = (import.meta.env.VITE_APP_ORIGIN as string
 export const OAUTH_APP_SCHEME = 'tj.ustoyob.app';
 const OAUTH_CALLBACK_HOST = 'oauth-callback';
 const MOBILE_FLOW_STORAGE_KEY = 'mobileOAuthFlow';
+/** How long to wait for `appUrlOpen` after `browserFinished` before treating it as a cancel. */
+const BROWSER_FINISHED_GRACE_MS = 1500;
 
 export const isNativePlatform = (): boolean => Capacitor.isNativePlatform();
 
@@ -101,8 +103,10 @@ export function startNativeOAuth(path: string): Promise<NativeOAuthResult> {
         let settled = false;
         let appUrlListener: PluginListenerHandle | null = null;
         let browserFinishedListener: PluginListenerHandle | null = null;
+        let cancelTimer: ReturnType<typeof setTimeout> | undefined;
 
         const cleanup = () => {
+            clearTimeout(cancelTimer);
             appUrlListener?.remove();
             browserFinishedListener?.remove();
         };
@@ -132,8 +136,16 @@ export function startNativeOAuth(path: string): Promise<NativeOAuthResult> {
 
         // Пользователь закрыл in-app browser сам, не дойдя до колбэка — ровно то же
         // событие, что 'popup_closed' в веб-варианте (см. oauthPopup.ts).
+        //
+        // НЕ отклоняем сразу: когда Custom Tab возвращает в приложение через диплинк
+        // (успешный вход), Android сначала сообщает о возврате в приложение
+        // (`browserFinished`) и лишь ПОТОМ доставляет сам `appUrlOpen` (проверено на
+        // эмуляторе: ~120 мс разницы). Мгновенный reject тут снимал слушатели раньше,
+        // чем приходил диплинк с токеном — вход "проходил", но приложение считало его
+        // отменой и оставалось неавторизованным. Даём диплинку шанс, и только потом
+        // считаем это отменой.
         Browser.addListener('browserFinished', () => {
-            finish(() => reject(new Error('popup_closed')));
+            cancelTimer = setTimeout(() => finish(() => reject(new Error('popup_closed'))), BROWSER_FINISHED_GRACE_MS);
         }).then((listener) => { browserFinishedListener = listener; });
 
         const separator = path.includes('?') ? '&' : '?';
