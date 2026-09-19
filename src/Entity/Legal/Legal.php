@@ -61,6 +61,7 @@ class Legal
         'Политики использования' => 'terms_of_use',
         'Политика конфиденциальности' => 'privacy_policy',
         'Публичная оферта' => 'public_offer',
+        'Права третьих лиц' => 'third_party',
     ];
 
     #[ORM\Id]
