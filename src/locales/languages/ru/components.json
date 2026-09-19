@@ -387,6 +387,9 @@
       "complaint": "Пожаловаться",
       "actions": "Действия"
     },
+    "recentlyWatched": {
+      "title": "Недавно просмотренные"
+    },
     "recommendations": {
       "title": "Свежие объявления",
       "noRecommendations": "Объявления отсутствуют"

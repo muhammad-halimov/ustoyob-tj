@@ -54,6 +54,10 @@ export interface AnnouncementCardProps extends Omit<TicketView, 'id' | 'price' |
   useManagedRespond?: boolean;
   onComplaintClick?: () => void;
   onReviewClick?: () => void;
+  /** Форсирует мобильную раскладку карточки на любой ширине экрана (обычно она включается только
+   *  media-запросами ≤768/≤440px) — для узких карточек в горизонтальных слайдерах на десктопе,
+   *  например "недавно просмотренные" на главной. См. миксины card-mobile/card-phone в scss. */
+  compact?: boolean;
 }
 
 // truncateText moved to src/utils/textHelper.ts
@@ -105,6 +109,7 @@ export function Card({
   responsesCount,
   approved,
   banned,
+  compact = false,
 }: AnnouncementCardProps) {
   const { t, i18n } = useTranslation(['components', 'ticket', 'common']);
   const [, forceUpdate] = useState({});
@@ -117,7 +122,7 @@ export function Card({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const truncateLimit = windowWidth <= 480 ? 100 : 200;
+  const truncateLimit = compact || windowWidth <= 480 ? 100 : 200;
   
   // Транслитерация имени автора (автоопределение языка)
   const translatedAuthor = useTranslatedName(author);
@@ -233,7 +238,7 @@ export function Card({
   const showActionsDropdown = !showEditButton && (onComplaintClick || onReviewClick);
 
   return (
-    <div className={styles.card} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
+    <div className={`${styles.card}${compact ? ` ${styles.card_compact}` : ''}`} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
       <Status
         type="error"
         isOpen={!!errorMessage}
@@ -479,18 +484,18 @@ export function Card({
                 onTouchEnd={(e) => e.stopPropagation()}
               >
                 {authorImage ? (
-                  <img src={authorImage} className={styles.card_author_avatar} alt="" />
+                  <img loading="lazy" decoding="async" src={authorImage} className={styles.card_author_avatar} alt="" />
                 ) : (
-                  <img src="/img/icons/icons/default_user.png" className={styles.card_author_avatar} alt="" />
+                  <img loading="lazy" decoding="async" src="/img/icons/icons/default_user.png" className={styles.card_author_avatar} alt="" />
                 )}
                 <Marquee text={translatedAuthor} alwaysScroll />
               </Link>
             ) : (
               <span className={styles.card_author}>
                 {authorImage ? (
-                  <img src={authorImage} className={styles.card_author_avatar} alt="" />
+                  <img loading="lazy" decoding="async" src={authorImage} className={styles.card_author_avatar} alt="" />
                 ) : (
-                  <img src="/img/icons/icons/default_user.png" className={styles.card_author_avatar} alt="" />
+                  <img loading="lazy" decoding="async" src="/img/icons/icons/default_user.png" className={styles.card_author_avatar} alt="" />
                 )}
                 <Marquee text={translatedAuthor} alwaysScroll />
               </span>

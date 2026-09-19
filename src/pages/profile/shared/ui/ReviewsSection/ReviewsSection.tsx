@@ -337,7 +337,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                 <div key={review.id} className={styles.review_item}>
                                     <div className={styles.review_header}>
                                         <div className={styles.reviewer_info}>
-                                            <img
+                                            <img loading="lazy" decoding="async"
                                                 src={getReviewAuthorAvatar(review)}
                                                 alt={getReviewAuthorName(review)}
                                                 onClick={() => handleAuthorClick(review)}
@@ -421,7 +421,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                     className={styles.review_image}
                                                     onClick={() => photoGallery.openGallery(getSortedReviewImageIndex(reviewIndex, imageIndex))}
                                                 >
-                                                    <img
+                                                    <img loading="lazy" decoding="async"
                                                         src={`${API_BASE_URL}/uploads/reviews/${image.image}`}
                                                         alt={`${t('profile:reviewPhotoAlt')} ${imageIndex + 1}`}
                                                         onError={(e) => {
@@ -462,7 +462,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                 {/* копия контента выше */}
                                                 <div className={styles.review_header}>
                                                     <div className={styles.reviewer_info}>
-                                                        <img
+                                                        <img loading="lazy" decoding="async"
                                                             src={getReviewAuthorAvatar(review)}
                                                             alt={getReviewAuthorName(review)}
                                                             onClick={() => handleAuthorClick(review)}
@@ -546,7 +546,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                                 className={styles.review_image}
                                                                 onClick={() => photoGallery.openGallery(getSortedReviewImageIndex(reviewIndex, imageIndex))}
                                                             >
-                                                                <img
+                                                                <img loading="lazy" decoding="async"
                                                                     src={`${API_BASE_URL}/uploads/reviews/${image.image}`}
                                                                     alt={`${t('profile:reviewPhotoAlt')} ${imageIndex + 1}`}
                                                                     onError={(e) => {
@@ -580,7 +580,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                         <div key={review.id} className={styles.review_item}>
                                             <div className={styles.review_header}>
                                                 <div className={styles.reviewer_info}>
-                                                    <img
+                                                    <img loading="lazy" decoding="async"
                                                         src={getReviewAuthorAvatar(review)}
                                                         alt={getReviewAuthorName(review)}
                                                         onClick={() => handleAuthorClick(review)}
@@ -664,7 +664,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                             className={styles.review_image}
                                                             onClick={() => photoGallery.openGallery(getSortedReviewImageIndex(reviewIndex, imageIndex))}
                                                         >
-                                                            <img
+                                                            <img loading="lazy" decoding="async"
                                                                 src={`${API_BASE_URL}/uploads/reviews/${image.image}`}
                                                                 alt={`${t('profile:reviewPhotoAlt')} ${imageIndex + 1}`}
                                                                 onError={(e) => {

@@ -104,7 +104,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                                                 onDragStart={() => workDrag.handleDragStart(index)}
                                             />
                                         )}
-                                        <img
+                                        <img loading="lazy" decoding="async"
                                             src={getImageUrlWithCacheBust(work.image)}
                                             alt={work.title}
                                             draggable={false}

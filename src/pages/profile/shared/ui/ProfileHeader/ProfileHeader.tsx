@@ -238,14 +238,14 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                     style={{ cursor: avatar ? 'pointer' : 'default' }}
                 >
                     {avatar ? (
-                        <img
+                        <img decoding="async"
                             src={avatar}
                             alt="Аватар"
                             className={styles.avatar}
                             onError={onImageError}
                         />
                     ) : (
-                        <img
+                        <img decoding="async"
                             src='/img/icons/icons/default_user.png'
                             alt="Default Avatar"
                             className={styles.avatar_placeholder}

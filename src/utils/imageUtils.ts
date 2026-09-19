@@ -1,6 +1,7 @@
 import { API_BASE_URL } from './configUtils';
 import { universalApiRequest } from './apiUtils';
 import { API_ROUTES } from '../app/routers/routes';
+import { compressImageFile } from './imageCompressUtils';
 
 // ─── Форматирование URL изображений ──────────────────────────
 const buildImageUrl = (imagePath: string, defaultFolder: string): string => {
@@ -34,8 +35,13 @@ export const uploadPhotos = async (
     files: File[],
     guestToken?: string | null,
 ): Promise<any> => {
+    // Сжимаем до отправки (canvas) — см. imageCompressUtils; аватар (`users`) сильнее, он
+    // показывается только маленьким. Сбой сжатия = отправляем оригинал, загрузка не ломается.
+    const maxSide = endpoint === 'users' ? 1024 : 1920;
+    const prepared = await Promise.all(files.map(file => compressImageFile(file, { maxSide })));
+
     const formData = new FormData();
-    for (const file of files) {
+    for (const file of prepared) {
         formData.append('imageFile[]', file);
     }
 

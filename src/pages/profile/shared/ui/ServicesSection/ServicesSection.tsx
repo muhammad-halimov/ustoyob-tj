@@ -96,7 +96,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                 onClick={() => navigate(ROUTES.TICKET_BY_ID(service.id))}
             >
                 <div className={styles.service_image}>
-                    <img
+                    <img loading="lazy" decoding="async"
                         src={getServiceImage(service)}
                         alt={titleText}
                         onError={handleImageError}

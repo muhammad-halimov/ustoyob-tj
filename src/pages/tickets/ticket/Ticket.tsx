@@ -5,6 +5,7 @@ import { getAuthorAvatar, formatTicketImageUrl } from '../../../utils/imageUtils
 import { formatLocalizedDate, getTimeAgo } from '../../../utils/timeUtils';
 import styles from './Ticket.module.scss';
 import {createTicketChat, resolveTicketChat, getChatsWithUser, initChatModals} from "../../../utils/chatUtils";
+import {recordRecentlyWatched} from '../../../utils/recentlyWatchedUtils';
 import Auth from "../../../shared/ui/Modal/Auth/Auth";
 import {smartNameTranslator, textHelper} from "../../../utils/textUtils";
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
@@ -148,6 +149,15 @@ export function Ticket() {
 
         loadData();
     }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // История "недавно просмотренные": залогиненный — POST /api/recently-watched, гость —
+    // localStorage (см. utils/recentlyWatchedUtils). Оба upsert, безопасно на каждое открытие.
+    // Не на собственных объявлениях — там смотреть нечего.
+    useEffect(() => {
+        if (!order?.id) return;
+        if (order.authorId != null && currentUserId != null && String(order.authorId) === String(currentUserId)) return;
+        recordRecentlyWatched(order.id);
+    }, [order?.id, currentUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (order) {
@@ -942,7 +952,7 @@ export function Ticket() {
                 <section className={styles.section}>
                     <div className={styles.descriptionPhotoRow}>
                         {order.photos && order.photos.length > 0 && (
-                            <Carousel photos={order.photos} className={styles.ticketCarousel} />
+                            <Carousel photos={order.photos} className={styles.ticketCarousel} priority />
                         )}
                         <div className={styles.descriptionCol}>
                             <h2 className={styles.section_about}>{t('ticket:description')}</h2>
@@ -990,7 +1000,7 @@ export function Ticket() {
 
                 <section className={styles.section}>
                     <div className={styles.section_photo}>
-                        <img
+                        <img loading="lazy" decoding="async"
                             src={order.authorImage || '/img/icons/icons/default_user.png'}
                             alt="authorImage"
                             onClick={() => handleProfileClick(order.authorId!)}

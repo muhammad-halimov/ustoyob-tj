@@ -921,7 +921,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                     {ticket.images!.map(img => {
                                         const url = formatTechSupportImageUrl(img.image);
                                         return (
-                                            <img
+                                            <img loading="lazy" decoding="async"
                                                 key={img.id}
                                                 src={url}
                                                 alt=""
@@ -1047,7 +1047,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                                     {msg.images.map(img => {
                                                         const url = formatTechSupportMessageImageUrl(img.image);
                                                         return (
-                                                            <img
+                                                            <img loading="lazy" decoding="async"
                                                                 key={img.id}
                                                                 src={url}
                                                                 alt=""

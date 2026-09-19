@@ -37,7 +37,7 @@ export function Performers({ items, getButtonText, onItemClick }: PerformersProp
                                 onClick={() => onItemClick(item)}
                             />
                         </div>
-                        <img src={item.img} alt={item.name} />
+                        <img loading="lazy" decoding="async" src={item.img} alt={item.name} />
                     </div>
                 ))}
             </div>
@@ -65,7 +65,7 @@ export function Performers({ items, getButtonText, onItemClick }: PerformersProp
                                         onClick={() => onItemClick(item)}
                                     />
                                 </div>
-                                <img src={item.img} alt={item.name} />
+                                <img loading="lazy" decoding="async" src={item.img} alt={item.name} />
                             </div>
                         </SwiperSlide>
                     ))}
