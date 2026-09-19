@@ -7,7 +7,7 @@ import styles from './Ticket.module.scss';
 import {createTicketChat, resolveTicketChat, getChatsWithUser, initChatModals} from "../../../utils/chatUtils";
 import {recordRecentlyWatched} from '../../../utils/recentlyWatchedUtils';
 import Auth from "../../../shared/ui/Modal/Auth/Auth";
-import {smartNameTranslator, textHelper} from "../../../utils/textUtils";
+import {smartNameTranslator, textHelper, decodeHtmlEntities} from "../../../utils/textUtils";
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import {useTranslation} from 'react-i18next';
 import {getStorageItem} from '../../../utils/storageUtils';
@@ -16,6 +16,7 @@ import Feedback from '../../../shared/ui/Modal/Feedback';
 import {ExistingChatChoice} from '../../../shared/ui/Modal/ExistingChatChoice/ExistingChatChoice';
 import { Carousel } from '../../../shared/ui/Photo/Carousel';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
+import { Markdown } from '../../../shared/ui/Text/Markdown';
 import {useFavorites} from '../../../hooks/useFavorites.ts';
 import {ROUTES, API_ROUTES} from '../../../app/routers/routes';
 import {ReviewsSection} from '../../profile/shared/ui/ReviewsSection';
@@ -339,7 +340,8 @@ export function Ticket() {
                 title: ticketData.title ? textHelper(ticketData.title) : t('ticket:noTitle'),
                 price: ticketData.budget || 0,
                 unit: (typeof ticketData.unit === 'object' ? ticketData.unit?.title : ticketData.unit) || 'N/A',
-                description: ticketData.description ? textHelper(ticketData.description) : t('ticket:noDescription'),
+                // decodeHtmlEntities, не textHelper: textHelper схлопывает переносы строк, а Markdown они нужны
+                description: ticketData.description ? decodeHtmlEntities(ticketData.description) : t('ticket:noDescription'),
                 address: fullAddress,
                 date: formatLocalizedDate(ticketData.createdAt ?? '', t),
                 author: displayUserName,
@@ -348,9 +350,9 @@ export function Ticket() {
                 category: ticketData.category?.title ? textHelper(ticketData.category.title) : t('components:app.service'),
                 categoryId: ticketData.category?.id || 0,
                 subcategory: ticketData.subcategory?.title ? textHelper(ticketData.subcategory.title) : undefined,
-                additionalComments: ticketData.notice ? textHelper(ticketData.notice) : undefined,
+                additionalComments: ticketData.notice ? decodeHtmlEntities(ticketData.notice) : undefined,
                 photos: photos.length > 0 ? photos : undefined,
-                notice: ticketData.notice ? textHelper(ticketData.notice) : undefined,
+                notice: ticketData.notice ? decodeHtmlEntities(ticketData.notice) : undefined,
                 rating: userRating,
                 authorImage: displayUserImage || undefined,
                 active: ticketData.active,
@@ -956,7 +958,7 @@ export function Ticket() {
                         )}
                         <div className={styles.descriptionCol}>
                             <h2 className={styles.section_about}>{t('ticket:description')}</h2>
-                            <p className={styles.description}>{order.description ? textHelper(order.description) : t('ticket:noDescription')}</p>
+                            <Markdown text={order.description || t('ticket:noDescription')} className={styles.description} />
                         </div>
                     </div>
                 </section>
@@ -991,9 +993,7 @@ export function Ticket() {
                 <section className={styles.section}>
                     <h2 className={styles.section_more}>{t('ticket:additionalComments')}</h2>
                     <div className={styles.commentsContent}>
-                        <p>{order.additionalComments
-                            ? textHelper(order.additionalComments)
-                            : t('ticket:commentsPlaceholder')}</p>
+                        <Markdown text={order.additionalComments || t('ticket:commentsPlaceholder')} />
                     </div>
                 </section>
 

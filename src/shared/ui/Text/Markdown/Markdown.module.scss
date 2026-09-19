@@ -1,0 +1,40 @@
+.markdown {
+  overflow-wrap: anywhere;
+
+  :where(p) { margin: 0 0 0.6em; }
+  :where(ul, ol) { margin: 0 0 0.6em; padding-left: 1.4em; }
+  :where(li) { margin: 0.2em 0; }
+  :where(strong) { font-weight: 600; }
+  :where(a) { color: var(--color-primary); text-decoration: underline; }
+  :where(hr) { border: 0; border-top: 1px solid rgba(128, 128, 128, 0.35); margin: 0.8em 0; }
+
+  :where(code) {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.9em;
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+    background: rgba(128, 128, 128, 0.15);
+  }
+
+  :where(pre) {
+    margin: 0 0 0.6em;
+    padding: 0.7em 0.9em;
+    border-radius: 8px;
+    background: rgba(128, 128, 128, 0.15);
+    overflow-x: auto;
+
+    code { padding: 0; background: none; }
+  }
+
+  :where(blockquote) {
+    margin: 0 0 0.6em;
+    padding-left: 0.9em;
+    border-left: 3px solid var(--color-primary);
+    opacity: 0.85;
+  }
+
+  :where(table) { border-collapse: collapse; margin: 0 0 0.6em; }
+  :where(th, td) { border: 1px solid rgba(128, 128, 128, 0.35); padding: 0.3em 0.6em; }
+
+  > :last-child { margin-bottom: 0; }
+}

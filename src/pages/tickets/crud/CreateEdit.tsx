@@ -17,6 +17,7 @@ import Grid, { PhotoItem, buildOrderedImagePayload } from '../../../shared/ui/Ph
 import { uploadPhotos } from '../../../utils/imageUtils';
 import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
+import { Markdown } from '../../../shared/ui/Text/Markdown';
 import type { Category, Occupation, Image, Unit, TicketFormData } from '../../../entities';
 import { universalApiRequest } from '../../../utils/apiUtils';
 import { getCategories, getOccupations, getUnits } from '../../../utils/dataCacheUtils';
@@ -586,6 +587,13 @@ const CreateEdit = () => {
                             className={styles.descriptionTextarea}
                             required
                         />
+                        <div className={styles.markdownHint}>{t('createEdit:markdownHint')}</div>
+                        {serviceData.description.trim() && (
+                            <div className={styles.markdownPreview}>
+                                <span className={styles.markdownPreviewLabel}>{t('createEdit:previewLabel')}</span>
+                                <Markdown text={serviceData.description} />
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -604,6 +612,12 @@ const CreateEdit = () => {
                             rows={isEditMode ? 3 : 2}
                             className={styles.descriptionTextarea}
                         />
+                        {serviceData.notice?.trim() && (
+                            <div className={styles.markdownPreview}>
+                                <span className={styles.markdownPreviewLabel}>{t('createEdit:previewLabel')}</span>
+                                <Markdown text={serviceData.notice} />
+                            </div>
+                        )}
                     </div>
                 </div>
 

@@ -91,7 +91,7 @@ Separate top-level routes (not nested under Layout) handle OAuth:
 - Subscribes to `languageChanged` event to clear cache on language switch.
 
 ### Config (`src/utils/configUtils.ts`)
-- `API_BASE_URL` = `import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'`.
+- `API_BASE_URL` = `import.meta.env.VITE_API_BASE_URL` (пусто = относительные URL → dev-прокси Vite).
 - Dev server proxies `/api` and `/uploads` to `VITE_PROXY_BASE_URL` (see `vite.config.ts`).
 
 ---
@@ -274,7 +274,7 @@ npm run lint    # ESLint check
 - Redux store is mostly empty (temp placeholder); add slices as features expand.
 - React.StrictMode disabled to prevent double-fetching in dev; re-enable when features stabilize.
 - Test suite not discovered; rely on dev server checks and `npm run build` validation.
-- README only mentions `REACT_APP_API_BASE_URL`; canonical env var is `VITE_API_BASE_URL`.
+- Полное описание env-переменных, Telegram-ботов и известных граблей — в `README.md`.
 
 ---
 

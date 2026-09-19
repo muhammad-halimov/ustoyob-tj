@@ -25,6 +25,7 @@ export const ROUTES = {
     PRIVACY_POLICY: '/legal/privacy-policy',
     TERMS_OF_USE: '/legal/terms-of-use',
     PUBLIC_OFFER: '/legal/public-offer',
+    THIRD_PARTY: '/legal/third-party',
 
     // Поддержка
     TECH_SUPPORT: '/support',
@@ -182,6 +183,7 @@ export const ROUTE_PATTERNS = {
     PRIVACY_POLICY: 'legal/privacy-policy',
     TERMS_OF_USE: 'legal/terms-of-use',
     PUBLIC_OFFER: 'legal/public-offer',
+    THIRD_PARTY: 'legal/third-party',
     TECH_SUPPORT: 'support',
     NOT_FOUND: '*',
 

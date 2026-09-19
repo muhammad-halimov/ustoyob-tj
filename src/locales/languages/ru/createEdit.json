@@ -44,5 +44,7 @@
   "addressError": "Ошибка в данных адреса",
   "genericError": "Произошла ошибка",
   "ticketLoadError": "Ошибка при загрузке данных тикета",
-  "photoDeleteConfirm": "Вы уверены, что хотите удалить это фото?"
+  "photoDeleteConfirm": "Вы уверены, что хотите удалить это фото?",
+  "markdownHint": "Поддерживается Markdown: **жирный**, *курсив*, - списки, [ссылка](https://…)",
+  "previewLabel": "Предпросмотр"
 }
