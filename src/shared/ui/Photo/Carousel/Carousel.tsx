@@ -10,9 +10,12 @@ const SWIPE_THRESHOLD = 40;
 interface PhotoCarouselProps {
   photos: string[];
   className?: string;
+  /** Главное фото грузить сразу (hero на странице тикета). По умолчанию — lazy: карусель в основном
+   *  живёт в карточках лент, где фото вне экрана не должны качаться заранее. */
+  priority?: boolean;
 }
 
-export function Carousel({ photos, className }: PhotoCarouselProps) {
+export function Carousel({ photos, className, priority = false }: PhotoCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
@@ -103,6 +106,8 @@ export function Carousel({ photos, className }: PhotoCarouselProps) {
           className={styles.main_photo}
           alt=""
           draggable={false}
+          loading={priority ? 'eager' : 'lazy'}
+          decoding="async"
         />
         {photos.length > 1 && (
           <>
@@ -155,6 +160,8 @@ export function Carousel({ photos, className }: PhotoCarouselProps) {
                   onTouchEnd={(e) => handleThumbTouchEnd(realIdx, e)}
                   alt=""
                   draggable={false}
+                  loading="lazy"
+                  decoding="async"
                 />
               );
             })}

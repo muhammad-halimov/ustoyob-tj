@@ -1452,7 +1452,7 @@ function Chat() {
                                             локальный image — иначе у OAuth-пользователей без своей загруженной
                                             фотки в чате всегда показывались только инициалы. */}
                                         {getAuthorAvatar(interlocutor, '') ? (
-                                            <img
+                                            <img loading="lazy" decoding="async"
                                                 src={getAuthorAvatar(interlocutor, '')}
                                                 className={styles.avatarImage}
                                                 alt={getTranslatedFullName(interlocutor)}
@@ -1555,7 +1555,7 @@ function Chat() {
                                     <div className={styles.avatar}>
                                         {/* см. комментарий у аватарки в списке чатов — учитываем imageExternalUrl */}
                                         {getAuthorAvatar(currentInterlocutor, '') ? (
-                                            <img
+                                            <img decoding="async"
                                                 src={getAuthorAvatar(currentInterlocutor, '')}
                                                 className={styles.avatarImage}
                                                 alt={getTranslatedFullName(currentInterlocutor)}
@@ -1728,7 +1728,7 @@ function Chat() {
                                                                 {msg.images && msg.images.length > 0 && (
                                                                     <div className={`${styles.messageImagesGrid} ${msg.images.length === 1 ? styles.messageImages1 : msg.images.length === 2 ? styles.messageImages2 : styles.messageImages3}`}>
                                                                         {msg.images.map((img) => (
-                                                                            <img
+                                                                            <img loading="lazy" decoding="async"
                                                                                 key={img.id}
                                                                                 src={img.url}
                                                                                 alt=""

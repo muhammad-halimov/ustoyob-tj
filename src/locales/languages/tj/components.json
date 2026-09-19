@@ -387,6 +387,9 @@
       "complaint": "Шикоят кардан",
       "actions": "Амалҳо"
     },
+    "recentlyWatched": {
+      "title": "Ахиран дидашуда"
+    },
     "recommendations": {
       "title": "Эълонҳои тоза",
       "noRecommendations": "Эълонҳо вуҷуд надоранд"

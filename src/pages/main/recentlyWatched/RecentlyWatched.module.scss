@@ -1,0 +1,95 @@
+@use '../../../app/styles/variables' as vars;
+
+// Тот же контейнер/заголовок, что у блока "Свежие объявления" (Main.module.scss).
+.wrapper {
+  @include vars.Container;
+  margin: 60px auto 0;
+
+  @media (max-width: 1200px) {
+    padding: 0 20px;
+  }
+
+  @media (max-width: 768px) {
+    margin-top: 40px;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 40px;
+
+  @media (max-width: 768px) {
+    margin-bottom: 20px;
+  }
+}
+
+.title {
+  font-size: 36px;
+  font-weight: 400;
+  color: #000;
+  margin: 0;
+
+  @media (max-width: 768px) {
+    font-size: 24px;
+    font-weight: 600;
+  }
+}
+
+.arrows {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+
+  // На тач-устройствах карусель листается свайпом — стрелки только для мыши.
+  @media (hover: none) {
+    display: none;
+  }
+}
+
+.arrow {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--color-hover-with-border-btn);
+  background: var(--color-background-primary);
+  color: var(--color-text-black);
+  font-size: 20px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, opacity 0.2s;
+
+  &:hover:not(:disabled) {
+    border-color: var(--color-actual-blue);
+    color: var(--color-actual-blue);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+}
+
+.slider {
+  // Карточки в слайдере разной высоты — даём тени/hover место, чтобы их не срезало overflow'ом Swiper.
+  padding: 4px 4px 12px;
+  margin: -4px -4px -12px;
+}
+
+// slidesPerView="auto": ширину слайда задаёт CSS. Это ширина обычной мобильной карточки;
+// на узких экранах слайд не шире экрана минус боковые отступы страницы.
+.slide {
+  width: 340px;
+  max-width: calc(100vw - 50px);
+  height: auto;
+}
+
+:global(html[data-theme="dark"]) {
+  .title {
+    color: var(--color-text-black);
+  }
+}

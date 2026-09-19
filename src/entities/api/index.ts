@@ -8,6 +8,7 @@ export * from './Misc';
 export * from './OAuth';
 export * from './Occupation';
 export * from './Phone';
+export * from './RecentlyWatched';
 export * from './Review';
 export * from './SocialNetwork';
 export * from './Ticket';

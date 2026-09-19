@@ -89,7 +89,7 @@ const Grid: React.FC<PhotoGridProps> = ({
                         className={styles.dragHandleOverlay}
                         draggable={false}
                     />
-                    <img
+                    <img loading="lazy" decoding="async"
                         draggable={false}
                         onContextMenu={(e) => e.preventDefault()}
                         src={photo.type === 'existing' ? getImageUrl(photo.image) : photo.previewUrl}

@@ -581,7 +581,7 @@ function Category() {
                                     }
                                 }}
                             >
-                                <img
+                                <img decoding="async"
                                     src="/img/icons/icons/default_all.png"
                                     alt={t('category:allSubcategories', 'Все')}
                                     className={styles.img_fallback}
@@ -609,7 +609,7 @@ function Category() {
                                     }
                                 }}
                             >
-                                <img
+                                <img decoding="async"
                                     src={formatOccupationImageUrl(occupation.image ?? undefined)}
                                     alt={occupation.title}
                                     className={!occupation.image ? styles.img_fallback : undefined}

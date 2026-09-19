@@ -266,7 +266,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                 }]}
                             />
                             <div className={styles.reviews_naming}>
-                                <img
+                                <img loading="lazy" decoding="async"
                                     src={getReviewAuthorAvatarUrl(review)}
                                     alt={getReviewAuthorName(review)}
                                     onClick={() => handleAuthorProfileClick(review)}
@@ -314,7 +314,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                 {review.images && review.images.length > 0 && (
                                     <div className={styles.review_images}>
                                         {review.images.slice(0, 3).map((image: any, imageIndex: any) => (
-                                            <img
+                                            <img loading="lazy" decoding="async"
                                                 key={image.id}
                                                 src={getReviewImageUrl(image.image)}
                                                 alt="Отзыв"
@@ -367,7 +367,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                         }]}
                                     />
                                     <div className={styles.reviews_naming}>
-                                        <img
+                                        <img loading="lazy" decoding="async"
                                             src={getReviewAuthorAvatarUrl(review)}
                                             alt={getReviewAuthorName(review)}
                                             onClick={() => handleAuthorProfileClick(review)}
@@ -415,7 +415,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                         {review.images && review.images.length > 0 && (
                                             <div className={styles.review_images}>
                                                 {review.images.slice(0, 2).map((image: any, imageIndex: any) => (
-                                                    <img
+                                                    <img loading="lazy" decoding="async"
                                                         key={image.id}
                                                         src={getReviewImageUrl(image.image)}
                                                         alt="Отзыв"

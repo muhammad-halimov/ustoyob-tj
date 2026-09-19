@@ -141,6 +141,9 @@ export const API_ROUTES = {
     FAVORITES_ME: '/api/favorites/me',
     FAVORITE_BY_ID: (id: number | string) => `/api/favorites/${id}`,
 
+    // Recently watched (недавно просмотренные тикеты текущего пользователя)
+    RECENTLY_WATCHED: '/api/recently-watched',
+
     // Blacklist
     BLACKLIST: '/api/black-lists',
     BLACKLIST_ME: '/api/black-lists/me',

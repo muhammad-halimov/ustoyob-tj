@@ -191,7 +191,7 @@ export default function Category() {
                                 }
                             }}
                         >
-                            <img
+                            <img decoding="async"
                                 src={getImageUrl(item.image)}
                                 alt={item.title}
                                 onError={(e) => {

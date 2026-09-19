@@ -77,7 +77,7 @@ export function MediaSidebar({
                 <div className={styles.thumbnails}>
                     {images.map((image, index) => (
                         <div key={image.id} className={styles.thumbnail} onClick={() => onOpenGallery(index)}>
-                            <img
+                            <img loading="lazy" decoding="async"
                                 src={image.url}
                                 alt={thumbnailAlt?.(index) ?? ''}
                                 className={styles.thumbnailImage}

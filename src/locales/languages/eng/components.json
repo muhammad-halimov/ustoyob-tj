@@ -387,6 +387,9 @@
       "complaint": "Report",
       "actions": "Actions"
     },
+    "recentlyWatched": {
+      "title": "Recently viewed"
+    },
     "recommendations": {
       "title": "Fresh announcements",
       "noRecommendations": "No announcements"

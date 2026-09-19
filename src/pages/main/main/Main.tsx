@@ -3,6 +3,7 @@ import Search from "../search/search/Search";
 import Category from "../categories/Category";
 import { MainReviewsSection } from "../reviews";
 import Recommendations from "../recommendations/Recommendations";
+import RecentlyWatched from "../recentlyWatched/RecentlyWatched";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes';
@@ -215,6 +216,7 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
                     </div>
 
                     {/*<About />*/}
+                    <RecentlyWatched />
                     <div className={styles.recommendationsWrapper}>
                         <h3 className={styles.recommendationsTitle}>{t('pages.recommendations.title')}</h3>
                         <Recommendations />

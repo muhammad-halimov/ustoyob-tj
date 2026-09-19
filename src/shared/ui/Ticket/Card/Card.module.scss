@@ -615,197 +615,211 @@
   }
 }
 
-// Адаптивность
-@media (max-width: 768px) {
-  .card {
+// Мобильная раскладка карточки — в миксинах, чтобы ту же раскладку можно было форсировать
+// на любой ширине (проп `compact` у Card — слайдер "недавно просмотренные" на главной),
+// а не только под media-запросом. $s — скоуп для потомков: '' под media-запросом,
+// '.card_compact ' для форсированной версии; $root — сам корень карточки.
+@mixin card-mobile($s: '', $root: '.card') {
+  @at-root #{$root} {
     padding: 15px;
     min-height: auto;
     user-select: none;
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
+  }
 
-    &_top_controls {
-      flex-wrap: wrap;
-      gap: 8px;
-    }
+  @at-root #{$s}.card_top_controls {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
 
-    &_top_actions {
-      flex-wrap: wrap;
-      gap: 4px;
-      justify-content: space-between;
-    }
+  @at-root #{$s}.card_top_actions {
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: space-between;
+  }
 
-    &_active_toggle {
-      order: 1;
-    }
+  @at-root #{$s}.card_active_toggle {
+    order: 1;
 
-    &_action_buttons {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      order: 2;
-    }
-
-    &_favorite_button {
-      min-width: 44px;
-      min-height: 44px;
-      padding: 10px;
-      margin: -4px; /* compensate for extra padding without changing layout */
-    }
-
-    &_edit_button {
-      min-width: 44px;
-      min-height: 44px;
-      padding: 10px;
-      margin: -4px;
-    }
-
-    &_header {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 12px;
-
-      .card_title {
-        font-size: 24px;
-        max-width: 100%;
-      }
-    }
-
-    &_active_toggle {
-      .toggle_label {
-        font-size: 12px;
-      }
-    }
-
-    &_price {
-      font-size: 18px;
-    }
-
-    &_description {
-      font-size: 20px;
-    }
-
-    &_content_row {
-      flex-direction: column;
-    }
-
-    &_photo_slider {
-      flex: none;
-      max-width: 100%;
-      width: 100%;
-    }
-
-    &_details {
-      span {
-        font-size: 20px;
-      }
-    }
-
-    &_footer {
-      gap: 12px;
-
-      span {
-        font-size: 20px;
-      }
-    }
-
-    &_stats {
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-
-    &_bottom_row {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 8px;
-    }
-
-    &_author_section {
-      width: 100%;
-    }
-
-    &_rating {
-      .rating_value {
-        font-size: 14px;
-      }
-    }
-
-    &_reviews {
-      .reviews_count {
-        font-size: 14px;
-      }
-    }
-
-    &_footer_right {
-      width: 100%;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    &_categories {
-      order: 2;
-      width: 100%;
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
-    &_category {
-      order: 2;
-      width: 100%;
-    }
-
-    &_subcategory {
-      order: 1;
-      width: 100%;
-    }
-
-    &_respond_desktop {
-      display: none;
-    }
-
-    &_respond_mobile {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      order: 3;
+    .toggle_label {
+      font-size: 12px;
     }
   }
+
+  @at-root #{$s}.card_action_buttons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    order: 2;
+  }
+
+  @at-root #{$s}.card_favorite_button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px;
+    margin: -4px; /* compensate for extra padding without changing layout */
+  }
+
+  @at-root #{$s}.card_edit_button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px;
+    margin: -4px;
+  }
+
+  @at-root #{$s}.card_header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+
+    .card_title {
+      font-size: 24px;
+      max-width: 100%;
+    }
+  }
+
+  @at-root #{$s}.card_price {
+    font-size: 18px;
+  }
+
+  @at-root #{$s}.card_description {
+    font-size: 20px;
+  }
+
+  @at-root #{$s}.card_content_row {
+    flex-direction: column;
+  }
+
+  @at-root #{$s}.card_photo_slider {
+    flex: none;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  @at-root #{$s}.card_details {
+    span {
+      font-size: 20px;
+    }
+  }
+
+  @at-root #{$s}.card_footer {
+    gap: 12px;
+
+    span {
+      font-size: 20px;
+    }
+  }
+
+  @at-root #{$s}.card_stats {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  @at-root #{$s}.card_bottom_row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  @at-root #{$s}.card_author_section {
+    width: 100%;
+  }
+
+  @at-root #{$s}.card_rating {
+    .rating_value {
+      font-size: 14px;
+    }
+  }
+
+  @at-root #{$s}.card_reviews {
+    .reviews_count {
+      font-size: 14px;
+    }
+  }
+
+  @at-root #{$s}.card_footer_right {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  @at-root #{$s}.card_categories {
+    order: 2;
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  @at-root #{$s}.card_category {
+    order: 2;
+    width: 100%;
+  }
+
+  @at-root #{$s}.card_subcategory {
+    order: 1;
+    width: 100%;
+  }
+
+  @at-root #{$s}.card_respond_desktop {
+    display: none;
+  }
+
+  @at-root #{$s}.card_respond_mobile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    order: 3;
+  }
+}
+
+// Раскладка совсем узких экранов (≤440px): действия карточки уходят в правый верхний угол.
+@mixin card-phone($s: '') {
+  @at-root #{$s}.card_top_controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  @at-root #{$s}.card_top_actions {
+    width: 100%;
+  }
+
+  @at-root #{$s}.card_dropdown_wrapper {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    z-index: 2;
+  }
+
+  @at-root #{$s}.card_favorite_button {
+    position: absolute;
+    top: 13px;
+    right: 55px;
+    z-index: 2;
+  }
+
+  @at-root #{$s}.card_favorite_no_dropdown {
+    position: absolute;
+    top: 13px;
+    right: 15px;
+    z-index: 2;
+  }
+}
+
+// Адаптивность
+@media (max-width: 768px) {
+  @include card-mobile();
 }
 
 @media (max-width: 440px) {
-  .card {
-    &_top_controls {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
-    &_top_actions {
-      width: 100%;
-    }
-
-    &_dropdown_wrapper {
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      z-index: 2;
-    }
-
-    &_favorite_button {
-      position: absolute;
-      top: 13px;
-      right: 55px;
-      z-index: 2;
-    }
-
-    &_favorite_no_dropdown {
-      position: absolute;
-      top: 13px;
-      right: 15px;
-      z-index: 2;
-    }
-  }
+  @include card-phone();
 }
+
+// Форсированная мобильная версия (проп `compact` у Card) — те же две раскладки на любой
+// ширине экрана. Идёт после media-запросов и специфичнее их (доп. класс-скоуп).
+@include card-mobile('.card_compact ', '.card.card_compact');
+@include card-phone('.card_compact ');
 
 :global(html[data-theme="dark"]) {
   .card {
