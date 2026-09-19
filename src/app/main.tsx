@@ -24,6 +24,7 @@ import { ThemeProvider, NetworkProvider } from '../contexts';
 import { OfflineGate } from '../widgets/OfflineGate';
 import { clearCache, preloadData } from '../utils/dataCacheUtils';
 import { loadAppMessages } from '../utils/appMessagesUtils';
+import { isNativePlatform, initNativeOAuthDeepLinks } from '../utils/mobileOAuth';
 
 // Инициализируем кеш данных при старте приложения
 clearCache('occupations');
@@ -36,6 +37,10 @@ window.addEventListener('languageChanged', () => {
 preloadData();
 
 loadAppMessages();
+
+// Мобильное приложение: OAuth возвращается диплинком из in-app browser — слушаем его всегда,
+// а не только пока открыта модалка входа (см. utils/mobileOAuth.ts).
+if (isNativePlatform()) initNativeOAuthDeepLinks();
 
 createRoot(document.getElementById('root')!).render(
     // <React.StrictMode> // Временно отключено для тестирования дубликатов

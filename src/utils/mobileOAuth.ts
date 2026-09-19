@@ -30,9 +30,12 @@
  * the website covers both. Until that's deployed, native OAuth will open the browser but
  * never complete the round trip back to the app.
  */
-import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { App, type URLOpenListenerEvent } from '@capacitor/app';
+import { ROUTES } from '../app/routers/routes';
+import { setAuthToken, setUserRole, setUserOccupation, fetchCurrentUser, isAdmin, getUserRole } from './authUtils';
+import type { Occupation } from '../entities';
 
 /**
  * Public website origin. The in-app browser is pointed here — never at the packaged app's
@@ -45,8 +48,14 @@ export const APP_WEB_ORIGIN: string = (import.meta.env.VITE_APP_ORIGIN as string
 export const OAUTH_APP_SCHEME = 'tj.ustoyob.app';
 const OAUTH_CALLBACK_HOST = 'oauth-callback';
 const MOBILE_FLOW_STORAGE_KEY = 'mobileOAuthFlow';
-/** How long to wait for `appUrlOpen` after `browserFinished` before treating it as a cancel. */
+/**
+ * How long the auth modal keeps waiting for the deep link after `browserFinished` before it
+ * stops its spinner as a "cancelled". Only affects the modal's UI — a link that arrives later
+ * is still handled by the always-on listener (see `initNativeOAuthDeepLinks`).
+ */
 const BROWSER_FINISHED_GRACE_MS = 1500;
+/** Last deep-link token we already acted on — guards against the OS replaying the same intent. */
+const HANDLED_TOKEN_STORAGE_KEY = 'nativeOAuthHandledToken';
 
 export const isNativePlatform = (): boolean => Capacitor.isNativePlatform();
 
@@ -91,66 +100,126 @@ export interface NativeOAuthResult {
     token: string;
 }
 
+interface PendingFlow {
+    resolve: (result: NativeOAuthResult) => void;
+    reject: (err: Error) => void;
+}
+
+/** The auth modal's in-flight `startNativeOAuth` call, if any (only one at a time). */
+let pendingFlow: PendingFlow | null = null;
+
+/**
+ * Signs the user in from a bare JWT (no auth modal involved): stores the token, hydrates the
+ * user via /users/me, derives role/occupation the same way the modal does, then reloads so
+ * the whole app picks up the logged-in state. Used when the deep link arrives when nothing is
+ * waiting for it — the modal already gave up, or the app was restarted while the user was in
+ * the browser.
+ */
+async function completeNativeLogin(token: string): Promise<void> {
+    setAuthToken(token);
+
+    const user = await fetchCurrentUser();
+    if (user) {
+        const roles = (user.roles || []).map((r) => r.toLowerCase());
+        setUserRole(roles.includes('role_master') || roles.includes('master') ? 'master' : 'client');
+        if (user.occupation) setUserOccupation(user.occupation as Occupation[]);
+    } else if (!getUserRole()) {
+        setUserRole('client');
+    }
+
+    window.dispatchEvent(new Event('login'));
+    if (isAdmin()) window.location.href = ROUTES.TECH_SUPPORT;
+    else window.location.reload();
+}
+
+function wasTokenHandled(token: string): boolean {
+    try { return localStorage.getItem(HANDLED_TOKEN_STORAGE_KEY) === token; } catch { return false; }
+}
+
+function rememberHandledToken(token: string): void {
+    try { localStorage.setItem(HANDLED_TOKEN_STORAGE_KEY, token); } catch { /* ignore */ }
+}
+
+function handleOAuthDeepLink(rawUrl: string): void {
+    let url: URL;
+    try { url = new URL(rawUrl); } catch { return; }
+    if (url.host !== OAUTH_CALLBACK_HOST && !url.pathname.includes(OAUTH_CALLBACK_HOST)) return;
+
+    Browser.close().catch(() => { /* already closing itself */ });
+
+    const token = url.searchParams.get('token');
+    if (url.searchParams.get('status') === 'success' && token) {
+        if (wasTokenHandled(token)) return;
+        rememberHandledToken(token);
+
+        if (pendingFlow) {
+            const flow = pendingFlow;
+            pendingFlow = null;
+            flow.resolve({ token });
+        } else {
+            completeNativeLogin(token).catch(() => { /* leave the user on the current screen */ });
+        }
+        return;
+    }
+
+    if (pendingFlow) {
+        const flow = pendingFlow;
+        pendingFlow = null;
+        flow.reject(new Error(url.searchParams.get('message') || 'oauth_failed'));
+    }
+}
+
+/**
+ * Registers the app-wide listener for the OAuth deep link — call once at startup (main.tsx),
+ * native platform only.
+ *
+ * Deliberately NOT scoped to a single `startNativeOAuth` call: on Android the Custom Tab
+ * reports `browserFinished` well BEFORE the deep link arrives (observed ~3s earlier on a real
+ * Telegram login — the callback page still has to call the backend before it can hand the
+ * token over). A per-call listener gave up on that early signal and dropped the token, leaving
+ * the user "signed in" in the browser but not in the app. An always-on listener also covers a
+ * cold start from the link (`getLaunchUrl`) if the OS killed the app while the user was away.
+ */
+export function initNativeOAuthDeepLinks(): void {
+    App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => handleOAuthDeepLink(event.url));
+    App.getLaunchUrl().then((launch) => { if (launch?.url) handleOAuthDeepLink(launch.url); }).catch(() => { /* none */ });
+}
+
 /**
  * Native-app counterpart of utils/oauthPopup.ts's `openOAuthPopup` + `waitForOAuthPopupResult`
  * pair. Opens `path` (an `/auth/...` route) on the real public website in an in-app browser
- * and resolves once that page reports success back through the custom-scheme deep link, or
- * rejects with `Error('popup_closed')` if the user closes the in-app browser first — same
- * contract as the web popup flow, so callers barely need to branch beyond which one to call.
+ * and resolves once the deep link reports success (see `initNativeOAuthDeepLinks`), or rejects
+ * with `Error('popup_closed')` if the browser closes and no deep link follows shortly after —
+ * same contract as the web popup flow, so callers barely need to branch beyond which to call.
  */
 export function startNativeOAuth(path: string): Promise<NativeOAuthResult> {
     return new Promise((resolve, reject) => {
-        let settled = false;
-        let appUrlListener: PluginListenerHandle | null = null;
-        let browserFinishedListener: PluginListenerHandle | null = null;
-        let cancelTimer: ReturnType<typeof setTimeout> | undefined;
+        pendingFlow?.reject(new Error('popup_closed'));
 
-        const cleanup = () => {
-            clearTimeout(cancelTimer);
-            appUrlListener?.remove();
-            browserFinishedListener?.remove();
+        const flow: PendingFlow = { resolve, reject };
+        pendingFlow = flow;
+
+        const cancelIfStillPending = () => {
+            if (pendingFlow !== flow) return;
+            pendingFlow = null;
+            reject(new Error('popup_closed'));
         };
-
-        const finish = (fn: () => void) => {
-            if (settled) return;
-            settled = true;
-            cleanup();
-            fn();
-        };
-
-        App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
-            let url: URL;
-            try { url = new URL(event.url); } catch { return; }
-            if (url.host !== OAUTH_CALLBACK_HOST && !url.pathname.includes(OAUTH_CALLBACK_HOST)) return;
-
-            Browser.close().catch(() => { /* already closing itself */ });
-
-            const token = url.searchParams.get('token');
-            if (url.searchParams.get('status') === 'success' && token) {
-                finish(() => resolve({ token }));
-                return;
-            }
-            const message = url.searchParams.get('message') ?? undefined;
-            finish(() => reject(new Error(message || 'oauth_failed')));
-        }).then((listener) => { appUrlListener = listener; });
 
         // Пользователь закрыл in-app browser сам, не дойдя до колбэка — ровно то же
-        // событие, что 'popup_closed' в веб-варианте (см. oauthPopup.ts).
-        //
-        // НЕ отклоняем сразу: когда Custom Tab возвращает в приложение через диплинк
-        // (успешный вход), Android сначала сообщает о возврате в приложение
-        // (`browserFinished`) и лишь ПОТОМ доставляет сам `appUrlOpen` (проверено на
-        // эмуляторе: ~120 мс разницы). Мгновенный reject тут снимал слушатели раньше,
-        // чем приходил диплинк с токеном — вход "проходил", но приложение считало его
-        // отменой и оставалось неавторизованным. Даём диплинку шанс, и только потом
-        // считаем это отменой.
+        // событие, что 'popup_closed' в веб-варианте (см. oauthPopup.ts). Но это же событие
+        // приходит и при УСПЕШНОМ возврате (раньше диплинка), поэтому даём диплинку время;
+        // а если он всё-таки придёт позже — его подхватит постоянный слушатель.
+        let finishedListener: { remove: () => void } | null = null;
         Browser.addListener('browserFinished', () => {
-            cancelTimer = setTimeout(() => finish(() => reject(new Error('popup_closed'))), BROWSER_FINISHED_GRACE_MS);
-        }).then((listener) => { browserFinishedListener = listener; });
+            finishedListener?.remove();
+            setTimeout(cancelIfStillPending, BROWSER_FINISHED_GRACE_MS);
+        }).then((listener) => { finishedListener = listener; });
 
         const separator = path.includes('?') ? '&' : '?';
         Browser.open({ url: `${APP_WEB_ORIGIN}${path}${separator}mobile=1` }).catch((err) => {
-            finish(() => reject(err instanceof Error ? err : new Error('browser_open_failed')));
+            finishedListener?.remove();
+            if (pendingFlow === flow) pendingFlow = null;
+            reject(err instanceof Error ? err : new Error('browser_open_failed'));
         });
     });
 }
