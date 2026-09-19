@@ -4,10 +4,16 @@ namespace App\DataFixture\Dev\Additional;
 
 use App\Entity\Review\Review;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Persistence\ObjectManager;
 
-class ReviewFIxture extends Fixture
+class ReviewFIxture extends Fixture implements FixtureGroupInterface
 {
+    public static function getGroups(): array
+    {
+        return ['dev'];
+    }
+
     public function load(ObjectManager $manager): void
     {
         // Indices 0-29:  type="master" (2 reviews per master, 15 masters)

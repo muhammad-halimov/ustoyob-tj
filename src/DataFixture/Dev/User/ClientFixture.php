@@ -9,11 +9,17 @@ use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Entity\User\Phone;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 
-class ClientFixture extends Fixture implements DependentFixtureInterface
+class ClientFixture extends Fixture implements DependentFixtureInterface, FixtureGroupInterface
 {
+    public static function getGroups(): array
+    {
+        return ['dev'];
+    }
+
     public function load(ObjectManager $manager): void
     {
         // Client j: author  of review_{2j}            (type=master, client is author)

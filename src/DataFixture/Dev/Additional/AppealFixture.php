@@ -131,7 +131,7 @@ class AppealFixture extends Fixture implements DependentFixtureInterface, Fixtur
 
     public static function getGroups(): array
     {
-        return ['AppealFixture'];
+        return ['dev'];
     }
 }
 

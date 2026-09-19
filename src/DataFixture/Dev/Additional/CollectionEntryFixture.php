@@ -9,6 +9,7 @@ use App\Entity\User;
 use App\Entity\User\BlackList;
 use App\Entity\User\Favorite;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 
@@ -23,8 +24,13 @@ use Doctrine\Persistence\ObjectManager;
  *   favorites  → masters firdawsi, mavlono; ticket service_santex
  *   blacklist  → masters nodir, alisher
  */
-class CollectionEntryFixture extends Fixture implements DependentFixtureInterface
+class CollectionEntryFixture extends Fixture implements DependentFixtureInterface, FixtureGroupInterface
 {
+    public static function getGroups(): array
+    {
+        return ['dev'];
+    }
+
     public function load(ObjectManager $manager): void
     {
         $firdawsi = $this->getReference('firdawsi', User::class);

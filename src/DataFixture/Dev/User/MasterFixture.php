@@ -12,11 +12,17 @@ use App\Entity\User;
 use App\Entity\User\Occupation;
 use App\Entity\User\Phone;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 
-class MasterFixture extends Fixture implements DependentFixtureInterface
+class MasterFixture extends Fixture implements DependentFixtureInterface, FixtureGroupInterface
 {
+    public static function getGroups(): array
+    {
+        return ['dev'];
+    }
+
     public function load(ObjectManager $manager): void
     {
         // Master i: subject of review_{2i} and review_{2i+1} (type=master)

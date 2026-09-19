@@ -5,11 +5,17 @@ namespace App\DataFixture\Dev\Additional;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 
-class TicketFixture extends Fixture implements DependentFixtureInterface
+class TicketFixture extends Fixture implements DependentFixtureInterface, FixtureGroupInterface
 {
+    public static function getGroups(): array
+    {
+        return ['dev'];
+    }
+
     public function load(ObjectManager $manager): void
     {
         // t_0…t_41 — original tickets; t_42…t_47 — new service tickets

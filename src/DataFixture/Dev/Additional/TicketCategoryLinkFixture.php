@@ -10,6 +10,7 @@ use App\Entity\Ticket\Ticket;
 use App\Entity\Ticket\Unit;
 use App\Entity\User\Occupation;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 
@@ -24,8 +25,13 @@ use Doctrine\Persistence\ObjectManager;
  * getDependencies() всё равно подтягивает зависимости целиком, независимо
  * от группы). Вынесено сюда, чтобы Prod-фикстуры были самодостаточны.
  */
-class TicketCategoryLinkFixture extends Fixture implements DependentFixtureInterface
+class TicketCategoryLinkFixture extends Fixture implements DependentFixtureInterface, FixtureGroupInterface
 {
+    public static function getGroups(): array
+    {
+        return ['dev'];
+    }
+
     public function load(ObjectManager $manager): void
     {
         // [categoryRef, [[ticketRef, subcategoryOccupationRef], ...]]
