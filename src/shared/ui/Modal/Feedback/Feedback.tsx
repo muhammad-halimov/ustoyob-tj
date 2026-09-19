@@ -276,7 +276,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
 
                 // 3. Re-fetch review to get updated image list (old + newly uploaded)
                 const freshReview = await universalApiRequest(API_ROUTES.REVIEW_BY_ID(editReviewId)).catch(() => null);
-                const allCurrentImages: Array<{ id: number; image: string }> = (freshReview as any)?.images || [];
+                const allCurrentImages: Array<{ id: string | number; image: string }> = (freshReview as any)?.images || [];
 
                 // 4. Build sorted final images list preserving user order
                 const uploadedInOrder = allCurrentImages.filter(img => !existingImageIds.has(img.id));
@@ -289,7 +289,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                             return uploadedInOrder[uploadedIdx++] ?? null;
                         }
                     })
-                    .filter((x): x is { id: number; image: string } => x !== null);
+                    .filter((x): x is { id: string | number; image: string } => x !== null);
 
                 await universalApiRequest(API_ROUTES.REVIEW_BY_ID(editReviewId), {
                     method: 'PATCH',

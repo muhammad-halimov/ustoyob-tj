@@ -28,7 +28,7 @@ interface HeaderProps {
 
 /** Represents a city or district option in the location selector dropdown. */
 interface LocationOption {
-    id: number;
+    id: string | number;
     title: string;
     value: string;
     type: 'city' | 'district';
@@ -262,7 +262,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         navigate(ROUTES.HOME, { replace: true });
     };
 
-    const handleCitySelect = (cityTitle: string, cityValue: string, cityId?: number) => {
+    const handleCitySelect = (cityTitle: string, cityValue: string, cityId?: string | number) => {
         setSelectedCity(cityValue);
         setDisplayCityName(cityTitle);
         setStorageItem('selectedCity', cityTitle);

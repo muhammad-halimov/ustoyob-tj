@@ -83,7 +83,7 @@ function Profile() {
     const readOnly = !!id; // readOnly = true для публичных профилей
     const userId = id || null; // userId из URL параметра
     
-    const [currentUser, setCurrentUser] = useState<{ id: number; email: string; name: string; surname: string } | null>(null);
+    const [currentUser, setCurrentUser] = useState<{ id: string | number; email: string; name: string; surname: string } | null>(null);
     const [editingField, setEditingField] = useState<'fullName' | 'specialty' | 'gender' | 'dateOfBirth' | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [userRole, setUserRole] = useState<'master' | 'client' | null>(null);
@@ -1061,7 +1061,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
         // GET actual server-side phones to avoid stale state
             const userData: any = await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id));
-        const serverPhones: { id: number; phone: string; main: boolean }[] = userData.phones || [];
+        const serverPhones: { id: string | number; phone: string; main: boolean }[] = userData.phones || [];
 
         let phonesPayload;
         if (editingPhone === 'new') {
@@ -1251,13 +1251,13 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             const citiesArr: any[] = toArr(cRaw);
             const districtsArr: any[] = toArr(dRaw);
 
-            const provinceMap = new Map<number, string>(provincesArr2.map((p: any) => [p.id, p.title]));
-            const cityMap     = new Map<number, string>(citiesArr.map((c: any) => [c.id, c.title]));
-            const districtMap = new Map<number, string>(districtsArr.map((d: any) => [d.id, d.title]));
-            const suburbMap   = new Map<number, string>();
-            const settlementMap = new Map<number, string>();
-            const communityMap  = new Map<number, string>();
-            const villageMap    = new Map<number, string>();
+            const provinceMap = new Map<string | number, string>(provincesArr2.map((p: any) => [p.id, p.title]));
+            const cityMap     = new Map<string | number, string>(citiesArr.map((c: any) => [c.id, c.title]));
+            const districtMap = new Map<string | number, string>(districtsArr.map((d: any) => [d.id, d.title]));
+            const suburbMap   = new Map<string | number, string>();
+            const settlementMap = new Map<string | number, string>();
+            const communityMap  = new Map<string | number, string>();
+            const villageMap    = new Map<string | number, string>();
             citiesArr.forEach((city: any) => {
                 (city.suburbs || []).forEach((s: any) => suburbMap.set(s.id, s.title));
             });
@@ -1269,8 +1269,8 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 (dist.communities || []).forEach((c: any) => communityMap.set(c.id, c.title));
             });
 
-            const addrId = (part: any): number | null => part ? (typeof part === 'object' ? part.id : null) : null;
-            const resolveAddr = (part: any, map: Map<number, string>): string => {
+            const addrId = (part: any): string | number | null => part ? (typeof part === 'object' ? part.id : null) : null;
+            const resolveAddr = (part: any, map: Map<string | number, string>): string => {
                 const id = addrId(part);
                 if (id && map.has(id)) return map.get(id)!;
                 if (typeof part === 'object' && part?.title) return String(part.title);
@@ -1737,7 +1737,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             
             const transformedServices: Ticket[] = servicesArray.map(service => {
                 // Преобразуем изображения в правильный формат
-                let serviceImages: Array<{id: number; image: string}> = [];
+                let serviceImages: Array<{id: string | number; image: string}> = [];
                 if (service.images && Array.isArray(service.images)) {
                     serviceImages = service.images
                         .filter((img: any) => img && typeof img === 'object')

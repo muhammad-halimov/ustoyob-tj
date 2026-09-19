@@ -60,10 +60,11 @@ function TechSupport({ embedded = false }: TechSupportProps) {
     // Deep-linked open ticket — ?ticket=<id>. Pushed (not replaced) so the header's
     // universal Back button (which pops window.history) closes it back to the table.
     const [searchParams, setSearchParams] = useSearchParams();
+    // id — UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md): parseInt/Number на UUID дают
+    // NaN или обрезанное число ("01a0…" → 1), и тикет по ссылке ?ticket= не открывался бы.
     const openTicketId = useMemo(() => {
-        const raw = searchParams.get('ticket');
-        const parsed = raw ? parseInt(raw, 10) : NaN;
-        return Number.isFinite(parsed) ? parsed : null;
+        const raw = searchParams.get('ticket')?.trim();
+        return raw ? raw : null;
     }, [searchParams]);
 
     // My tickets state
@@ -179,11 +180,11 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                 try {
                     const { type, data } = JSON.parse(event.data) as {
                         type: string;
-                        data: (TechSupportMessage & { techSupport?: { id: number } }) | SupportTicket;
+                        data: (TechSupportMessage & { techSupport?: { id: string | number } }) | SupportTicket;
                     };
 
                     if (type === 'created') {
-                        const msg = data as TechSupportMessage & { techSupport?: { id: number } };
+                        const msg = data as TechSupportMessage & { techSupport?: { id: string | number } };
                         const ticketId = msg.techSupport?.id;
                         if (!ticketId) return;
 
@@ -239,7 +240,7 @@ function TechSupport({ embedded = false }: TechSupportProps) {
     // but marking read doesn't emit a Mercure event (§11) — so mirror that locally here too,
     // the instant the thread closes (or deep-links straight to a different ticket), instead
     // of waiting for the next `/tech-supports/me` refetch to notice the bubble should clear.
-    const prevOpenTicketIdRef = useRef<number | null>(null);
+    const prevOpenTicketIdRef = useRef<string | null>(null);
     useEffect(() => {
         const closedTicketId = prevOpenTicketIdRef.current;
         if (closedTicketId != null && closedTicketId !== openTicketId) {

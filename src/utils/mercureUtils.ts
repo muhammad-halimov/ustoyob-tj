@@ -8,7 +8,7 @@ const MERCURE_HUB_URL = import.meta.env.VITE_MERCURE_HUB_URL;
 
 /**
  * Opens an EventSource against the Mercure hub for the given topic(s).
- * @param topics  One or more Mercure topics, e.g. `chat:12` or `tech-support:5`.
+ * @param topics  One or more Mercure topics, e.g. `chat:<uuid>` or `tech-support:<uuid>`.
  * @param token   Subscriber JWT from the corresponding `/subscribe` or `inbox-token`
  *                endpoint. Omit for public/unauthenticated topics.
  */

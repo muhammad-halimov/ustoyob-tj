@@ -71,7 +71,7 @@ function Category() {
         const cached = getSessionItem(`cat-name-${id}`);
         if (cached) return cached;
         try {
-            const list = getSessionJSON<{ id: number; title: string; description?: string }[]>('categories-list') ?? [];
+            const list = getSessionJSON<{ id: string | number; title: string; description?: string }[]>('categories-list') ?? [];
             const found = list.find(c => String(c.id) === String(id));
             if (found?.title) {
                 setSessionItem(`cat-name-${id}`, found.title);
@@ -89,7 +89,7 @@ function Category() {
         const cached = getSessionItem(`cat-desc-${id}`);
         if (cached) return cached;
         try {
-            const list = getSessionJSON<{ id: number; description?: string }[]>('categories-list') ?? [];
+            const list = getSessionJSON<{ id: string | number; description?: string }[]>('categories-list') ?? [];
             const found = list.find(c => String(c.id) === String(id));
             if (found?.description) {
                 setSessionItem(`cat-desc-${id}`, found.description);

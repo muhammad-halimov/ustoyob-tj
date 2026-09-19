@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { IoInformationCircleOutline } from 'react-icons/io5';
 import { InstagramLinkNotice } from '../InstagramLinkNotice';
+import { InfoBanner } from '../../../../widgets/Banners/InfoBanner/InfoBanner';
 import { useLanguageChange } from '../../../../hooks';
 import styles from './Auth.module.scss';
 import {
@@ -75,12 +77,12 @@ interface OAuthUrlResponse {
 
 interface OAuthUserResponse {
     user: {
-        id: number;
+        id: string | number;
         email: string;
         name: string;
         surname: string;
         roles: string[];
-        occupation?: Array<{id: number; title: string; [key: string]: unknown}>;
+        occupation?: Array<{id: string | number; title: string; [key: string]: unknown}>;
         oauthType?: {
             googleId?: string;
             instagramId?: string;
@@ -133,7 +135,7 @@ const validatePassword = (password: string, t: any): { isValid: boolean; message
  * and calls `onLoginSuccess` to notify the parent.
  */
 const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
-    const { t } = useTranslation(['components', 'common']);
+    const { t } = useTranslation(['components', 'common', 'profile']);
     useLanguageChange(); // Для обновления категорий при смене языка
     const [currentState, setCurrentState] = useState<AuthModalStateType>(AuthModalState.WELCOME);
     // Instagram-заглушка теперь отдельная модалка (shared/ui/Modal/InstagramLinkNotice)
@@ -1145,6 +1147,18 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         );
     };
 
+    // Подсказка под OAuth-иконками: у кого уже есть аккаунт на сайте (email+пароль), вход через
+    // соцсеть с тем же email упирается в oauth.emailTaken — нужно сначала войти в исходный
+    // аккаунт и привязать провайдера в профиле. Название раздела берём из profile.json, чтобы
+    // текст не расходился с тем, как раздел реально называется в профиле.
+    const renderSocialLinkBanner = () => (
+        <InfoBanner
+            icon={<IoInformationCircleOutline />}
+            message={t('auth.socialLinkBanner', { section: t('profile:oauth.sectionTitle') })}
+            className={styles.socialLinkBanner}
+        />
+    );
+
     const renderWelcomeScreen = () => {
         return (
             <div className={styles.welcomeScreen}>
@@ -1254,6 +1268,8 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                         <img src="/img/icons/oauth/telegram.png" alt="Telegram" />
                     </button>
                 </div>
+
+                {renderSocialLinkBanner()}
 
                 <div className={styles.socialNote}>
                     <p>{t('auth.socialAuthNotice')} <strong>{formData.role === 'master' ? t('auth.specialist') : t('auth.client')}</strong></p>
@@ -1501,6 +1517,8 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                         <img src="/img/icons/oauth/telegram.png" alt="Telegram" />
                     </button>
                 </div>
+
+                {renderSocialLinkBanner()}
 
                 <div id="telegram-widget-container-register" className={styles.telegramWidgetContainer}>
                     {/* Widget будет добавлен динамически */}
