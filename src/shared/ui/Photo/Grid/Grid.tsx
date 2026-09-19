@@ -22,7 +22,7 @@ export function buildOrderedImagePayload(
             }
             return uploadedNewImages[uploadedIndex++] ?? null;
         })
-        .filter((img): img is { id: number; image: string } => img !== null);
+        .filter((img): img is { id: string | number; image: string } => img !== null);
 }
 
 interface PhotoGridProps {

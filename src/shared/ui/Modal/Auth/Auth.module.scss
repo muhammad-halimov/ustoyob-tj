@@ -117,6 +117,24 @@
       height: 64px;
     }
   }
+
+  // InfoBanner под OAuth-иконками ("уже есть аккаунт — войдите и привяжите соцсеть").
+  // Вложенный селектор (.form .socialLinkBanner) — чтобы уверенно перебить собственные
+  // padding/font-size у .banner из InfoBanner, не завися от порядка стилей в бандле.
+  // Компактнее дефолтного: в узкой модалке это несколько строк текста.
+  .socialLinkBanner {
+    align-items: flex-start;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.45;
+    margin: 0 0 map.get(vars.$spacing, 4);
+
+    svg {
+      width: 20px;
+      height: 20px;
+      margin-top: 1px;
+    }
+  }
 }
 
 .error {

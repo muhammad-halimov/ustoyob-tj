@@ -24,7 +24,7 @@ interface MainReviewsSectionProps {
 export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ className }) => {
     const [reviews, setReviews] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [expandedReviews, setExpandedReviews] = useState<Record<number, boolean>>({});
+    const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
     const { page, skipFetchRef: skipReviewsFetchRef, applyFetch: applyReviewsFetch, showMoreProps: reviewsShowMoreProps } = useShowMore<any>(setReviews);
     const [complaintReviewId, setComplaintReviewId] = useState<string | number | null>(null);
     const [complaintAuthorId, setComplaintAuthorId] = useState<string | number | null>(null);

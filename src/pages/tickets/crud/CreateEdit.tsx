@@ -249,7 +249,7 @@ const CreateEdit = () => {
             // Считаем договорной только если negotiableBudget=true И нет реального бюджета.
             // Если budget > 0 — значит цена есть, галочка была записана ошибочно.
             setNegotiableBudget(!!data.negotiableBudget && !(data.budget > 0));
-            setPhotos((data.images || []).map((img: { id: number; image: string }) => ({
+            setPhotos((data.images || []).map((img: { id: string | number; image: string }) => ({
                 type: 'existing' as const,
                 id: img.id,
                 image: img.image,

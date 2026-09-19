@@ -632,7 +632,7 @@ function Chat() {
                 try {
                     const { type, data } = JSON.parse(event.data) as {
                         type: string;
-                        data: ApiMessage & { chat?: { id: number } };
+                        data: ApiMessage & { chat?: { id: string | number } };
                     };
                     const chatId = (data as any).chat?.id ?? (data as any).chatId;
                     if (!chatId) return;
@@ -744,7 +744,10 @@ function Chat() {
                 locale: false,
             });
             console.log(t('chat.messageSuccess'));
-            return typeof data.id === 'number' ? data.id : false;
+            // id — UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md): прежняя проверка
+            // typeof === 'number' для UUID давала false, и каждое отправленное сообщение
+            // помечалось как ошибочное, а файлы к нему не загружались.
+            return data?.id ?? false;
         } catch (err) {
             console.error(t('chat.messageError'), err);
             // Surfaces e.g. "user_blocked" (they've blocked you — asymmetric, §10) with the

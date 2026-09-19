@@ -469,6 +469,7 @@
     "iAmClient": "I am a client", 
     "socialAuthNotice": "When logging in through social networks, the selected account type will be used:",
     "socialRegisterNotice": "When authenticating through social networks, the selected account type will be used:",
+    "socialLinkBanner": "Have an account? Sign in and link a social network in your profile (“{{section}}”) — it will then sign you in to that same account.",
     "specialist": "specialist",
     "client": "client",
     "noAccount": "No account?",
