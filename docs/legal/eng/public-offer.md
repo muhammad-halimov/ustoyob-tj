@@ -2,7 +2,7 @@
 
 Effective as of [EFFECTIVE DATE]
 
-*Translation of the Russian original. In case of discrepancy, the Russian version prevails.*
+*Translation of the Tajik original. In case of discrepancy, the Tajik version prevails.*
 
 ## 1. General provisions
 
@@ -78,7 +78,7 @@ Effective as of [EFFECTIVE DATE]
 
 ## 11. Final provisions
 
-11.1. The offer is published in Russian, Tajik and English; in case of discrepancy, the Russian version prevails.
+11.1. The offer is published in Tajik, English and Russian; in case of discrepancy, the Tajik version prevails.
 
 11.2. Invalidity of any provision does not affect the validity of the others.
 

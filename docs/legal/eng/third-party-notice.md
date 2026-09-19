@@ -2,7 +2,7 @@
 
 Effective as of [EFFECTIVE DATE]
 
-*Translation of the Russian original. In case of discrepancy, the Russian version prevails.*
+*Translation of the Tajik original. In case of discrepancy, the Tajik version prevails.*
 
 ## 1. The essentials
 
@@ -44,4 +44,4 @@ We will review the request within a reasonable time, usually up to 10 business d
 
 ## 7. General
 
-This Notice is published in Russian, Tajik and English; in case of discrepancy, the Russian version prevails. It supplements the Terms of Use and does not limit the rights of rightholders.
+This Notice is published in Tajik, English and Russian; in case of discrepancy, the Tajik version prevails. It supplements the Terms of Use and does not limit the rights of rightholders.

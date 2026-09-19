@@ -9,10 +9,11 @@ use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Persistence\ObjectManager;
 
 /**
- * Юридические документы (Legal) — полные тексты на tj/ru/eng.
+ * Юридические документы (Legal) — полные тексты на tj/eng/ru (порядок как в
+ * Translation::LOCALES; таджикский — язык по умолчанию и приоритетная версия).
  *
  * Раньше здесь были короткие заглушки в 1-2 предложения прямо в массиве. Теперь
- * полные тексты живут в docs/legal/{ru,tj,eng}/{файл}.md — единый источник
+ * полные тексты живут в docs/legal/{tj,eng,ru}/{файл}.md — единый источник
  * правды, который правят/показывают юристу как обычные markdown-файлы, а
  * фикстура только читает их (см. readText()), без дублирования ~11 тыс. слов
  * в PHP. Добавлен 4-й документ — third_party (права третьих лиц, см.
@@ -49,41 +50,41 @@ class LegalFixture extends Fixture implements FixtureGroupInterface
         [
             'type'   => 'terms_of_use',
             'file'   => 'terms-of-use',
-            'titles' => ['ru' => 'Условия использования', 'tj' => 'Шартҳои истифода', 'eng' => 'Terms of Use'],
+            'titles' => ['tj' => 'Шартҳои истифода', 'eng' => 'Terms of Use', 'ru' => 'Условия использования'],
             'short'  => [
-                'ru'  => 'Настоящие правила регулируют порядок использования платформы USTOYOB.TJ. Пользователь обязан соблюдать условия сервиса, не нарушать права третьих лиц и действовать добросовестно.',
                 'tj'  => 'Ин қоидаҳо тартиби истифодаи платформаи USTOYOB.TJ-ро танзим мекунанд. Корбар бояд шартҳои хизматро риоя кунад ва ба ҳуқуқи дигарон халал нарасонад.',
                 'eng' => 'These terms govern the use of the USTOYOB.TJ platform. Users must comply with service rules, respect the rights of third parties, and act in good faith.',
+                'ru'  => 'Настоящие правила регулируют порядок использования платформы USTOYOB.TJ. Пользователь обязан соблюдать условия сервиса, не нарушать права третьих лиц и действовать добросовестно.',
             ],
         ],
         [
             'type'   => 'privacy_policy',
             'file'   => 'privacy-policy',
-            'titles' => ['ru' => 'Политика конфиденциальности', 'tj' => 'Сиёсати махфият', 'eng' => 'Privacy Policy'],
+            'titles' => ['tj' => 'Сиёсати махфият', 'eng' => 'Privacy Policy', 'ru' => 'Политика конфиденциальности'],
             'short'  => [
-                'ru'  => 'Мы собираем только необходимые персональные данные для предоставления услуг. Ваши данные не передаются третьим лицам без вашего согласия. Вы имеете право запросить удаление своих данных в любое время.',
                 'tj'  => 'Мо танҳо маълумоти шахсии заруриро барои пешниҳоди хидматҳо ҷамъ мекунем. Маълумоти шумо бидуни розигии шумо ба шахсони сеюм дода намешавад. Шумо ҳуқуқ доред дар ҳар вақт несткунии маълумоти худро талаб кунед.',
                 'eng' => 'We collect only necessary personal data to provide services. Your data is never shared with third parties without your consent. You may request deletion of your data at any time.',
+                'ru'  => 'Мы собираем только необходимые персональные данные для предоставления услуг. Ваши данные не передаются третьим лицам без вашего согласия. Вы имеете право запросить удаление своих данных в любое время.',
             ],
         ],
         [
             'type'   => 'public_offer',
             'file'   => 'public-offer',
-            'titles' => ['ru' => 'Публичная оферта', 'tj' => 'Офертаи оммавӣ', 'eng' => 'Public Offer'],
+            'titles' => ['tj' => 'Офертаи оммавӣ', 'eng' => 'Public Offer', 'ru' => 'Публичная оферта'],
             'short'  => [
-                'ru'  => 'Настоящая оферта является официальным предложением оператора платформы USTOYOB.TJ о предоставлении доступа к её функциям. Принятие оферты происходит путём регистрации или использования платформы.',
                 'tj'  => 'Ин оферта пешниҳоди расмии оператори платформаи USTOYOB.TJ барои фароҳам овардани дастрасӣ ба функсияҳои он мебошад. Қабули оферта тавассути бақайдгирӣ ё истифодаи платформа сурат мегирад.',
                 'eng' => 'This offer is the official proposal by the USTOYOB.TJ platform operator to provide access to its features. Acceptance of the offer occurs upon registration or use of the platform.',
+                'ru'  => 'Настоящая оферта является официальным предложением оператора платформы USTOYOB.TJ о предоставлении доступа к её функциям. Принятие оферты происходит путём регистрации или использования платформы.',
             ],
         ],
         [
             'type'   => 'third_party',
             'file'   => 'third-party-notice',
-            'titles' => ['ru' => 'Права третьих лиц', 'tj' => 'Ҳуқуқи шахсони сеюм', 'eng' => 'Third-Party Rights'],
+            'titles' => ['tj' => 'Ҳуқуқи шахсони сеюм', 'eng' => 'Third-Party Rights', 'ru' => 'Права третьих лиц'],
             'short'  => [
-                'ru'  => 'Все изображения, логотипы, товарные знаки и иные материалы третьих лиц, показываемые на платформе USTOYOB.TJ, остаются собственностью их владельцев. Пользовательский контент принадлежит загрузившим его пользователям.',
                 'tj'  => 'Ҳамаи тасвирҳо, логотипҳо, аломатҳои молӣ ва маводҳои дигари шахсони сеюм, ки дар платформаи USTOYOB.TJ намоиш дода мешаванд, моликияти соҳибони худ боқӣ мемонанд. Мундариҷаи Корбарон ба Корбароне тааллуқ дорад, ки онро бор кардаанд.',
                 'eng' => 'All images, logos, trademarks and other third-party materials shown on the USTOYOB.TJ platform remain the property of their owners. User content belongs to the users who uploaded it.',
+                'ru'  => 'Все изображения, логотипы, товарные знаки и иные материалы третьих лиц, показываемые на платформе USTOYOB.TJ, остаются собственностью их владельцев. Пользовательский контент принадлежит загрузившим его пользователям.',
             ],
         ],
     ];
@@ -99,11 +100,12 @@ class LegalFixture extends Fixture implements FixtureGroupInterface
                 $texts[$locale] = $this->readText($locale, $data['file'], $data['short'][$locale]);
             }
 
-            // Значение на самой сущности — фолбэк на русский (тот же паттерн,
-            // что у CategoryFixture/OccupationFixture): реальный текст по
-            // ?locale= подставляет localizeEntityFull() на чтение.
-            $legal->setTitle($data['titles']['ru']);
-            $legal->setDescription($texts['ru']);
+            // Значение на самой сущности — фолбэк на таджикский (язык по
+            // умолчанию проекта — ?locale=tj, см. AGENTS.md и порядок в
+            // Translation::LOCALES): реальный текст по ?locale= подставляет
+            // localizeEntityFull() на чтение.
+            $legal->setTitle($data['titles']['tj']);
+            $legal->setDescription($texts['tj']);
 
             foreach ($data['titles'] as $locale => $title) {
                 $translation = (new Translation())

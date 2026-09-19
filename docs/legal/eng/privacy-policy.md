@@ -2,7 +2,7 @@
 
 Effective as of [EFFECTIVE DATE]
 
-*Translation of the Russian original. In case of discrepancy, the Russian version prevails.*
+*Translation of the Tajik original. In case of discrepancy, the Tajik version prevails.*
 
 ## 1. Who we are and what this document covers
 

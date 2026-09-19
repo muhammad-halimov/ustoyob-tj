@@ -2,7 +2,7 @@
 
 Effective as of [EFFECTIVE DATE]
 
-*Translation of the Russian original. In case of discrepancy, the Russian version prevails.*
+*Translation of the Tajik original. In case of discrepancy, the Tajik version prevails.*
 
 ## 1. General provisions
 
@@ -144,7 +144,7 @@ Effective as of [EFFECTIVE DATE]
 
 ## 16. Languages and final provisions
 
-16.1. The Terms are published in Russian, Tajik and English. In case of discrepancy, the Russian version prevails.
+16.1. The Terms are published in Tajik, English and Russian. In case of discrepancy, the Tajik version prevails.
 
 16.2. If any provision of the Terms is found invalid, the remaining provisions remain in force.
 
