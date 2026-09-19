@@ -31,6 +31,7 @@ use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
 use App\Entity\Trait\Readable\G;
 use App\Entity\Trait\Readable\PriorityTrait;
+use App\Entity\Trait\Readable\SlugTrait;
 use App\Entity\Trait\Readable\TitleTrait;
 use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
@@ -147,7 +148,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 )]
 class TechSupport implements HasImagesInterface
 {
-    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait, PriorityTrait, AppealReasonTrait;
+    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, SlugTrait, DescriptionTrait, PriorityTrait, AppealReasonTrait;
 
     public function __construct()
     {

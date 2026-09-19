@@ -16,6 +16,7 @@ use App\Entity\Trait\Readable\DescriptionTrait;
 use App\Entity\Trait\Readable\G;
 use App\Entity\Trait\Readable\PriorityTrait;
 use App\Entity\Trait\Readable\SingleImageTrait;
+use App\Entity\Trait\Readable\SlugTrait;
 use App\Entity\Trait\Readable\TitleTrait;
 use App\Entity\User\Occupation;
 use App\Repository\Ticket\CategoryRepository;
@@ -53,7 +54,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
 #[ApiFilter(SearchFilter::class, properties: ['occupations', 'description' => 'partial', 'title'])]
 class Category
 {
-    use UpdatedAtTrait, CreatedAtTrait, SingleImageTrait, TitleTrait, DescriptionTrait, PriorityTrait;
+    use UpdatedAtTrait, CreatedAtTrait, SingleImageTrait, TitleTrait, SlugTrait, DescriptionTrait, PriorityTrait;
 
     public function __toString(): string
     {

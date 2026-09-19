@@ -42,6 +42,7 @@ final class G
     const string LEGALS      = 'legals:read';
     const string FAVORITES   = 'favorites:read';
     const string BLACK_LISTS = 'blackLists:read';
+    const string RECENTLY_WATCHED = 'recentlyWatched:read';
 
     const string ENTITY_REVISIONS = 'entityRevisions:read';
     const string GALLERIES   = 'galleries:read';
@@ -129,6 +130,10 @@ final class G
     const array OPS_GALLERIES    = [self::GALLERIES];
     const array OPS_FAVORITES    = [self::FAVORITES];
     const array OPS_BLACK_LISTS  = [self::BLACK_LISTS];
+    // FAVORITES добавлена ради вложенного Ticket: его поля размечены группой
+    // FAVORITES (тот же набор, что отдаёт GET /favorites/me), отдельная группа
+    // под RecentlyWatched потребовала бы размечать ею каждое поле Ticket/User/Category/....
+    const array OPS_RECENTLY_WATCHED = [self::RECENTLY_WATCHED, self::FAVORITES];
     const array OPS_LEGALS       = [self::LEGALS];
 
     const array OPS_CATEGORIES   = [self::CATEGORIES];

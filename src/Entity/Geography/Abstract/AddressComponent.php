@@ -9,6 +9,7 @@ use App\Entity\Trait\NonReadable\UpdatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
 use App\Entity\Trait\Readable\G;
 use App\Entity\Trait\Readable\SingleImageTrait;
+use App\Entity\Trait\Readable\SlugTrait;
 use App\Entity\Trait\Readable\TitleTrait;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -22,7 +23,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\InheritanceType('JOINED')] // или SINGLE_TABLE
 abstract class AddressComponent
 {
-    use UpdatedAtTrait, CreatedAtTrait, SingleImageTrait, TitleTrait, DescriptionTrait;
+    use UpdatedAtTrait, CreatedAtTrait, SingleImageTrait, TitleTrait, SlugTrait, DescriptionTrait;
 
     public function __toString(): string
     {

@@ -13,6 +13,7 @@ use App\Entity\Trait\NonReadable\UpdatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
 use App\Entity\Trait\Readable\G;
 use App\Entity\Trait\Readable\PriorityTrait;
+use App\Entity\Trait\Readable\SlugTrait;
 use App\Entity\Trait\Readable\TitleTrait;
 use App\Repository\Ticket\UnitRepository;
 use App\State\Localization\Title\UnitTitleLocalizationProvider;
@@ -46,7 +47,7 @@ use Symfony\Component\Serializer\Attribute\Ignore;
 )]
 class Unit
 {
-    use UpdatedAtTrait, CreatedAtTrait, TitleTrait, DescriptionTrait, PriorityTrait;
+    use UpdatedAtTrait, CreatedAtTrait, TitleTrait, SlugTrait, DescriptionTrait, PriorityTrait;
 
     public function __toString(): string
     {

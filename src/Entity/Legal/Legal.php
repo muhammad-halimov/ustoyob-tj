@@ -13,6 +13,7 @@ use App\Entity\Extra\Translation;
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
 use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\SlugTrait;
 use App\Entity\Trait\Readable\TitleTrait;
 use App\Entity\Trait\Readable\TypeTrait;
 use App\Entity\Trait\Readable\UpdatedAtTrait;
@@ -49,7 +50,7 @@ use Symfony\Component\Serializer\Attribute\Ignore;
 #[ApiFilter(SearchFilter::class, properties: ['type' => 'exact', 'title', 'description' => 'partial'])]
 class Legal
 {
-    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait, TypeTrait;
+    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, SlugTrait, DescriptionTrait, TypeTrait;
 
     public function __toString(): string
     {

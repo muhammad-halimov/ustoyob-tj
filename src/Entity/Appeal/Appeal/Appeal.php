@@ -26,6 +26,7 @@ use App\Entity\Trait\Readable\AppealReasonTrait;
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
 use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\SlugTrait;
 use App\Entity\Trait\Readable\TitleTrait;
 use App\Entity\Trait\Readable\TypeTrait;
 use App\Entity\Trait\Readable\UpdatedAtTrait;
@@ -91,7 +92,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 ])]
 abstract class Appeal implements HasImagesInterface
 {
-    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait, TypeTrait, AppealReasonTrait;
+    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, SlugTrait, DescriptionTrait, TypeTrait, AppealReasonTrait;
 
     public const array TYPES = [
         'Услуга / Объявление' => 'ticket',

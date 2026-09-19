@@ -34,6 +34,7 @@ use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
 use App\Entity\Trait\Readable\G;
 use App\Entity\Trait\Readable\PriorityTrait;
+use App\Entity\Trait\Readable\SlugTrait;
 use App\Entity\Trait\Readable\TitleTrait;
 use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
@@ -103,7 +104,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiFilter(RangeFilter::class, properties: ['budget', 'master.rating', 'author.rating', 'reviewsCount'])]
 class Ticket implements HasImagesInterface
 {
-    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait, PriorityTrait;
+    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, SlugTrait, DescriptionTrait, PriorityTrait;
 
     public function __toString(): string
     {
@@ -477,36 +478,6 @@ class Ticket implements HasImagesInterface
     public function getId(): ?Uuid
     {
         return $this->id;
-    }
-
-    /**
-     * Декоративный slug для красивых ссылок (06.09.2026, переход на
-     * UUID-PK — см. обсуждение "UUID + латинизация title" в чате). НЕ
-     * персистится, ничего не идентифицирует сам по себе — реальный lookup
-     * тикета всегда идёт по UUID (см. GetCollection/Get выше). Фронт
-     * собирает ссылку вида /tickets/{id}?slug={slug} — бэкенд слаг из
-     * query читает, но игнорирует при разрешении сущности (это только
-     * читаемость в адресной строке/шаринге, не идентификатор). Живая
-     * проекция $title — меняется вместе с ним при правке, никакой
-     * рассинхронизации/уникальности/регенерации не требуется в принципе,
-     * в отличие от классического персистентного слага.
-     */
-    #[Groups([G::MASTER_TICKETS, G::CLIENT_TICKETS])]
-    public function getSlug(): string
-    {
-        static $translitMap = [
-            'а'=>'a','б'=>'b','в'=>'v','г'=>'g','ғ'=>'gh','д'=>'d','е'=>'e','ё'=>'yo',
-            'ж'=>'zh','з'=>'z','и'=>'i','ӣ'=>'i','й'=>'y','к'=>'k','қ'=>'q','л'=>'l',
-            'м'=>'m','н'=>'n','о'=>'o','п'=>'p','р'=>'r','с'=>'s','т'=>'t','у'=>'u',
-            'ӯ'=>'u','ф'=>'f','х'=>'kh','ҳ'=>'h','ц'=>'ts','ч'=>'ch','ҷ'=>'j','ш'=>'sh',
-            'щ'=>'sch','ъ'=>'','ы'=>'y','ь'=>'','э'=>'e','ю'=>'yu','я'=>'ya',
-        ];
-
-        $lower = mb_strtolower($this->title ?? '');
-        $latin = strtr($lower, $translitMap);
-        $slug  = preg_replace('/[^a-z0-9]+/u', '-', $latin);
-
-        return trim($slug ?? '', '-') ?: 'ticket';
     }
 
     public function getViewsCount(): int

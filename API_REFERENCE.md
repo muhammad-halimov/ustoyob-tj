@@ -485,6 +485,24 @@ interface BlackList { id: string; user: User; createdAt: string; updatedAt: stri
 - `PATCH /chats/{id}` (toggling `active`) is unaffected by blocking — that's not "writing" in this sense.
 - `DELETE /black-lists/{id}` unblocks immediately.
 
+### Recently watched
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/recently-watched` | current user's viewed tickets, newest first; `?page=&itemsPerPage=`; `?locale=` |
+| POST | `/api/recently-watched` | body: `{ ticket: IRI }` — marks the ticket as just viewed (`Authorization: Bearer …`) |
+
+- The owner always comes from the Bearer token — there is no way to read or write someone else's list.
+- `POST` is an **upsert**: viewing an already-listed ticket only refreshes `viewedAt` (it jumps to the top), no duplicate and no `409`. Safe to call on every ticket-page open.
+- History is capped at the **50** most recent tickets per user; older ones are dropped on `POST`.
+- A ticket can be recorded only if the caller may see it (`approved` + active publisher, or the caller is its author/master); otherwise the IRI does not resolve → `400 invalid_json`. `GET` also hides entries whose ticket has since become non-visible (filtered in SQL, so pagination stays correct).
+- Empty list → `404 resource_not_found` (same as `/chats/me`, `/tickets/me`).
+
+```ts
+interface RecentlyWatchedInput { ticket: string; }  // IRI, required (missing → 400 missing_ticket)
+interface RecentlyWatched { id: string; ticket: Ticket; viewedAt: string; }  // ticket shaped like favorites' nested ticket
+```
+
 ## 11. TECH SUPPORT
 
 | Method | Path | Notes |

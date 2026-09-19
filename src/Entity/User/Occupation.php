@@ -16,6 +16,7 @@ use App\Entity\Trait\Readable\DescriptionTrait;
 use App\Entity\Trait\Readable\G;
 use App\Entity\Trait\Readable\PriorityTrait;
 use App\Entity\Trait\Readable\SingleImageTrait;
+use App\Entity\Trait\Readable\SlugTrait;
 use App\Entity\Trait\Readable\TitleTrait;
 use App\Entity\User;
 use App\Repository\User\OccupationRepository;
@@ -52,7 +53,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
 )]
 class Occupation
 {
-    use CreatedAtTrait, UpdatedAtTrait, SingleImageTrait, TitleTrait, DescriptionTrait, PriorityTrait;
+    use CreatedAtTrait, UpdatedAtTrait, SingleImageTrait, TitleTrait, SlugTrait, DescriptionTrait, PriorityTrait;
 
     public function __construct()
     {

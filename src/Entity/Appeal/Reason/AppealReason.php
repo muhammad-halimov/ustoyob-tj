@@ -13,6 +13,7 @@ use ApiPlatform\Metadata\GetCollection;
 use App\Entity\Extra\Translation;
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\SlugTrait;
 use App\Entity\Trait\Readable\TitleTrait;
 use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Repository\Appeal\AppealReasonRepository;
@@ -48,7 +49,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ApiFilter(BooleanFilter::class, properties: ['authRequired'])]
 class AppealReason
 {
-    use CreatedAtTrait, UpdatedAtTrait, TitleTrait;
+    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, SlugTrait;
 
     public const array APPLICABLE_TO_CHOICES = [
         'Для чатов'          => 'chat',

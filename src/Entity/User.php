@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Service\Extra\SlugUtil;
 use App\Service\Extra\UuidUtil;
 
 use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
@@ -1786,6 +1787,45 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $this->lastSeen = $lastSeen;
         return $this;
+    }
+
+    /**
+     * Декоративный slug профиля (/users/{id}?slug={slug}) — из имени и
+     * фамилии, латиницей. Тот же принцип, что у SlugTrait (см. его докблок):
+     * не персистится, не идентификатор, реальный lookup всегда по UUID. У User
+     * нет title, поэтому SlugTrait не подходит — свой getter напрямую через
+     * SlugUtil. Имя/фамилия и так публичны (те же группы, что у $name/$surname
+     * ниже, кроме ADMINISTRANT_PUBLIC — админу-исполнителю ссылка на профиль не
+     * нужна), так что слаг ничего нового не раскрывает.
+     */
+    #[Groups([
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
+    ])]
+    #[ApiProperty(writable: false)]
+    public function getSlug(): string
+    {
+        return SlugUtil::make(trim(($this->name ?? '') . ' ' . ($this->surname ?? '')), 'user');
     }
 
     #[Groups([
