@@ -37,7 +37,7 @@ import {Clear} from '../../../../shared/ui/Button/Clear/Clear';
 import {Reset} from '../../../../shared/ui/Button/Reset/Reset';
 import {ShowMore} from '../../../../shared/ui/Button/ShowMore/ShowMore';
 import {getPageSize} from '../../../../utils/pageSizeUtils';
-import {formatProfileImageUrl, formatTicketImageUrl} from '../../../../utils/imageUtils';
+import {formatProfileImageUrl, formatTicketImageUrl, toPhotoSource} from '../../../../utils/imageUtils';
 import {getSessionJSON, getStorageItem, removeSessionItem, setSessionJSON} from '../../../../utils/storageUtils';
 import {resolveApiError} from '../../../../utils/appMessagesUtils';
 
@@ -719,6 +719,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         responsesCount: ticket.responsesCount,
                         viewsCount: ticket.viewsCount,
                         photos: ticket.images?.map(img => formatTicketImageUrl(img.image)),
+                        photoSources: ticket.images?.map(img => toPhotoSource(img)),
                         authorImage: (() => {
                             const person = ticket.type === 'master' ? ticket.master : ticket.author;
                             const src = person?.image || person?.imageExternalUrl;
@@ -1236,6 +1237,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     responsesCount={result.responsesCount}
                     viewsCount={result.viewsCount}
                     photos={result.photos}
+                    photoSources={result.photoSources}
                     authorImage={result.authorImage}
                     negotiableBudget={result.negotiableBudget}
                     onClick={() => handleCardClick(result.id)}

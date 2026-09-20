@@ -32,6 +32,13 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_PROXY_BASE_URL,
           changeOrigin: true,
           secure: false,
+        },
+        // Liip Imagine (превью/WebP, API_REFERENCE.md §14): первый запрос строит файл и
+        // отвечает 302 на статический .webp — оба хопа должны идти на бэкенд.
+        '/media': {
+          target: env.VITE_PROXY_BASE_URL,
+          changeOrigin: true,
+          secure: false,
         }
       }
     }

@@ -428,6 +428,7 @@ function MyTickets() {
                             isActive={ticket.active ?? false}
                             onActiveToggle={(e) => handleToggleTicketActive(e, ticket.id, ticket.active ?? false)}
                             photos={ticket.photos}
+                            photoSources={ticket.photoSources}
                             authorImage={ticket.authorImage}
                             negotiableBudget={ticket.negotiableBudget}
                             approved={ticket.approved}

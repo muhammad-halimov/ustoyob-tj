@@ -2,18 +2,36 @@ import { API_BASE_URL } from './configUtils';
 import { universalApiRequest } from './apiUtils';
 import { API_ROUTES } from '../app/routers/routes';
 import { compressImageFile } from './imageCompressUtils';
+import type { PhotoSource, ImageFields } from '../entities';
 
 // ─── Форматирование URL изображений ──────────────────────────
 const buildImageUrl = (imagePath: string, defaultFolder: string): string => {
     if (!imagePath) return '';
     if (imagePath.startsWith('http')) return imagePath;
-    if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
+    // /media/ — Liip Imagine (превью/WebP, поля imageThumbnail/imageMedium/imageWebp): тоже относительно хоста API.
+    if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/') || imagePath.startsWith('/media/')) return `${API_BASE_URL}${imagePath}`;
     return `${API_BASE_URL}/${defaultFolder}/${imagePath}`;
 };
 
 export const formatTicketImageUrl = (imagePath: string): string => buildImageUrl(imagePath, 'uploads/tickets');
 
 export const formatProfileImageUrl = (imagePath: string): string => buildImageUrl(imagePath, 'uploads/users');
+
+/**
+ * Собирает `PhotoSource` из объекта с `image` + `ImageFields` (API_REFERENCE.md §14).
+ * Любой вариант, которого бэк не прислал (старый кэш/ответ), просто отсутствует — потребитель
+ * падает обратно на `url`. Оригинал берётся из `imageUrl`, иначе строится из имени файла.
+ */
+export const toPhotoSource = (
+    img: { image?: string | null } & ImageFields,
+    defaultFolder = 'uploads/tickets',
+): PhotoSource => ({
+    url: buildImageUrl(img.imageUrl || img.image || '', defaultFolder),
+    thumbnail: img.imageThumbnail ? buildImageUrl(img.imageThumbnail, defaultFolder) : undefined,
+    medium: img.imageMedium ? buildImageUrl(img.imageMedium, defaultFolder) : undefined,
+    webp: img.imageWebp ? buildImageUrl(img.imageWebp, defaultFolder) : undefined,
+    blurhash: img.imageBlurhash || undefined,
+});
 
 /** Screenshots attached directly to a TechSupport ticket (`ticket.images`). */
 export const formatTechSupportImageUrl = (imagePath: string): string => buildImageUrl(imagePath, 'uploads/tech_supports');
@@ -59,10 +77,13 @@ export const uploadPhotos = async (
  * Falls back to `fallback` (default: '/img/icons/icons/default_user.png') when no image is available.
  */
 export const getAuthorAvatar = (
-    user: { image?: string | null; imageExternalUrl?: string | null } | null | undefined,
+    user: ({ image?: string | null; imageExternalUrl?: string | null } & Pick<ImageFields, 'imageThumbnail'>) | null | undefined,
     fallback = '/img/icons/icons/default_user.png'
 ): string => {
     if (!user) return fallback;
+
+    // Превью 480 px (WebP) вместо оригинала — аватары нигде не показываются крупнее.
+    if (user.imageThumbnail) return buildImageUrl(user.imageThumbnail, 'uploads/users');
 
     if (user.image) {
         if (user.image.startsWith('http')) return user.image;

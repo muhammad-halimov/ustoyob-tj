@@ -16,7 +16,7 @@ cp .env .env.local      # и заполните значения, см. ниже
 npm run dev             # https://localhost:5173, HMR
 ```
 
-Dev-сервер поднимается по **HTTPS с самоподписанным сертификатом** (`@vitejs/plugin-basic-ssl`) — браузер попросит подтвердить исключение. Запросы `/api` и `/uploads` проксируются на `VITE_PROXY_BASE_URL` (`vite.config.ts`).
+Dev-сервер поднимается по **HTTPS с самоподписанным сертификатом** (`@vitejs/plugin-basic-ssl`) — браузер попросит подтвердить исключение. Запросы `/api`, `/uploads` и `/media` проксируются на `VITE_PROXY_BASE_URL` (`vite.config.ts`).
 
 | Команда | Что делает |
 |---|---|
@@ -34,7 +34,7 @@ Dev-сервер поднимается по **HTTPS с самоподписан
 | Переменная | Назначение | Замечания |
 |---|---|---|
 | `VITE_API_BASE_URL` | База для всех запросов к API | **Пусто** = относительные URL (`/api/...`) → в dev их ловит прокси Vite. В prod задайте origin бэкенда, если он не на том же домене. |
-| `VITE_PROXY_BASE_URL` | Куда dev-прокси шлёт `/api` и `/uploads` | Только для `npm run dev`. |
+| `VITE_PROXY_BASE_URL` | Куда dev-прокси шлёт `/api`, `/uploads` и `/media` | Только для `npm run dev`. |
 | `VITE_MERCURE_HUB_URL` | URL Mercure-хаба (`…/.well-known/mercure`) | Нужен чату и ТП для realtime. Токен подписки выдаёт бэкенд, URL хаба в JSON API **не приходит**. |
 | `VITE_TELEGRAM_BOT_NAME` | Username **auth-бота** для Telegram Login Widget (без `@`) | См. раздел про Telegram. Это **не** бот техподдержки. |
 | `VITE_APP_ORIGIN` | Публичный origin сайта для OAuth из нативного приложения | По умолчанию `https://ustoyob.tj`. |
@@ -153,7 +153,7 @@ AGENTS.md       карта проекта для AI-агентов и новых
 ### Картинки
 - В `PATCH` любой сущности `images` — это `[{ image: "<filename>" }]`, **без `id`**. **Не передан** = не трогать фото, **`[]`** = удалить все.
 - Загрузка — `POST /{ресурс}/{id}/upload-images`, `multipart`, поле `imageFile[]`, ≤10 МБ, png/jpeg/jpg/webp. Все загрузки идут через `uploadPhotos()` (`utils/imageUtils.ts`), который **сжимает фото в браузере** (canvas → WebP/JPEG, до 1920px, аватар до 1024px; на любой сбой шлёт оригинал).
-- **Бэкенд не делает превью и WebP** — `/uploads` отдаёт файлы как загружены, ленты грузят оригиналы. Старые фото останутся тяжёлыми; для миниатюр нужна работа на бэке (Liip Imagine или генерация при загрузке + поле `thumbnail`), после чего `Card`/`Carousel` переключаются на них одной правкой.
+- **Превью, WebP и BlurHash отдаёт бэкенд** (`API_REFERENCE.md` §14): у любой сущности с `image` есть `imageUrl` / `imageThumbnail` (480 px) / `imageMedium` (800 px) / `imageWebp` / `imageBlurhash`. На фронте: `toPhotoSource()` и `getAuthorAvatar()` в `utils/imageUtils.ts`, `blurhashToDataUrl()` в `utils/blurhashUtils.ts`, `Carousel` принимает `sources` (карточки — `variant="thumbnail"`, страница объявления — `medium`, галерея — `imageWebp`). BlurHash рисуется фоном самого `<img>`. Грабли: (1) превью живут под **`/media/cache/resolve/...`** — в dev это проксируется (`vite.config.ts`), а на проде веб-сервер должен отдавать `/media` бэкенду так же, как `/uploads`, иначе превью не загрузятся; первый запрос строит файл и отвечает `302` на статический `.webp`; (2) `imageBlurhash` бывает `null` на старых фото, пока на сервере не прогнан `app:images:backfill-blurhash` — заглушки просто не будет; (3) не всё ещё переведено на превью: галерея/примеры работ в профиле и фото отзывов пока грузят оригиналы.
 - `<img>` в лентах имеют `loading="lazy" decoding="async"`; без `lazy` намеренно оставлены иконки в модалках, флаги в хедере, аватар профиля и лайтбокс (`Preview`) — скрытые `lazy`-картинки не грузятся вообще.
 
 ### Редактирование и удаление

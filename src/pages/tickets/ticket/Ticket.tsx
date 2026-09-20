@@ -1,7 +1,7 @@
 import {useNavigate, useParams} from 'react-router-dom';
 import {useEffect, useRef, useState} from 'react';
 import {getAuthToken, getUserData, getUserRole} from '../../../utils/authUtils';
-import { getAuthorAvatar, formatTicketImageUrl } from '../../../utils/imageUtils';
+import { getAuthorAvatar, formatTicketImageUrl, toPhotoSource } from '../../../utils/imageUtils';
 import { formatLocalizedDate, getTimeAgo } from '../../../utils/timeUtils';
 import styles from './Ticket.module.scss';
 import {createTicketChat, resolveTicketChat, getChatsWithUser, initChatModals} from "../../../utils/chatUtils";
@@ -23,7 +23,7 @@ import {ReviewsSection} from '../../profile/shared/ui/ReviewsSection';
 import {SocialNetworksSection} from '../../profile/shared/ui/SocialNetworksSection';
 import {PhonesSection} from '../../profile/shared/ui/PhonesSection';
 import {SOCIAL_NETWORK_CONFIG, renderSocialIcon} from '../../profile/shared/config/socialNetworkConfig';
-import type {Review as ReviewType, Ticket as ApiTicket, Phone, TicketView} from '../../../entities';
+import type {Review as ReviewType, Ticket as ApiTicket, Phone, TicketView, PhotoSource} from '../../../entities';
 import {PageLoader} from '../../../widgets/PageLoader';
 import {IoWarningOutline, IoStar, IoHeart, IoHeartOutline, IoChevronForward, IoCompass, IoChatbubbleOutline, IoCheckmarkCircleOutline, IoBanOutline} from 'react-icons/io5';
 import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
@@ -317,17 +317,13 @@ export function Ticket() {
             const fullAddress = getFullAddress(ticketData);
 
             // Собираем фото из разных источников
+            // photos (оригиналы) и photoSources (превью/WebP/BlurHash) строим из одних и тех же
+            // элементов, чтобы порядок совпадал — Carousel использует их попарно.
             const photos: string[] = [];
-            if (ticketData.images?.length) {
-                photos.push(...ticketData.images.map(img => {
-                    return img.image.startsWith('http') ? img.image : formatTicketImageUrl(img.image);
-                }));
-            }
-
-            if (ticketData.ticketImages?.length) {
-                photos.push(...ticketData.ticketImages.map(img => {
-                    return img.image.startsWith('http') ? img.image : formatTicketImageUrl(img.image);
-                }));
+            const photoSources: PhotoSource[] = [];
+            for (const img of [...(ticketData.images ?? []), ...(ticketData.ticketImages ?? [])]) {
+                photos.push(img.image.startsWith('http') ? img.image : formatTicketImageUrl(img.image));
+                photoSources.push(toPhotoSource(img));
             }
 
             // Проверяем есть ли образование у пользователя (только для специалиста)
@@ -352,6 +348,7 @@ export function Ticket() {
                 subcategory: ticketData.subcategory?.title ? textHelper(ticketData.subcategory.title) : undefined,
                 additionalComments: ticketData.notice ? decodeHtmlEntities(ticketData.notice) : undefined,
                 photos: photos.length > 0 ? photos : undefined,
+                photoSources: photoSources.length > 0 ? photoSources : undefined,
                 notice: ticketData.notice ? decodeHtmlEntities(ticketData.notice) : undefined,
                 rating: userRating,
                 authorImage: displayUserImage || undefined,
@@ -954,7 +951,7 @@ export function Ticket() {
                 <section className={styles.section}>
                     <div className={styles.descriptionPhotoRow}>
                         {order.photos && order.photos.length > 0 && (
-                            <Carousel photos={order.photos} className={styles.ticketCarousel} priority />
+                            <Carousel photos={order.photos} sources={order.photoSources} className={styles.ticketCarousel} priority />
                         )}
                         <div className={styles.descriptionCol}>
                             <h2 className={styles.section_about}>{t('ticket:description')}</h2>
