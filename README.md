@@ -390,3 +390,24 @@ CORS_ALLOW_ORIGIN='^(https?://(ustoyob\.tj|localhost|127\.0\.0\.1)(:[0-9]+)?|cap
 ```bash
 curl -s -o /dev/null -D - -H "Origin: capacitor://localhost" "https://domain.com/api/categories" | grep -i access-control-allow-origin
 ```
+
+
+## iOS: безопасные зоны (вырез, «домашняя полоска») и статус-бар
+
+Веб-вью на iOS рисуется на весь экран, поэтому без обработки безопасных зон шапка уходит под
+Dynamic Island, а нижняя панель — в скруглённые углы и «домашнюю полоску».
+
+- `capacitor.config.ts` → `ios.contentInset: 'never'` (веб-вью на весь экран, фон страницы везде цвета темы).
+- `src/utils/nativeChrome.ts` → `initNativeChrome()` в рантайме добавляет `viewport-fit=cover` и класс
+  `html.native-ios` (только на iOS-приложении; `index.html` общий с сайтом, его не трогаем).
+- `src/app/styles/native.scss` (подключён только в `app/main.tsx`) → отступы через
+  `env(safe-area-inset-*)`: логотип ниже выреза, подложка цвета темы под статус-баром, нижняя панель
+  приподнята над «домашней полоской» и углами (фон панели тянется до низа), футер и cookie-баннер
+  подстроены под неё. Селекторы по подстроке `[class*='_имя_']`, потому что классы CSS-модулей хешируются;
+  при переименовании `mobile_header` / `mobile_super_header` / `footer` в SCSS обновите и этот файл.
+- Статус-бар (`@capacitor/status-bar`) красится под тему **приложения** (`syncStatusBar` в
+  `ThemeContext`), а не под системную — иначе при ручной смене темы часы сливаются с фоном.
+
+Проверить раскладку без симулятора можно в обычном Chrome: DevTools Protocol
+`Emulation.setSafeAreaInsetsOverride` (например верх 59 px, низ 34 px) + добавить на `<html>` класс
+`native-ios` и `viewport-fit=cover` в meta viewport.

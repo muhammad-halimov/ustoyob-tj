@@ -25,6 +25,8 @@ import { OfflineGate } from '../widgets/OfflineGate';
 import { clearCache, preloadData } from '../utils/dataCacheUtils';
 import { loadAppMessages } from '../utils/appMessagesUtils';
 import { isNativePlatform, initNativeOAuthDeepLinks } from '../utils/mobileOAuth';
+import { initNativeChrome } from '../utils/nativeChrome';
+import './styles/native.scss';
 
 // Инициализируем кеш данных при старте приложения
 clearCache('occupations');
@@ -41,6 +43,9 @@ loadAppMessages();
 // Мобильное приложение: OAuth возвращается диплинком из in-app browser — слушаем его всегда,
 // а не только пока открыта модалка входа (см. utils/mobileOAuth.ts).
 if (isNativePlatform()) initNativeOAuthDeepLinks();
+
+// Мобильное приложение: безопасные зоны iOS (viewport-fit=cover + html.native-ios), см. utils/nativeChrome.ts.
+initNativeChrome();
 
 createRoot(document.getElementById('root')!).render(
     // <React.StrictMode> // Временно отключено для тестирования дубликатов

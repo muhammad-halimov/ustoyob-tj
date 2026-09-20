@@ -1,0 +1,59 @@
+// Стили ТОЛЬКО для пакетного iOS-приложения (подключаются из app/main.tsx — на `front` этого
+// файла нет). Активны под `html.native-ios`, который ставит utils/nativeChrome.ts.
+//
+// Веб-вью на iOS рисуется на весь экран, включая область под статус-баром / Dynamic Island и
+// «домашней полоской» (Capacitor `ios.contentInset: never` + `viewport-fit=cover`, см.
+// capacitor.config.ts и nativeChrome.ts), а безопасные отступы приходят через
+// `env(safe-area-inset-*)`. Фон страницы при этом везде остаётся цветом текущей темы, без
+// «полос» нативного цвета.
+html.native-ios {
+  // Подложка под статус-баром: скролящийся контент не должен просвечивать под часами и
+  // индикаторами. Цвет — токен темы, поэтому подложка сама следует светлой/тёмной теме.
+  // z-index ниже модалок (1000), но выше обычного контента.
+  &::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top, 0px);
+    background: var(--color-background-primary);
+    z-index: 999;
+    pointer-events: none;
+  }
+
+  // Верхняя полоска с логотипом: её фон уже цвета темы — просто опускаем содержимое ниже выреза.
+  [class*='_mobile_super_header_'] {
+    padding-top: calc(5px + env(safe-area-inset-top, 0px));
+  }
+
+  // Липкий баннер подтверждения аккаунта прилипает не к краю экрана, а под статус-бар.
+  [class*='_confirmationBanner_'] {
+    top: env(safe-area-inset-top, 0px);
+  }
+
+  // Нижняя панель навигации: фон панели тянется до самого низа экрана, а сами вкладки
+  // приподняты над «домашней полоской» и скруглёнными углами дисплея (иначе крайние вкладки
+  // и подписи «Главная» / «Профиль» уходят под углы). +6px — небольшой зазор сверху.
+  [class*='_mobile_header_'] {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  // Футер резервирует место под фиксированную панель (см. Footer.module.scss: 20px + 64px) —
+  // теперь панель выше на величину нижнего отступа.
+  @media screen and (max-width: 960px) {
+    [class*='_footer_'] {
+      padding-bottom: calc(20px + 64px + 6px + env(safe-area-inset-bottom, 0px));
+    }
+  }
+
+  // Cookie-баннер плавает над нижним краем (10px на телефонах, 20px шире) — поднимаем над домашней полоской.
+  [class*='_cookieBanner_'] {
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    @media (max-width: 768px) {
+      bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    }
+  }
+}

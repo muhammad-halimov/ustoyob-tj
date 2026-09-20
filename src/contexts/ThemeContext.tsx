@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getStorageItem, setStorageItem, removeStorageItems } from '../utils/storageUtils';
+import { syncStatusBar } from '../utils/nativeChrome';
 
 /**
  * ThemeContext — provides light/dark theme state to the whole component tree.
@@ -117,6 +118,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
         if (metaThemeColor) {
             metaThemeColor.setAttribute('content', theme === 'dark' ? '#1a1a1a' : '#ffffff');
         }
+
+        // Приложение: цвет часов/индикаторов статус-бара — под тему приложения (см. nativeChrome.ts).
+        syncStatusBar(theme);
     }, [theme]);
 
     const setTheme = (newTheme: Theme) => {
