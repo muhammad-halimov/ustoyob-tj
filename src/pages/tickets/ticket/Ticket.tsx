@@ -225,6 +225,24 @@ export function Ticket() {
 
     const getFullAddress = getTicketFullAddress;
 
+    // Телефоны мастера: в тикете/чате их нет, берём с GET /users/{id}. Токен уходит, если он есть (бэкенд может
+    // показывать номера только авторизованным), гостю придёт пустой список → PhonesSection покажет «войдите».
+    const phonesForUserRef = useRef<string | number | null>(null);
+    const fetchAuthorPhones = async (userId: string | number) => {
+        phonesForUserRef.current = userId;
+        try {
+            const user = await universalApiRequest(API_ROUTES.USER_BY_ID(userId), { locale: false });
+            // Ответ мог прийти уже после перехода на другое объявление — не подмешиваем чужие номера.
+            if (phonesForUserRef.current !== userId) return;
+            const phones = ((user?.phones ?? []) as Phone[])
+                .filter(p => p.phone)
+                .sort((a, b) => ((b.main ?? false) ? 1 : 0) - ((a.main ?? false) ? 1 : 0));
+            setAuthorPhones(phones);
+        } catch (error) {
+            console.error('Error fetching author phones:', error);
+        }
+    };
+
     const fetchOrder = async (ticketId: string | number) => {
         const fetchTime = Date.now();
         console.log(`[${fetchTime}] fetchOrder STARTED for ticket ID:`, ticketId);
@@ -233,6 +251,9 @@ export function Ticket() {
             setIsLoading(true);
             setError(null);
             setNotFound(false);
+            // Контакты прошлого объявления не должны «висеть» на следующем, пока грузятся новые.
+            setAuthorPhones([]);
+            phonesForUserRef.current = null;
 
             console.log('Fetching ticket with ID:', ticketId);
 
@@ -382,14 +403,12 @@ export function Ticket() {
                             }))
                     );
                 }
-                if (contactSource.phones?.length) {
-                    setAuthorPhones(
-                        (contactSource.phones as Phone[])
-                            .filter(p => p.phone)
-                            .sort((a, b) => ((b.main ?? false) ? 1 : 0) - ((a.main ?? false) ? 1 : 0))
-                    );
-                }
+                // Телефоны в объект тикета больше не приходят (бэкенд убрал их из вложенных User) — только
+                // GET /users/{id}, отдельным запросом (см. fetchAuthorPhones). Соцсети пока приходят в тикете.
             }
+
+            // Не блокируем показ объявления: телефоны догружаются следом и появляются, когда придут.
+            if (contactSource?.id != null) void fetchAuthorPhones(contactSource.id);
         } catch (error) {
             const fetchTime = Date.now();
             console.error(`[${fetchTime}] fetchOrder ERROR for ticket:`, error);

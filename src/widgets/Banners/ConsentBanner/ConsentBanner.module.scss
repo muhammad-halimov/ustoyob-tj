@@ -1,0 +1,15 @@
+.consent_banner {
+  margin: 0 0 15px;
+}
+
+// Ссылки внутри баннера: цвет берут у текста баннера (работает и в тёмной теме), выделяются
+// подчёркиванием и жирностью.
+.consent_link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+
+  &:hover {
+    text-decoration: none;
+  }
+}

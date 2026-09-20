@@ -8,6 +8,7 @@ import PageLoader from '../../../../../widgets/PageLoader/PageLoader';
 import { ProfileSection } from '../ProfileSection';
 import styles from './WorkAreasSection.module.scss';
 import { EditActions } from '../EditActions/EditActions';
+import { ConsentBanner } from '../../../../../widgets/Banners/ConsentBanner/ConsentBanner';
 import type { AddressFormData as WorkAreaItem } from '../../../../../entities';
 
 interface WorkAreasSectionProps {
@@ -143,12 +144,14 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                 renderEditItem={() => (
                     <div className={styles.edit_form}>
                         <Address value={addressForm} onChange={setAddressForm} required={true} />
+                        <ConsentBanner action={t('profile:addressConsent')} />
                         <EditActions onSave={handleSave} onCancel={onEditAddressCancel} />
                     </div>
                 )}
                 renderNewForm={() => (
                     <div className={styles.edit_form}>
                         <Address value={addressForm} onChange={setAddressForm} required={true} />
+                        <ConsentBanner action={t('profile:addressConsent')} />
                         <EditActions onSave={handleSave} onCancel={onEditAddressCancel} />
                     </div>
                 )}
