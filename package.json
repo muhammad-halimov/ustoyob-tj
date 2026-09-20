@@ -12,7 +12,7 @@
     "cap:android": "npm run build && npx cap sync android && npx cap open android",
     "cap:ios": "npm run build && npx cap sync ios && npx cap open ios",
     "cap:run:android": "npm run build && npx cap sync android && npx cap run android",
-    "cap:run:ios": "npm run build && npx cap sync ios && npx cap run ios"
+    "cap:run:ios": "npm run build && npx cap sync ios && bash scripts/run-ios.sh"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",

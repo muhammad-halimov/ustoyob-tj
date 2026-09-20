@@ -337,3 +337,56 @@ xcrun simctl list devices available
 ```
 
 Вторая команда должна вывести список доступных симуляторов, а не ошибку.
+
+## iOS на Xcode 27 / macOS 27 — `cap run ios` падает на Simulator.app
+
+**Симптом.** Сборка проходит (`✔ Running xcodebuild`), а в конце:
+
+```
+✖ Deploying App.app to <UDID> - failed!
+[error] ERR_UNKNOWN: There was an error opening simulator: The file
+        /Applications/Xcode.app/Contents/Developer/Applications/Simulator.app does not exist.
+```
+
+**Причина.** `npx cap run ios` (через `native-run`) после сборки открывает
+`Xcode.app/Contents/Developer/Applications/Simulator.app`. В Xcode 27 этого приложения по
+старому пути нет (`open -Ra Simulator` тоже его не находит). Сам симулятор и `xcrun simctl` при
+этом работают — падает только этот вспомогательный шаг Capacitor, приложение собирается нормально.
+
+**Что сделано.** `npm run cap:run:ios` теперь вызывает [`scripts/run-ios.sh`](scripts/run-ios.sh)
+вместо `npx cap run ios`: собирает `xcodebuild`, ставит и запускает через `simctl` (веб-часть,
+`npm run build` + `cap sync ios`, собирает сам npm-скрипт). Ничего вручную делать не нужно:
+
+```bash
+npm run cap:run:ios                                # уже запущенный iPhone, иначе первый доступный
+IOS_SIMULATOR="iPhone 17" npm run cap:run:ios      # конкретный симулятор (имя или UDID)
+```
+
+Если выбранное устройство выключено, скрипт загружает его (`simctl boot`) и ждёт готовности.
+Симуляторов с одним именем может быть несколько (например два «iPhone 17») — тогда передавайте UDID.
+Собранная копия лежит в `ios/DerivedData/<UDID>/` (в `.gitignore`).
+
+Если `simctl` отвечает `Mach error -308 (server died)` — упал сервис CoreSimulator (бывает на
+Xcode 27, особенно когда загружено несколько симуляторов сразу): выключите симуляторы
+(`xcrun simctl shutdown all`) и запустите ещё раз. Симулятор заметно грузит машину — на слабых
+ноутбуках держите запущенным одно устройство.
+
+**Окно симулятора.** В Xcode ≤ 26 скрипт откроет его через `open -a Simulator`. В Xcode 27
+отдельного Simulator.app нет: приложение запускается на устройстве, но окно нужно смотреть из
+Xcode (`npm run cap:ios` откроет проект, дальше Run на нужном симуляторе). Проверить, что
+приложение живо, можно и без окна: `xcrun simctl io <UDID> screenshot out.png`.
+
+**Если категории/данные на iOS не грузятся** (пустой экран вместо списка, в логе WebKit
+`didFailResourceLoad`) — это не iOS-сборка, а CORS бэкенда. Страница приложения на iOS открывается с
+origin **`capacitor://localhost`** (на Android — `https://localhost`), и его нужно разрешить в
+`CORS_ALLOW_ORIGIN` на бэкенде:
+
+```
+CORS_ALLOW_ORIGIN='^(https?://(ustoyob\.tj|localhost|127\.0\.0\.1)(:[0-9]+)?|capacitor://localhost)$'
+```
+
+Проверка (в ответе должен быть `access-control-allow-origin: capacitor://localhost`):
+
+```bash
+curl -s -o /dev/null -D - -H "Origin: capacitor://localhost" "https://admin.ustoyob.tj/api/categories" | grep -i access-control-allow-origin
+```
