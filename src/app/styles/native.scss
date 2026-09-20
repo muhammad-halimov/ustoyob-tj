@@ -49,6 +49,10 @@ html.native-ios {
     border: 1px solid var(--color-border-light);
     border-radius: 26px;
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+    // Жёсткая обрезка по скруглённой форме: ничто внутри (пузырь-подсветка, иконка при анимации)
+    // не может выйти за границы капсулы. Счётчик непрочитанных у «Чатов» выступает над иконкой
+    // всего на 6px, а от верха капсулы иконка в ~8px — он не обрезается.
+    overflow: hidden;
   }
 
   // ── Анимация панели ─────────────────────────────────────────────────────────────────────
@@ -65,20 +69,25 @@ html.native-ios {
   [class*='_mobile_header_'] > [class*='_bottomHeader_navList_'] {
     position: relative;
     --nav-index: 0;
+    // Равномерный внутренний отступ 4px со всех сторон (в общих стилях было 8px 12px — по бокам
+    // пузырь отступал от края капсулы втрое больше, чем сверху/снизу, и вокруг вкладок был «воздух»).
+    padding: 4px;
 
     &::before {
       content: '';
       position: absolute;
       top: 4px;
       bottom: 4px;
-      left: 12px;
-      width: calc((100% - 24px) / 5);
-      border-radius: 20px;
+      left: 4px;
+      width: calc((100% - 8px) / 5);
+      border-radius: 999px;
       background: rgba(58, 84, 218, 0.16);
       background: color-mix(in srgb, var(--color-actual-blue) 18%, transparent);
       transform: translateX(calc(var(--nav-index) * 100%));
       opacity: 0;
-      transition: transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+      // Без «перелёта»: пружина (cubic-bezier с y > 1) выносила пузырь за край капсулы на крайних
+      // вкладках. easeOutQuint — быстрый старт, мягкая остановка ровно на вкладке.
+      transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
       pointer-events: none;
       z-index: 0;
     }
@@ -99,6 +108,7 @@ html.native-ios {
       z-index: 1;
       flex: 1 1 0;
       min-width: 0;
+      padding: 3px 0;
       // У вкладок в общих стилях есть `margin-right: 30px !important` (наследие десктопной шапки,
       // кроме последней) — он съедает ширину колонок и делает их неравными; в нижней панели он не
       // нужен. Общий стиль с !important, поэтому и сброс тоже.
@@ -107,7 +117,7 @@ html.native-ios {
 
     // 3) Иконка выбранной вкладки «подпрыгивает» в момент выбора.
     > li[class*='_active_'] svg {
-      animation: nativeNavIconPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      animation: nativeNavIconPop 0.4s cubic-bezier(0.22, 1, 0.36, 1);
     }
   }
 
@@ -138,13 +148,13 @@ html.native-ios {
     pointer-events: none;
   }
 
-  // Футер резервирует место под фиксированную панель (см. Footer.module.scss: 20px + 64px) —
+  // Футер резервирует место под фиксированную панель (см. Footer.module.scss: 20px + 64px; капсула ниже полосы — ~51px) —
   // теперь панель ещё и приподнята над низом экрана (тот же bottom, что у панели) + небольшой зазор.
   @media screen and (max-width: 960px) {
     // Именно тег <footer>: под `[class*='_footer_']` попадали и `card_footer` / `card_footer_right`
     // (подвал карточки объявления) — каждому добавлялось по ~120px, и карточка раздувалась пустотой.
     footer[class^='_footer_'] {
-      padding-bottom: calc(20px + 64px + max(env(safe-area-inset-bottom, 0px) - 8px, 12px) + 12px);
+      padding-bottom: calc(20px + 51px + max(env(safe-area-inset-bottom, 0px) - 8px, 12px) + 12px);
     }
   }
 
@@ -163,7 +173,7 @@ html.native-ios {
 }
 
 @keyframes nativeNavIconPop {
-  0%   { transform: scale(0.7) translateY(3px); }
-  55%  { transform: scale(1.2) translateY(-3px); }
+  0%   { transform: scale(0.78); }
+  60%  { transform: scale(1.1); }
   100% { transform: none; }
 }
