@@ -11,6 +11,7 @@ import styles from './Legal.module.scss';
 import type { LegalDocument, LegalDocumentType } from '../../entities';
 import { getLegalDocuments } from '../../utils/dataCacheUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
+import { useMediaQuery } from '../../hooks';
 import TechSupportForm, { type TechSupportProps as _TSP } from '../support/TechSupport';
 
 const EmbeddedTechSupport = TechSupportForm as React.ComponentType<_TSP>;
@@ -35,6 +36,8 @@ function Legal() {
     const { t, i18n } = useTranslation('common');
     const location = useLocation();
     const navigate = useNavigate();
+    // Пять вкладок с длинными подписями в одну строку не помещаются — ≤960px (граница мобильного хедера) ставим их столбцом.
+    const verticalTabs = useMediaQuery('(max-width: 960px)');
     const [document, setDocument] = useState<LegalDocument | null>(null);
     // Инициализируем сразу из URL — без задержки через useEffect
     const [activeType, setActiveType] = useState<PageTab>(() => getTabFromPath(location.pathname));
@@ -106,6 +109,7 @@ function Legal() {
                     tabs={navTabs}
                     activeTab={activeType}
                     onChange={handleTypeChange}
+                    altMode={verticalTabs}
                 />
             </div>
             <div className={styles.content}>

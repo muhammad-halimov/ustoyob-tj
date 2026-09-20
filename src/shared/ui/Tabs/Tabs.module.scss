@@ -116,3 +116,32 @@
     }
   }
 }
+
+// altMode — вертикальные вкладки (всегда; порог по ширине экрана задаёт вызывающий).
+// Объявлено ПОСЛЕ обоих вариантов, чтобы при равной специфичности (.tabs_x .tab) перебивать их.
+.tabs_alt {
+  flex-direction: column;
+
+  .tab {
+    flex: none;
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  // underline: нижняя черта контейнера и вкладок → левая линия, активная подсвечивается слева
+  &.tabs_underline {
+    border-bottom: none;
+    border-left: 1px solid var(--color-hover-with-border-btn);
+
+    .tab {
+      border-bottom: none;
+      border-left: 2px solid transparent;
+      margin-left: -1px;
+
+      &.active {
+        border-left-color: var(--color-primary);
+      }
+    }
+  }
+}

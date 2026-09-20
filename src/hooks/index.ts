@@ -6,3 +6,4 @@ export { useFormattedDate, useTimeAgo } from './useDateFormat';
 export { useShowMore } from './useShowMore';
 export type { ShowMoreBindings } from './useShowMore';
 export { useUnreadChatsCount } from './useUnreadChatsCount';
+export { useMediaQuery } from './useMediaQuery';
