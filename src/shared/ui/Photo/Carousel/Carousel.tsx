@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import type * as React from 'react';
 import styles from './Carousel.module.scss';
 import { Preview } from '../Preview';
-import { blurhashToDataUrl } from '../../../../utils/blurhashUtils';
+import { Img } from '../Img';
 import type { PhotoSource } from '../../../../entities';
 
 const THUMB_PER_PAGE = 4;
@@ -40,6 +40,15 @@ export function Carousel({ photos, sources, variant = 'medium', className, prior
     if (!s) return photos[i];
     return (variant === 'thumbnail' ? s.thumbnail ?? s.medium : s.medium) ?? s.url;
   };
+  // Откат для главного фото: варианты от бэка могут не сгенерироваться (например, thumb_480 для PNG с
+  // прозрачностью на бэке отвечает 500) — тогда без отката оставался значок «битая картинка» под блюром.
+  // Идём по размеру вверх и в конце — оригинал; <Img> ещё и запоминает упавшие варианты на вкладку.
+  const mainFallbacks = (i: number): string[] => {
+    const s = src(i);
+    if (!s) return [];
+    const chain = variant === 'thumbnail' ? [s.medium, s.url] : [s.thumbnail, s.url];
+    return chain.filter((u): u is string => !!u && u !== mainSrc(i));
+  };
   // В галерее (Preview) — WebP оригинала (≤2400 px, заметно легче исходного PNG/JPEG).
   const galleryImages = useMemo(
     () => (usableSources ? usableSources.map(s => s.webp ?? s.url) : photos),
@@ -55,7 +64,6 @@ export function Carousel({ photos, sources, variant = 'medium', className, prior
     () => usableSources?.map(s => s.thumbnail ?? s.webp ?? s.url),
     [usableSources],
   );
-  const mainPlaceholder = useMemo(() => blurhashToDataUrl(src(currentIndex)?.blurhash), [usableSources, currentIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const visibleThumbs = photos.slice(thumbOffset, thumbOffset + THUMB_PER_PAGE);
   const canScrollLeft = thumbOffset > 0;
@@ -136,16 +144,16 @@ export function Carousel({ photos, sources, variant = 'medium', className, prior
         onTouchEnd={(e) => handleTouchEndOpen(currentIndex, e)}
         style={{ cursor: 'pointer' }}
       >
-        <img
+        <Img
           src={mainSrc(currentIndex)}
-          // BlurHash рисуется фоном самого <img>: пока файл грузится, виден размытый силуэт,
-          // готовое фото просто перекрывает его (без обёртки — раскладка не меняется).
-          style={mainPlaceholder ? { backgroundImage: `url(${mainPlaceholder})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+          fallbacks={mainFallbacks(currentIndex)}
+          // BlurHash — фон на время загрузки (Img снимает его, когда файл пришёл); не загрузилось ничего — заглушка.
+          blurhash={src(currentIndex)?.blurhash}
+          placeholder="/img/icons/misc/fonTest5.png"
           className={styles.main_photo}
           alt=""
           draggable={false}
           loading={priority ? 'eager' : 'lazy'}
-          decoding="async"
         />
         {photos.length > 1 && (
           <>
@@ -188,9 +196,11 @@ export function Carousel({ photos, sources, variant = 'medium', className, prior
             {visibleThumbs.map((photo, idx) => {
               const realIdx = thumbOffset + idx;
               return (
-                <img
+                <Img
                   key={realIdx}
                   src={src(realIdx)?.thumbnail ?? photo}
+                  fallbacks={src(realIdx)?.thumbnail ? [photo] : undefined}
+                  placeholder="/img/icons/misc/fonTest5.png"
                   className={`${styles.thumbnail} ${realIdx === currentIndex ? styles.thumbnail_active : ''}`}
                   onClick={(e) => { e.stopPropagation(); setCurrentIndex(realIdx); }}
                   onTouchStart={handleTouchStart}
@@ -198,8 +208,6 @@ export function Carousel({ photos, sources, variant = 'medium', className, prior
                   onTouchEnd={(e) => handleThumbTouchEnd(realIdx, e)}
                   alt=""
                   draggable={false}
-                  loading="lazy"
-                  decoding="async"
                 />
               );
             })}
