@@ -32,20 +32,40 @@ html.native-ios {
     top: env(safe-area-inset-top, 0px);
   }
 
-  // Нижняя панель навигации: фон панели тянется до самого низа экрана, а сами вкладки
-  // приподняты над «домашней полоской» и скруглёнными углами дисплея (иначе крайние вкладки
-  // и подписи «Главная» / «Профиль» уходят под углы). +6px — небольшой зазор сверху.
+  // Нижняя панель навигации — «плавающая» капсула, а не полоса на всю ширину. Полоса, тянущаяся до
+  // самого низа, вынуждает поднимать вкладки на всю высоту «домашней полоски», и под ними остаётся
+  // мёртвая тёмная область, повторяющая изгиб углов дисплея. Капсула с отступами по бокам и снизу
+  // зависает над полоской, а её скруглённые углы вписываются в углы экрана: угол дисплея (радиус
+  // ~55px) на высоте 26px от низа отступает всего на ~10px < 12px бокового отступа.
   [class*='_mobile_header_'] {
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
-    padding-left: env(safe-area-inset-left, 0px);
-    padding-right: env(safe-area-inset-right, 0px);
+    left: max(12px, env(safe-area-inset-left, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    // Индикатор «домашней полоски» тонкий — панель может слегка заходить в зону под ним.
+    bottom: max(env(safe-area-inset-bottom, 0px) - 8px, 12px);
+    border: 1px solid var(--color-border-light);
+    border-radius: 26px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+  }
+
+  // Затухание под капсулой: прокручиваемый контент не должен торчать в зазоре между панелью и краем
+  // экрана (там же «домашняя полоска»). Цвет — фон страницы текущей темы; ниже панели (1000) и модалок.
+  &::after {
+    content: '';
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(max(env(safe-area-inset-bottom, 0px) - 8px, 12px) + 20px);
+    background: linear-gradient(to top, var(--color-background-all) 55%, transparent);
+    z-index: 999;
+    pointer-events: none;
   }
 
   // Футер резервирует место под фиксированную панель (см. Footer.module.scss: 20px + 64px) —
-  // теперь панель выше на величину нижнего отступа.
+  // теперь панель ещё и приподнята над низом экрана (тот же bottom, что у панели) + небольшой зазор.
   @media screen and (max-width: 960px) {
     [class*='_footer_'] {
-      padding-bottom: calc(20px + 64px + 6px + env(safe-area-inset-bottom, 0px));
+      padding-bottom: calc(20px + 64px + max(env(safe-area-inset-bottom, 0px) - 8px, 12px) + 12px);
     }
   }
 
