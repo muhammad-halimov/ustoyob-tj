@@ -338,6 +338,14 @@
   word-break: break-word;
 }
 
+// Markdown-версия messageBody: без pre-wrap — переносы уже разобраны парсером (breaks: true),
+// иначе "\n" между блоками HTML дал бы лишние пустые строки.
+.messageBodyMd {
+  color: var(--color-text-primary);
+  font-size: map.get(vars.$font-sizes, base);
+  word-break: break-word;
+}
+
 // Placeholder for a soft-deleted message — own localized string (see `thread.messageDeleted`),
 // never the server's own placeholder text, so it stays in the frontend's translation system
 // instead of depending on the backend's `?locale=`.
@@ -411,7 +419,9 @@
 // attached, same as there, instead of always taking up space.
 .chatInput {
   display: flex;
-  align-items: center;
+  // flex-end, не center: поле сообщения растёт по высоте (SelectSearch expandable), а кнопки
+  // скрепки/отправки остаются у нижней строки, как в Telegram.
+  align-items: flex-end;
   gap: map.get(vars.$spacing, 2);
   padding-top: map.get(vars.$spacing, 4);
   border-top: 1px solid var(--color-stroke);

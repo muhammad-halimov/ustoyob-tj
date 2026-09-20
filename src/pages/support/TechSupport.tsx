@@ -720,6 +720,7 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                                 <h2>{t('form.titleLabel')}</h2>
                                 <SelectSearch
                                     altMode
+                                    expandable
                                     hideIcon
                                     options={[]}
                                     placeholder={t('form.titlePlaceholder')}

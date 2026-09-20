@@ -933,7 +933,9 @@
   right: 0;
   width: 100%;
   display: flex;
-  align-items: center;
+  // flex-end, не center: поле сообщения растёт по высоте (textarea), а кнопки скрепки и
+  // отправки остаются у нижней строки, как в Telegram.
+  align-items: flex-end;
   background: #f7f8ff;
   border-radius: 0 0 16px 16px;
   padding: 10px 15px;
@@ -966,6 +968,17 @@
     font-size: 14px;
     color: #333;
     padding: 6px 8px;
+    font-family: inherit;
+    line-height: 20px;
+    resize: none;
+    overflow-y: auto;
+    // ~6 строк, дальше — внутренний скролл, а не бесконечный рост
+    max-height: 132px;
+    word-break: break-word;
+    // Однострочное поле (32px) по центру относительно 42px-кнопки; многострочное
+    // прижимается к нижней строке вместе с кнопками.
+    margin-bottom: 5px;
+    box-sizing: border-box;
 
     &::placeholder {
       color: #aaa;
