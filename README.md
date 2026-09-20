@@ -422,3 +422,23 @@ Dynamic Island, а нижняя панель — в скруглённые уг�
 Проверить раскладку без симулятора можно в обычном Chrome: DevTools Protocol
 `Emulation.setSafeAreaInsetsOverride` (например верх 59 px, низ 34 px) + добавить на `<html>` класс
 `native-ios` и `viewport-fit=cover` в meta viewport.
+
+## Иконка и сплэш-экран приложения
+
+Исходники лежат в [`assets/`](assets/) и превращаются во все размеры для iOS и Android
+пакетом `@capacitor/assets`:
+
+| Файл | Что это |
+|---|---|
+| `icon-only.png` (1024×1024, **без прозрачности** — требование iOS) | иконка iOS и обычная/круглая иконка Android |
+| `icon-foreground.png` / `icon-background.png` | слои adaptive-иконки Android; знак умещается в «безопасную зону» (~66%) |
+| `splash.png` / `splash-dark.png` (2732×2732) | экран запуска (светлая / тёмная тема) |
+
+Знак — `public/img/icons/logos/LogoMobile.svg` (белый знак на брендовом синем градиенте).
+
+```bash
+npm run assets      # перегенерировать иконки и сплэш в ios/ и android/ из assets/
+```
+
+Заменили картинку в `assets/` — запустите `npm run assets` и закоммитьте изменения в `ios/` и `android/`.
+Генератор может переформатировать `AndroidManifest.xml` (только пробелы/теги, смысл не меняется).
