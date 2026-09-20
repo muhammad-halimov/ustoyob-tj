@@ -6,6 +6,7 @@ import { SectionActions } from '../../../../../shared/ui/SectionActions';
 import { AuthBanner } from '../../../../../widgets/Banners/AuthBanner/AuthBanner';
 import { ProfileSection } from '../ProfileSection';
 import { EditActions } from '../EditActions/EditActions';
+import { ConsentBanner } from '../../../../../widgets/Banners/ConsentBanner/ConsentBanner';
 import { SelectSearch } from '../../../../../shared/ui/SelectSearch';
 import styles from './SocialNetworksSection.module.scss';
 import type { AvailableSocialNetwork, SocialNetworkConfig, UISocialNetwork } from '../../../../../entities';
@@ -275,6 +276,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                             placeholder={t('profile:selectPlaceholder')}
                         />
                     </div>
+                    <ConsentBanner action={t('profile:socialNetworkConsent')} />
                     <EditActions
                         onSave={onAddSocialNetwork}
                         onCancel={() => { setShowAddSocialNetwork(false); setSelectedNewNetwork(''); }}

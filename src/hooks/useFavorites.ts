@@ -3,6 +3,7 @@ import { getAuthToken } from '../utils/authUtils';
 import { getStorageJSON, setStorageJSON } from '../utils/storageUtils';
 import type { LocalStorageFavorites } from '../entities';
 import { universalApiRequest } from '../utils/apiUtils';
+import { fetchAllPages } from '../utils/paginationUtils';
 import { resolveApiError } from '../utils/appMessagesUtils';
 import { API_ROUTES } from '../app/routers/routes';
 
@@ -65,8 +66,9 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
         }
 
         if (!_favoritesPromise) {
-            _favoritesPromise = universalApiRequest(API_ROUTES.FAVORITES_ME, { locale: false }).then((data: any) => {
-                const entries: FavoriteEntry[] = data['hydra:member'] ?? (Array.isArray(data) ? data : []);
+            // ВСЕ избранное (fetchAllPages): без пагинации сердечки на карточках знали только первые 25 записей —
+            // всё, что старше, показывалось как «не в избранном» (и повторное добавление давало 409).
+            _favoritesPromise = fetchAllPages<FavoriteEntry>(API_ROUTES.FAVORITES_ME, { locale: false }).then((entries) => {
                 _favoritesCache = { data: entries, timestamp: Date.now() };
                 _favoritesPromise = null;
                 return entries;

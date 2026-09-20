@@ -4,6 +4,7 @@ import { IoCallOutline } from 'react-icons/io5';
 import { getAuthToken } from '../../../../../utils/authUtils';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { AuthBanner } from '../../../../../widgets/Banners/AuthBanner/AuthBanner';
+import { ConsentBanner } from '../../../../../widgets/Banners/ConsentBanner/ConsentBanner';
 import Status from '../../../../../shared/ui/Modal/Status';
 import PageLoader from '../../../../../widgets/PageLoader/PageLoader';
 import { ProfileSection } from '../ProfileSection';
@@ -190,6 +191,7 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
                                 placeholder={phoneForm.type === 'tj' ? '+992XXXXXXXXX' : '+XXXXXXXXXXX'}
                             />
                         </div>
+                        <ConsentBanner action={t('profile:phoneConsent')} />
                         {/* suppress unused phone param lint */}
                         {phone && <EditActions onSave={handleSave} onCancel={onEditPhoneCancel} />}
                     </div>
@@ -236,6 +238,7 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
                                 placeholder={phoneForm.type === 'tj' ? '+992XXXXXXXXX' : '+XXXXXXXXXXX'}
                             />
                         </div>
+                        <ConsentBanner action={t('profile:phoneConsent')} />
                         <EditActions onSave={handleSave} onCancel={onEditPhoneCancel} />
                     </div>
                 )}

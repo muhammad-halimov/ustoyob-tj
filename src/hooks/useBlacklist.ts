@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { getAuthToken } from '../utils/authUtils';
 import { universalApiRequest } from '../utils/apiUtils';
+import { fetchAllPages } from '../utils/paginationUtils';
 import { resolveApiError } from '../utils/appMessagesUtils';
 import { API_ROUTES } from '../app/routers/routes';
 
@@ -35,8 +36,8 @@ export const fetchBlacklistEntries = async (): Promise<BlackListEntry[]> => {
     }
 
     if (!_blacklistPromise) {
-        _blacklistPromise = universalApiRequest(API_ROUTES.BLACKLIST_ME, { locale: false }).then((data: any) => {
-            const entries: BlackListEntry[] = data['hydra:member'] ?? (Array.isArray(data) ? data : []);
+        // ВСЕ записи чёрного списка (fetchAllPages), а не первая страница из 25.
+        _blacklistPromise = fetchAllPages<BlackListEntry>(API_ROUTES.BLACKLIST_ME, { locale: false }).then((entries) => {
             _blacklistCache = { data: entries, timestamp: Date.now() };
             _blacklistPromise = null;
             return entries;

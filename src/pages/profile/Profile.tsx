@@ -54,6 +54,7 @@ import Feedback from '../../shared/ui/Modal/Feedback';
 import Auth from '../../shared/ui/Modal/Auth/Auth';
 import { InstagramLinkNotice } from '../../shared/ui/Modal/InstagramLinkNotice';
 import { resolveAvatar, toPhotoSource } from '../../utils/imageUtils';
+import { fetchAllPages } from '../../utils/paginationUtils';
 import { getFormattedDate } from '../../utils/timeUtils';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
 import { getPageSize } from '../../utils/pageSizeUtils';
@@ -390,9 +391,8 @@ function Profile() {
 
         (async () => {
             try {
-                const data: any = await universalApiRequest(API_ROUTES.FAVORITES_ME, { locale: false });
-                const entries: Array<{ id: string | number; type: string; user: { id: string | number } | null }> =
-                    data['hydra:member'] ?? (Array.isArray(data) ? data : []);
+                // ВСЕ избранное (fetchAllPages): по первой странице из 25 профиль старше 25-й записи считался «не в избранном».
+                const entries = await fetchAllPages<{ id: string | number; type: string; user: { id: string | number } | null }>(API_ROUTES.FAVORITES_ME, { locale: false });
                 const match = entries.find(e => e.type === 'user' && e.user?.id === profileData.id);
                 setIsProfileLiked(!!match);
                 setProfileEntryId(match?.id ?? null);
@@ -3079,9 +3079,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 } catch (postErr: any) {
                     if (postErr?.status === 409) {
                         // Already in favorites — re-fetch to get entryId
-                        const data: any = await universalApiRequest(API_ROUTES.FAVORITES_ME, { locale: false });
-                        const entries: Array<{ id: string | number; type: string; user: { id: string | number } | null }> =
-                            data['hydra:member'] ?? [];
+                        const entries = await fetchAllPages<{ id: string | number; type: string; user: { id: string | number } | null }>(API_ROUTES.FAVORITES_ME, { locale: false });
                         const match = entries.find(e => e.type === 'user' && e.user?.id === profileData.id);
                         if (match) { setIsProfileLiked(true); setProfileEntryId(match.id); }
                     }
