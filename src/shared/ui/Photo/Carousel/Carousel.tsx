@@ -1,26 +1,51 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type * as React from 'react';
 import styles from './Carousel.module.scss';
 import { Preview } from '../Preview';
+import { blurhashToDataUrl } from '../../../../utils/blurhashUtils';
+import type { PhotoSource } from '../../../../entities';
 
 const THUMB_PER_PAGE = 4;
 const TOUCH_SCROLL_THRESHOLD = 10;
 const SWIPE_THRESHOLD = 40;
 
 interface PhotoCarouselProps {
+  /** Оригиналы (fallback и то, что видно, если `sources` не переданы). */
   photos: string[];
+  /** Те же фото с превью/WebP/BlurHash от бэка (тот же порядок, что `photos`). С ними главное
+   *  фото — лёгкое WebP-превью поверх мгновенной BlurHash-заглушки, а полный файл нужен
+   *  только в полноэкранной галерее. */
+  sources?: PhotoSource[];
+  /** Вариант главного фото: `thumbnail` (480 px) для карточек лент, `medium` (800 px) для
+   *  детальной страницы. */
+  variant?: 'thumbnail' | 'medium';
   className?: string;
   /** Главное фото грузить сразу (hero на странице тикета). По умолчанию — lazy: карусель в основном
    *  живёт в карточках лент, где фото вне экрана не должны качаться заранее. */
   priority?: boolean;
 }
 
-export function Carousel({ photos, className, priority = false }: PhotoCarouselProps) {
+export function Carousel({ photos, sources, variant = 'medium', className, priority = false }: PhotoCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [thumbOffset, setThumbOffset] = useState(0);
   const touchState = useRef<{ x: number; y: number; dx: number; scrolled: boolean } | null>(null);
+
+  // sources используем только если они строго параллельны photos (вызывающий мог отфильтровать пустые URL).
+  const usableSources = sources && sources.length === photos.length ? sources : undefined;
+  const src = (i: number): PhotoSource | undefined => usableSources?.[i];
+  const mainSrc = (i: number): string => {
+    const s = src(i);
+    if (!s) return photos[i];
+    return (variant === 'thumbnail' ? s.thumbnail ?? s.medium : s.medium) ?? s.url;
+  };
+  // В галерее (Preview) — WebP оригинала (≤2400 px, заметно легче исходного PNG/JPEG).
+  const galleryImages = useMemo(
+    () => (usableSources ? usableSources.map(s => s.webp ?? s.url) : photos),
+    [usableSources, photos],
+  );
+  const mainPlaceholder = useMemo(() => blurhashToDataUrl(src(currentIndex)?.blurhash), [usableSources, currentIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const visibleThumbs = photos.slice(thumbOffset, thumbOffset + THUMB_PER_PAGE);
   const canScrollLeft = thumbOffset > 0;
@@ -102,7 +127,10 @@ export function Carousel({ photos, className, priority = false }: PhotoCarouselP
         style={{ cursor: 'pointer' }}
       >
         <img
-          src={photos[currentIndex]}
+          src={mainSrc(currentIndex)}
+          // BlurHash рисуется фоном самого <img>: пока файл грузится, виден размытый силуэт,
+          // готовое фото просто перекрывает его (без обёртки — раскладка не меняется).
+          style={mainPlaceholder ? { backgroundImage: `url(${mainPlaceholder})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
           className={styles.main_photo}
           alt=""
           draggable={false}
@@ -152,7 +180,7 @@ export function Carousel({ photos, className, priority = false }: PhotoCarouselP
               return (
                 <img
                   key={realIdx}
-                  src={photo}
+                  src={src(realIdx)?.thumbnail ?? photo}
                   className={`${styles.thumbnail} ${realIdx === currentIndex ? styles.thumbnail_active : ''}`}
                   onClick={(e) => { e.stopPropagation(); setCurrentIndex(realIdx); }}
                   onTouchStart={handleTouchStart}
@@ -182,7 +210,7 @@ export function Carousel({ photos, className, priority = false }: PhotoCarouselP
 
       <Preview
         isOpen={isGalleryOpen}
-        images={photos}
+        images={galleryImages}
         currentIndex={galleryStartIndex}
         onClose={() => setIsGalleryOpen(false)}
         onNext={() => setGalleryStartIndex(i => (i + 1) % photos.length)}

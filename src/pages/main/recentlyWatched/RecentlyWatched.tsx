@@ -130,6 +130,7 @@ function RecentlyWatched() {
                             responsesCount={ticket.responsesCount}
                             viewsCount={ticket.viewsCount}
                             photos={ticket.photos}
+                            photoSources={ticket.photoSources}
                             authorImage={ticket.authorImage}
                             negotiableBudget={ticket.negotiableBudget}
                             onClick={() => navigate(ROUTES.TICKET_BY_ID(ticket.id))}

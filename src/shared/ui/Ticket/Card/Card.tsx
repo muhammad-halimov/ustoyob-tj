@@ -97,6 +97,7 @@ export function Card({
   isActive = true,
   onActiveToggle,
   photos,
+  photoSources,
   authorImage,
   negotiableBudget,
   onRespondClick: externalOnRespondClick,
@@ -378,7 +379,7 @@ export function Card({
 
       {photos && photos.length > 0 ? (
         <div className={styles.card_content_row}>
-          <Carousel photos={photos} className={styles.card_photo_slider} />
+          <Carousel photos={photos} sources={photoSources} variant="thumbnail" className={styles.card_photo_slider} />
           <p className={`${styles.card_description} ${styles.card_description_in_row}`}>{truncateText(translatedDescription, truncateLimit)}</p>
         </div>
       ) : (

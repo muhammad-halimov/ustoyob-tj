@@ -38,6 +38,7 @@ export default function Category() {
                 title: item.title || 'Без названия',
                 description: item.description || '',
                 image: item.image || '',
+                imageThumbnail: item.imageThumbnail,
                 priority: item.priority ?? undefined
             })) : [];
 
@@ -146,7 +147,7 @@ export default function Category() {
         const API_URL = import.meta.env.VITE_API_BASE_URL || '';
 
         // Проверяем, начинается ли путь с /uploads/ или /images/
-        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) {
+        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/') || imagePath.startsWith('/media/')) {
             return `${API_URL}${imagePath}`;
         }
 
@@ -192,7 +193,7 @@ export default function Category() {
                             }}
                         >
                             <img decoding="async"
-                                src={getImageUrl(item.image)}
+                                src={getImageUrl(item.imageThumbnail || item.image)}
                                 alt={item.title}
                                 onError={(e) => {
                                     // Если изображение не загружается, используем запасное

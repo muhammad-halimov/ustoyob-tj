@@ -703,6 +703,7 @@ function Category() {
                             responsesCount={ticket.responsesCount}
                             viewsCount={ticket.viewsCount}
                             photos={ticket.photos}
+                            photoSources={ticket.photoSources}
                             authorImage={ticket.authorImage}
                             negotiableBudget={ticket.negotiableBudget}
                             onClick={() => handleCardClick(ticket.id)}

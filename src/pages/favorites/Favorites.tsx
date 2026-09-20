@@ -31,7 +31,7 @@ import {ShowMore} from '../../shared/ui/Button/ShowMore/ShowMore';
 import {SelectSearch} from '../../shared/ui/SelectSearch';
 import {getPageSize} from '../../utils/pageSizeUtils';
 import {applyFavoriteSort, getTicketFullAddress, parsePagedResponse, universalApiRequest} from '../../utils/apiUtils';
-import {formatProfileImageUrl, formatTicketImageUrl} from '../../utils/imageUtils';
+import {formatProfileImageUrl, formatTicketImageUrl, toPhotoSource} from '../../utils/imageUtils';
 import type {
     FavoriteEntry,
     FavoriteTicketView,
@@ -407,6 +407,7 @@ function Favorites() {
                 responsesCount: ticket.responsesCount,
                 viewsCount: ticket.viewsCount,
                 photos: (ticket.images || ticket.ticketImages)?.map(img => formatTicketImageUrl(img.image)).filter(Boolean) as string[],
+                photoSources: (ticket.images || ticket.ticketImages)?.map(img => toPhotoSource(img)).filter(s => s.url),
                 negotiableBudget: ticket.negotiableBudget,
             };
 
@@ -520,6 +521,7 @@ function Favorites() {
                             responsesCount: ticket.responsesCount,
                             viewsCount: ticket.viewsCount,
                             photos: (ticket.images || ticket.ticketImages)?.map(img => formatTicketImageUrl(img.image)).filter(Boolean) as string[],
+                photoSources: (ticket.images || ticket.ticketImages)?.map(img => toPhotoSource(img)).filter(s => s.url),
                             negotiableBudget: ticket.negotiableBudget,
                         });
                     } else if (entry.type === 'user' && entry.user) {
@@ -955,6 +957,7 @@ function Favorites() {
                         }}
                         isLikeLoading={isLikeLoading === ticket.id}
                         photos={ticket.photos}
+                        photoSources={ticket.photoSources}
                         authorImage={ticket.authorImage}
                         negotiableBudget={ticket.negotiableBudget}
                         onClick={() => handleCardClick(ticket.authorId, ticket.id)}

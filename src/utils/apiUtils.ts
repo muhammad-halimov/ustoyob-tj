@@ -4,7 +4,7 @@ import { getDefaultLocale } from './storageUtils';
 import i18n from 'i18next';
 import type { Ticket, SortByType, FavoriteTicketView } from '../entities';
 import type { TicketView } from '../entities';
-import { formatTicketImageUrl, formatProfileImageUrl } from './imageUtils';
+import { formatTicketImageUrl, formatProfileImageUrl, toPhotoSource } from './imageUtils';
 import { API_BASE_URL } from './configUtils';
 
 export type LocaleType = 'tj' | 'ru' | 'eng';
@@ -218,7 +218,8 @@ export const getTicketAuthor = (ticket: Ticket): { name: string; id: string | nu
     return {
         name,
         id: person?.id || 0,
-        imageSrc: person?.image || person?.imageExternalUrl || undefined,
+        // imageThumbnail (WebP 480 px) вместо оригинала — аватар в карточке крошечный.
+        imageSrc: person?.imageThumbnail || person?.image || person?.imageExternalUrl || undefined,
     };
 };
 
@@ -252,6 +253,7 @@ export const ticketToTicketView = (ticket: Ticket): TicketView => {
         responsesCount: ticket.responsesCount,
         viewsCount: ticket.viewsCount,
         photos: ticket.images?.map(img => formatTicketImageUrl(img.image)),
+        photoSources: ticket.images?.map(img => toPhotoSource(img)),
         negotiableBudget: ticket.negotiableBudget,
     };
 };
