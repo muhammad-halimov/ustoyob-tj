@@ -13,6 +13,12 @@ interface TabsProps<T extends string = string> {
     activeTab: T;
     onChange: (key: T) => void;
     variant?: 'underline' | 'pill';
+    /**
+     * Вертикальные вкладки: пункты встают в столбец, каждый на всю ширину. Для длинных подписей,
+     * которые в одну строку сжимаются. Сам по себе от ширины экрана не зависит — когда включать
+     * (например, только на узких экранах), решает вызывающий. По умолчанию false.
+     */
+    altMode?: boolean;
     className?: string;
 }
 
@@ -21,6 +27,7 @@ export function Tabs<T extends string = string>({
     activeTab,
     onChange,
     variant = 'underline',
+    altMode = false,
     className,
 }: TabsProps<T>) {
     return (
@@ -28,6 +35,7 @@ export function Tabs<T extends string = string>({
             className={[
                 styles.tabs,
                 variant === 'pill' ? styles.tabs_pill : styles.tabs_underline,
+                altMode && styles.tabs_alt,
                 className,
             ]
                 .filter(Boolean)
