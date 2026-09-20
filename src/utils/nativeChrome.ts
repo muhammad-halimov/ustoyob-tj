@@ -1,12 +1,18 @@
 /**
- * Нативная «обвязка» пакетного приложения: безопасные зоны iOS и цвет статус-бара.
+ * Нативная «обвязка» пакетного приложения: масштабирование, безопасные зоны iOS и цвет статус-бара.
  * Только для мобильной сборки (импортируется из app/main.tsx и ThemeContext).
  *
- * iOS: веб-вью рисуется на весь экран — под статус-баром, Dynamic Island и «домашней полоской»
- * (Capacitor `ios.contentInset: never`, см. capacitor.config.ts). Чтобы `env(safe-area-inset-*)`
- * заработал, нужен `viewport-fit=cover` — добавляем его здесь, в рантайме, а не в index.html,
- * потому что index.html общий с веб-версией сайта. Сами отступы — app/styles/native.scss
- * (активны под `html.native-ios`).
+ * `index.html` общий с веб-версией сайта, поэтому всё, что нужно только приложению, дописываем
+ * в meta viewport в рантайме, а не там:
+ *  - `maximum-scale=1, user-scalable=no` — запрет масштабирования. Главная причина: iOS
+ *    автоматически приближает страницу при фокусе на поле ввода со шрифтом < 16px, и после
+ *    ввода экран остаётся «зумнутым». `maximum-scale=1` убирает этот автозум, не меняя шрифты
+ *    инпутов (дизайн остаётся прежним); попутно отключается и pinch-zoom. Двойной тап по
+ *    кнопкам/ссылкам уже гасится `touch-action: manipulation` (см. app/styles/index.scss).
+ *  - iOS: `viewport-fit=cover` — веб-вью рисуется на весь экран (Capacitor `ios.contentInset:
+ *    never`, см. capacitor.config.ts), под статус-баром, Dynamic Island и «домашней полоской»;
+ *    без `viewport-fit=cover` `env(safe-area-inset-*)` равен 0. Сами отступы — в
+ *    app/styles/native.scss (активны под `html.native-ios`).
  */
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -14,15 +20,26 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 const platform = Capacitor.getPlatform();
 const isNative = Capacitor.isNativePlatform();
 
+/** Adds `directive` (e.g. `maximum-scale=1`) to the viewport meta unless its key is already there. */
+function addViewportDirective(directive: string): void {
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (!viewport) return;
+    const content = viewport.getAttribute('content') ?? '';
+    const key = directive.split('=')[0];
+    if (content.split(',').some((part) => part.trim().startsWith(`${key}=`))) return;
+    viewport.setAttribute('content', `${content}, ${directive}`);
+}
+
 /** Call once at startup, before the first render. */
 export function initNativeChrome(): void {
-    if (platform !== 'ios') return;
+    if (!isNative) return;
 
-    const viewport = document.querySelector('meta[name="viewport"]');
-    const content = viewport?.getAttribute('content') ?? '';
-    if (viewport && !content.includes('viewport-fit')) {
-        viewport.setAttribute('content', `${content}, viewport-fit=cover`);
-    }
+    // Без автозума при фокусе на инпутах и без pinch-zoom (см. шапку файла).
+    addViewportDirective('maximum-scale=1');
+    addViewportDirective('user-scalable=no');
+
+    if (platform !== 'ios') return;
+    addViewportDirective('viewport-fit=cover');
     document.documentElement.classList.add('native-ios');
 }
 

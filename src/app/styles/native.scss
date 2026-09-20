@@ -47,6 +47,79 @@ html.native-ios {
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
   }
 
+  // ── Анимация панели ─────────────────────────────────────────────────────────────────────
+  // 1) Капсула мягко «всплывает» снизу при запуске.
+  [class*='_mobile_header_'] {
+    animation: nativeNavBubbleIn 0.6s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+  }
+
+  // 2) «Пузырь» под активной вкладкой: одна подсветка-таблетка, которая СКОЛЬЗИТ к выбранной вкладке
+  //    с лёгким пружинным перелётом (а не мгновенно перекрашивается). Вкладок всегда 5 равной ширины
+  //    (flex: 1, отступы ul по 12px), поэтому позиция — это индекс × собственная ширина таблетки.
+  //    Индекс берётся из того, какой <li> получил класс `active` (через :has()).
+  // Селектор именно от нижней панели: тот же класс `bottomHeader_navList` есть и у скрытого списка десктопной шапки.
+  [class*='_mobile_header_'] > [class*='_bottomHeader_navList_'] {
+    position: relative;
+    --nav-index: 0;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      left: 12px;
+      width: calc((100% - 24px) / 5);
+      border-radius: 20px;
+      background: rgba(58, 84, 218, 0.16);
+      background: color-mix(in srgb, var(--color-actual-blue) 18%, transparent);
+      transform: translateX(calc(var(--nav-index) * 100%));
+      opacity: 0;
+      transition: transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    // Нет активной вкладки (например, страница вне панели) — пузырь скрыт.
+    &:has(> li[class*='_active_'])::before { opacity: 1; }
+    &:has(> li:nth-child(1)[class*='_active_']) { --nav-index: 0; }
+    &:has(> li:nth-child(2)[class*='_active_']) { --nav-index: 1; }
+    &:has(> li:nth-child(3)[class*='_active_']) { --nav-index: 2; }
+    &:has(> li:nth-child(4)[class*='_active_']) { --nav-index: 3; }
+    &:has(> li:nth-child(5)[class*='_active_']) { --nav-index: 4; }
+
+    // Содержимое вкладок — поверх пузыря. Колонки строго равной ширины (`flex: 1 1 0` + `min-width: 0`):
+    // иначе длинная подпись («Дӯстдоштаҳо») растягивает свою колонку, и пузырь, чья позиция — это
+    // «индекс × 1/5 ширины», перестаёт совпадать с иконкой.
+    > li {
+      position: relative;
+      z-index: 1;
+      flex: 1 1 0;
+      min-width: 0;
+      // У вкладок в общих стилях есть `margin-right: 30px !important` (наследие десктопной шапки,
+      // кроме последней) — он съедает ширину колонок и делает их неравными; в нижней панели он не
+      // нужен. Общий стиль с !important, поэтому и сброс тоже.
+      margin: 0 !important;
+    }
+
+    // 3) Иконка выбранной вкладки «подпрыгивает» в момент выбора.
+    > li[class*='_active_'] svg {
+      animation: nativeNavIconPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+  }
+
+  // 4) Нажатие: вкладка слегка «вдавливается».
+  [class*='_navLink_'] {
+    transition: transform 0.16s ease;
+    &:active { transform: scale(0.88); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [class*='_mobile_header_'] { animation: none; }
+    [class*='_mobile_header_'] > [class*='_bottomHeader_navList_']::before { transition: opacity 0.15s ease; }
+    [class*='_mobile_header_'] > [class*='_bottomHeader_navList_'] > li[class*='_active_'] svg { animation: none; }
+    [class*='_navLink_'] { transition: none; }
+  }
+
   // Затухание под капсулой: прокручиваемый контент не должен торчать в зазоре между панелью и краем
   // экрана (там же «домашняя полоска»). Цвет — фон страницы текущей темы; ниже панели (1000) и модалок.
   &::after {
@@ -76,4 +149,15 @@ html.native-ios {
       bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     }
   }
+}
+
+@keyframes nativeNavBubbleIn {
+  from { transform: translateY(28px) scale(0.92); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+@keyframes nativeNavIconPop {
+  0%   { transform: scale(0.7) translateY(3px); }
+  55%  { transform: scale(1.2) translateY(-3px); }
+  100% { transform: none; }
 }
