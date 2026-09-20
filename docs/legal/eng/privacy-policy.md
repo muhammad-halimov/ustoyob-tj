@@ -44,7 +44,9 @@ Legal bases: your consent, performance of the agreement with you, the Operator's
 
 Your public profile and Listings show: first name, last name, patronymic, gender, photo, "about me" text, role, rating and number of reviews, specialities, addresses (to the extent you provided), social links, "online" status, your reviews and Listings.
 
-Your e-mail address, date of birth and phone numbers are **not shown** in your public profile — only you can see them. Do not publish them yourself in Listing text or messages if you do not want to disclose them.
+Your e-mail address and date of birth are **not shown** to other users — only you can see them.
+
+**Phone numbers** are shown to **signed-in users** of the Platform on your profile card so that Clients and Masters can contact each other. They are not visible to visitors who are not signed in, and they are not displayed in lists or on Listing cards. By adding a phone number to your profile you consent to it being shown this way; if you do not want it visible to other users, do not add it. Do not publish your contact details yourself in Listing text or messages if you do not want to disclose them.
 
 Chat messages are visible only to chat participants and, when a complaint or request is being reviewed, to authorised Operator staff.
 

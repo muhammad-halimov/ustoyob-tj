@@ -82,8 +82,8 @@ Distinguish the two formats by shape (`violations` array present vs. a flat `cod
 |---|---|---|
 | GET | `/api/users/social-networks` | → `SocialNetworkOutput[]` `{ id, network }` (distinct networks in use) |
 | GET | `/api/users/me` | Full own profile (groups: masters/clients/usersMe/phonesRead) |
-| GET | `/api/users/{id}` | Public profile |
-| GET | `/api/users` | Collection. Filters: `active`(bool), `atHome`(bool), `rating`(range: `rating[gte]` etc.), `occupation`(exact), `gender`(exact), `socialNetworks`(exact), address filter (see §6), roles filter (`roles[]`), `image` (exists) |
+| GET | `/api/users/{id}` | Profile card. **`phones` is included only for an authenticated caller** (anonymous gets the public profile without phones) |
+| GET | `/api/users` | Collection — **never contains `phones`** (also for authenticated callers). Filters: `active`(bool), `atHome`(bool), `rating`(range: `rating[gte]` etc.), `occupation`(exact), `gender`(exact), `socialNetworks`(exact), address filter (see §6), roles filter (`roles[]`), `image` (exists) |
 | POST | `/api/users` | Register (see body below) |
 | POST | `/api/users/{id}/upload-images` | multipart, field `imageFile[]` |
 | PATCH | `/api/users/{id}` | Owner or admin only |
@@ -118,7 +118,7 @@ interface User {
   education: Education[];
   occupation: Occupation[];            // master's occupations/subcategories
   addresses: Address[];
-  phones: Phone[];                     // read groups: phonesRead; write groups: phonesWrite
+  phones: Phone[];                     // ONLY on GET /users/me, GET /users/{id} (authenticated caller) and the PATCH response. Never in lists or nested users (ticket master/author, chat participants, review authors…) — to show a phone, request that user's card: GET /users/{id}
   oauthProviders: OAuthProvider[];     // only on /users/me
   cookiesAgreed: boolean;              // only on /users/me, owner-writable via PATCH /users/{id}, versioned (EntityRevision)
   createdAt: string;
