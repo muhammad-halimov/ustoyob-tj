@@ -46,6 +46,32 @@
       transform: scale(0.97);
     }
   }
+
+  p {
+    overflow-wrap: anywhere;
+  }
+
+  // Узкие экраны: в одну строку «иконка + текст + кнопка» текст выжимается в узкую колонку по слову в
+  // строке. Иконка и текст остаются в первой строке, кнопка уходит на вторую и растягивается на всю ширину
+  // (нормальная зона нажатия для пальца). Баннеры без кнопки просто получают компактнее отступы.
+  @media (max-width: 480px) {
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    padding: 14px 16px;
+    font-size: 14px;
+
+    p {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    button {
+      flex: 1 1 100%;
+      margin-left: 0;
+      padding: 10px 16px;
+      white-space: normal;
+    }
+  }
 }
 
 :global(html[data-theme="dark"]) {
