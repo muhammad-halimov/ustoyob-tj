@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getStorageItem, setStorageItem } from '../utils/storageUtils';
+import { getStorageItem, setStorageItem, removeStorageItems } from '../utils/storageUtils';
 
 /**
  * ThemeContext — provides light/dark theme state to the whole component tree.
@@ -10,9 +10,13 @@ import { getStorageItem, setStorageItem } from '../utils/storageUtils';
  *   and updates live if the user flips dark mode in system settings while the app is
  *   open — on both Android WebView and iOS WKWebView this tracks the real system
  *   setting, so no native code is needed for this to work on either platform.
- * - Once the user manually picks a theme, that explicit choice is persisted to
- *   localStorage ('themeOverride' key) and takes priority over the system theme from
- *   then on. Deliberately a NEW key, not the old 'theme' one: earlier builds wrote
+ * - A manual pick is a TEMPORARY override, not a permanent opt-out of syncing: it is stored
+ *   together with the system theme that was active when it was made ('themeOverrideBase'),
+ *   and stops applying the moment the system theme changes — from then on the app follows the
+ *   system again. Without this, a single tap on the toggle killed system syncing for good
+ *   (there is no UI to return to "follow system"), which read as "theme sync doesn't work".
+ *   The pick is persisted to localStorage ('themeOverride' key). Deliberately a NEW key, not
+ *   the old 'theme' one: earlier builds wrote
  *   the resolved theme to 'theme' unconditionally on every mount (not just on a real
  *   user choice), so any device that had an older build installed already carries a
  *   stale value there that would otherwise permanently masquerade as an explicit
@@ -45,16 +49,27 @@ const getSystemTheme = (): Theme =>
         ? (window.matchMedia(DARK_MEDIA_QUERY).matches ? 'dark' : 'light')
         : 'dark';
 
+/** A manual theme pick and the system theme that was active when it was made. */
+interface ThemeOverride {
+    value: Theme;
+    base: Theme;
+}
+
+const readStoredOverride = (): ThemeOverride | null => {
+    const saved = getStorageItem('themeOverride');
+    if (saved !== 'light' && saved !== 'dark') return null;
+    const base = getStorageItem('themeOverrideBase');
+    // Выбор, сохранённый до появления 'themeOverrideBase', считаем сделанным при текущей теме системы.
+    return { value: saved, base: base === 'light' || base === 'dark' ? base : getSystemTheme() };
+};
+
 interface ThemeProviderProps {
     children: ReactNode;
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-    // Явный выбор пользователя, если он когда-либо переключал тему вручную.
-    const [override, setOverride] = useState<Theme | null>(() => {
-        const saved = getStorageItem('themeOverride');
-        return saved === 'light' || saved === 'dark' ? saved : null;
-    });
+    // Ручной выбор пользователя + системная тема на момент выбора (см. шапку файла).
+    const [override, setOverride] = useState<ThemeOverride | null>(readStoredOverride);
 
     // Текущая системная тема — отслеживается живьём, пока нет явного override.
     const [systemTheme, setSystemTheme] = useState<Theme>(getSystemTheme);
@@ -80,7 +95,17 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
         };
     }, []);
 
-    const theme: Theme = override ?? systemTheme;
+    // Ручной выбор действует, только пока системная тема та же, что была при выборе.
+    const overrideStillValid = override !== null && override.base === systemTheme;
+    const theme: Theme = overrideStillValid ? override.value : systemTheme;
+
+    // Системная тема сменилась — ручной выбор отработал своё, снова следуем системе.
+    useEffect(() => {
+        if (override !== null && !overrideStillValid) {
+            setOverride(null);
+            removeStorageItems('themeOverride', 'themeOverrideBase');
+        }
+    }, [override, overrideStillValid]);
 
     // Применяем тему к документу
     useEffect(() => {
@@ -95,9 +120,10 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     }, [theme]);
 
     const setTheme = (newTheme: Theme) => {
-        setOverride(newTheme);
-        // Сохраняем выбор в localStorage — с этого момента системную тему больше не слушаем.
+        setOverride({ value: newTheme, base: systemTheme });
+        // Выбор живёт, пока системная тема не изменится (см. шапку файла).
         setStorageItem('themeOverride', newTheme);
+        setStorageItem('themeOverrideBase', systemTheme);
     };
 
     const toggleTheme = () => {
