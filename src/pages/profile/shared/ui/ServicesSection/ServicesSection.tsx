@@ -8,6 +8,8 @@ import { Tabs } from '../../../../../shared/ui/Tabs';
 import { IoCheckmarkCircleOutline, IoCloseCircleOutline } from 'react-icons/io5';
 import styles from './ServicesSection.module.scss';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
+import { Img } from '../../../../../shared/ui/Photo/Img';
+import { resolveImage } from '../../../../../utils/imageUtils';
 import { formatLocalizedDate } from '../../../../../utils/timeUtils';
 import { TicketStatusBadge } from '../../../../../shared/ui/Ticket/StatusBadge/TicketStatusBadge';
 
@@ -16,6 +18,7 @@ interface ServicesSectionProps {
     servicesLoading: boolean;
     readOnly?: boolean;
     userRole?: 'master' | 'client' | null;
+    /** Не используется (URL строит resolveImage) — оставлен, чтобы не трогать вызывающих. */
     API_BASE_URL?: string;
     onReorder?: (services: Ticket[]) => void;
     onRefresh?: () => void;
@@ -27,7 +30,6 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
     servicesLoading,
     readOnly = false,
     userRole = null,
-    API_BASE_URL = import.meta.env.VITE_API_BASE_URL,
     onReorder,
     onRefresh,
     footerSlot,
@@ -42,34 +44,8 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
     const pastServices = services.filter(service => service.active === false);
     const displayedServices = activeTab === 'active' ? activeServices : pastServices;
 
-    const getServiceImage = (service: Ticket): string => {
-        // Если есть массив изображений и в нём есть хотя бы одно изображение
-        if (service.images && Array.isArray(service.images) && service.images.length > 0) {
-            const firstImageObj = service.images[0];
-            // Проверяем, что это объект с полем image
-            if (firstImageObj && typeof firstImageObj === 'object' && 'image' in firstImageObj) {
-                const firstImage = firstImageObj.image;
-                
-                // Проверяем, что image это строка
-                if (typeof firstImage === 'string' && firstImage.length > 0) {
-                    // Проверяем, это URL или путь к файлу
-                    if (firstImage.startsWith('http')) {
-                        return firstImage;
-                    } else {
-                        // Формируем полный URL к изображению
-                        return `${API_BASE_URL}/uploads/tickets/${firstImage}`;
-                    }
-                }
-            }
-        }
-        
-        // Дефолтное изображение, если нет фото
-        return '/img/icons/misc/fonTest6.png';
-    };
-
-    const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-        e.currentTarget.src = '/img/icons/misc/fonTest6.png';
-    };
+    // Первое фото услуги: превью 480 px + BlurHash, оригинал — откат, локальная заглушка — если фото нет.
+    const getServiceImage = (service: Ticket) => resolveImage(service.images?.[0], 'thumbnail', 'uploads/tickets');
 
     const renderServiceItem = (service: Ticket) => {
         const titleText = service.title;
@@ -96,10 +72,10 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                 onClick={() => navigate(ROUTES.TICKET_BY_ID(service.id))}
             >
                 <div className={styles.service_image}>
-                    <img loading="lazy" decoding="async"
-                        src={getServiceImage(service)}
+                    <Img
+                        image={getServiceImage(service)}
+                        placeholder="/img/icons/misc/fonTest6.png"
                         alt={titleText}
-                        onError={handleImageError}
                     />
                 </div>
                 <div className={styles.service_content}>

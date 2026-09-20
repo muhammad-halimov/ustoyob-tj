@@ -1,6 +1,6 @@
 import type { UserRole } from '../../../types/common';
 import type { TicketView } from '../Ticket';
-import type { Ticket } from '../../api';
+import type { Ticket, ResolvedImage } from '../../api';
 import type { User } from '../../api';
 
 export interface FavoriteEntry {
@@ -22,6 +22,8 @@ export type FavoriteUserView =
     Required<Pick<User, 'email' | 'name' | 'surname' | 'rating'>> & {
         entryId: string | number;
         image: string | null;
+        /** Аватар с превью/BlurHash/откатом (resolveAvatar). */
+        avatarImage?: ResolvedImage | null;
         role: UserRole;
         specialties: string[];
     };

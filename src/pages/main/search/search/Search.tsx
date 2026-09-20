@@ -37,7 +37,7 @@ import {Clear} from '../../../../shared/ui/Button/Clear/Clear';
 import {Reset} from '../../../../shared/ui/Button/Reset/Reset';
 import {ShowMore} from '../../../../shared/ui/Button/ShowMore/ShowMore';
 import {getPageSize} from '../../../../utils/pageSizeUtils';
-import {formatProfileImageUrl, formatTicketImageUrl, toPhotoSource} from '../../../../utils/imageUtils';
+import {formatTicketImageUrl, toPhotoSource, resolveAvatar} from '../../../../utils/imageUtils';
 import {getSessionJSON, getStorageItem, removeSessionItem, setSessionJSON} from '../../../../utils/storageUtils';
 import {resolveApiError} from '../../../../utils/appMessagesUtils';
 
@@ -720,10 +720,9 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         viewsCount: ticket.viewsCount,
                         photos: ticket.images?.map(img => formatTicketImageUrl(img.image)),
                         photoSources: ticket.images?.map(img => toPhotoSource(img)),
-                        authorImage: (() => {
-                            const person = ticket.type === 'master' ? ticket.master : ticket.author;
-                            const src = person?.image || person?.imageExternalUrl;
-                            return src ? formatProfileImageUrl(src) : undefined;
+                        ...(() => {
+                            const avatar = resolveAvatar(ticket.type === 'master' ? ticket.master : ticket.author);
+                            return { authorImage: avatar?.src, authorAvatar: avatar };
                         })(),
                         negotiableBudget: ticket.negotiableBudget
                     };
@@ -1239,6 +1238,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     photos={result.photos}
                     photoSources={result.photoSources}
                     authorImage={result.authorImage}
+                    authorAvatar={result.authorAvatar}
                     negotiableBudget={result.negotiableBudget}
                     onClick={() => handleCardClick(result.id)}
                     onRespondClick={result.authorId !== currentUserId ? () => handleRespondCard(result.id, result.authorId!) : undefined}

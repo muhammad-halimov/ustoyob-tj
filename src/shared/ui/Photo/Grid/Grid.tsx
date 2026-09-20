@@ -1,10 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from 'react';
 import { useDragReorder, DragHandle } from '../../../../widgets/DragReorder';
+import { Img } from '../Img';
 import styles from './Grid.module.scss';
 
 export type PhotoItem =
-    | { type: 'existing'; id: string | number; image: string }
+    | { type: 'existing'; id: string | number; image: string; thumbnail?: string; blurhash?: string }
     | { type: 'new'; file: File; previewUrl: string };
 
 export function buildOrderedImagePayload(
@@ -89,10 +90,13 @@ const Grid: React.FC<PhotoGridProps> = ({
                         className={styles.dragHandleOverlay}
                         draggable={false}
                     />
-                    <img loading="lazy" decoding="async"
+                    <Img
                         draggable={false}
                         onContextMenu={(e) => e.preventDefault()}
-                        src={photo.type === 'existing' ? getImageUrl(photo.image) : photo.previewUrl}
+                        // Существующее фото — превью 480 px + BlurHash (оригинал — откат), новое — blob-превью.
+                        src={photo.type === 'existing' ? (photo.thumbnail ?? getImageUrl(photo.image)) : photo.previewUrl}
+                        fallbacks={photo.type === 'existing' && photo.thumbnail ? [getImageUrl(photo.image)] : undefined}
+                        blurhash={photo.type === 'existing' ? photo.blurhash : undefined}
                         alt={`${photoAlt} ${index + 1}`}
                     />
                     <button

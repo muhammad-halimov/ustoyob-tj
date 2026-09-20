@@ -19,7 +19,7 @@ import Feedback from '../../../shared/ui/Modal/Feedback';
 import {EmptyState} from '../../../widgets/EmptyState';
 import {ShowMore} from '../../../shared/ui/Button/ShowMore/ShowMore';
 import type {Ticket} from '../../../entities';
-import {formatProfileImageUrl, formatTicketImageUrl, toPhotoSource} from '../../../utils/imageUtils';
+import {formatTicketImageUrl, toPhotoSource, resolveAvatar} from '../../../utils/imageUtils';
 import {getTicketFullAddress, universalApiRequest} from '../../../utils/apiUtils';
 import {resolveApiError} from '../../../utils/appMessagesUtils';
 
@@ -280,11 +280,7 @@ function Recommendations({
                                 viewsCount={announcement.viewsCount}
                                 photos={announcement.images?.map(img => formatTicketImageUrl(img.image))}
                                 photoSources={announcement.images?.map(img => toPhotoSource(img))}
-                                authorImage={(() => {
-                                    const person = announcement.service ? announcement.master : announcement.author;
-                                    const src = person?.image || person?.imageExternalUrl;
-                                    return src ? formatProfileImageUrl(src) : undefined;
-                                })()}
+                                authorAvatar={resolveAvatar(announcement.service ? announcement.master : announcement.author)}
                                 negotiableBudget={announcement.negotiableBudget}
                                 onClick={() => handleCardClick(announcement.id)}
                                 onRespondClick={getAuthorId(announcement) !== currentUserId ? (e) => { e.stopPropagation(); handleRespondCard(announcement.id, getAuthorId(announcement)!); } : undefined}

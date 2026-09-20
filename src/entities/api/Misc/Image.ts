@@ -29,6 +29,21 @@ export interface PhotoSource {
     blurhash?: string;
 }
 
+/**
+ * Готовая к показу картинка: что грузить первым, чем откатываться при ошибке и какая
+ * BlurHash-заглушка. Строится `resolveImage()` из utils/imageUtils, потребляется `<Img>`.
+ */
+export interface ResolvedImage {
+    /** Первый вариант к загрузке (превью/WebP), либо оригинал/внешний URL. */
+    src: string;
+    /** Откат по порядку, если `src` не загрузился (обычно — оригинал). */
+    fallbacks?: string[];
+    /** BlurHash-заглушка (нет у внешних URL и у старых фото). */
+    blurhash?: string;
+    /** Внешний URL (OAuth-аватар Google/Facebook…): оптимизировать не можем, только не слать Referer. */
+    external?: boolean;
+}
+
 // MultipleImage на бэке — одна сущность для всего. На фронте — один тип.
 export interface Image extends ImageFields {
     id: string | number;

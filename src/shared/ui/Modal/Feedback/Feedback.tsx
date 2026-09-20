@@ -8,7 +8,7 @@ import { Toggle } from '../../Button/Toggle/Toggle';
 import { SelectSearch } from '../../SelectSearch';
 import Grid, { PhotoItem } from '../../Photo/Grid';
 import { Preview, usePreview } from '../../Photo/Preview';
-import { uploadPhotos } from '../../../../utils/imageUtils';
+import { uploadPhotos, toExistingPhoto } from '../../../../utils/imageUtils';
 import styles from './Feedback.module.scss';
 import type { Ticket, AppealReason } from '../../../../entities';
 
@@ -123,7 +123,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
             if (initialText !== undefined) setReviewText(initialText);
             if (initialRating !== undefined) setSelectedStars(initialRating);
             if (initialImages && initialImages.length > 0) {
-                setPhotos(initialImages.map(img => ({ type: 'existing' as const, id: img.id, image: img.image })));
+                setPhotos(initialImages.map(img => toExistingPhoto(img, 'uploads/reviews')));
             } else {
                 setPhotos([]);
             }

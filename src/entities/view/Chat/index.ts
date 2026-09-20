@@ -1,9 +1,12 @@
+import type { PhotoSource } from '../../api';
 import type { User } from '../../api';
 
 /** Обработанный URL изображения чата для отображения */
 export interface ChatImageView {
     id: string | number;
     imageUrl: string;
+    /** Превью/WebP/BlurHash от бэка (toPhotoSource); `imageUrl` — оригинал. */
+    source?: PhotoSource;
     thumbnailUrl?: string;
     author?: User | null;
     createdAt: string;
@@ -28,5 +31,5 @@ export interface ChatMessageView {
     /** Soft-deleted via `DELETE /chat-messages/{id}` — render a placeholder, not `text`. */
     deletedByAuthor?: boolean;
     readAt?: string | null;
-    images?: { id: string | number; url: string; name: string }[];
+    images?: { id: string | number; url: string; name: string; source?: PhotoSource }[];
 }

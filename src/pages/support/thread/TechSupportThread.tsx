@@ -8,7 +8,7 @@ import { API_ROUTES } from '../../../app/routers/routes';
 import { resolveApiError } from '../../../utils/appMessagesUtils';
 import { getUserData, isAdmin } from '../../../utils/authUtils';
 import { getFormattedDateTime } from '../../../utils/timeUtils';
-import { uploadPhotos, formatTechSupportImageUrl, formatTechSupportMessageImageUrl } from '../../../utils/imageUtils';
+import { uploadPhotos, formatTechSupportImageUrl, formatTechSupportMessageImageUrl, toExistingPhoto, toPhotoSource } from '../../../utils/imageUtils';
 import { decodeHtmlEntities, smartNameTranslator } from '../../../utils/textUtils';
 import { getAppealReasons, getMyTechSupports } from '../../../utils/dataCacheUtils';
 import { openMercureSource } from '../../../utils/mercureUtils';
@@ -18,6 +18,8 @@ import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { MediaSidebar } from '../../../shared/ui/Photo/MediaSidebar/MediaSidebar';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
+import { Img } from '../../../shared/ui/Photo/Img';
+import type { PhotoSource } from '../../../entities';
 import { Markdown } from '../../../shared/ui/Text/Markdown';
 import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 import { EmptyState } from '../../../widgets/EmptyState';
@@ -472,7 +474,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         setEditReasonIri(ticket.reason?.id != null ? API_ROUTES.APPEAL_REASON_BY_ID(ticket.reason.id) : '');
         setEditPriority(ticket.priority != null ? String(ticket.priority) : '');
         setEditStatus(statusKey ?? '');
-        setEditImages((ticket.images ?? []).map(img => ({ type: 'existing' as const, id: img.id, image: img.image })));
+        setEditImages((ticket.images ?? []).map(img => toExistingPhoto(img, 'uploads/tech_supports')));
         setIsEditingTicket(true);
     };
 
@@ -555,7 +557,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // same "each side manages their own content" model as chat.
     const startEditMessage = (msg: TechSupportMessage) => {
         setEditMessageText(msg.description ?? '');
-        setEditMessagePhotos((msg.images ?? []).map(img => ({ type: 'existing' as const, id: img.id, image: img.image })));
+        setEditMessagePhotos((msg.images ?? []).map(img => toExistingPhoto(img, 'uploads/tech_support_messages')));
         setEditingMessageId(msg.id);
     };
 
@@ -657,8 +659,9 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     const sentImages = useMemo(() => {
         if (!ticket) return [];
         const canDeleteTicketImages = isAdminUser || (isTicketAuthor && isTicketEditWindowOpen);
-        const items: { id: string | number; url: string; deletable: boolean; source: SentImageSource }[] =
-            (ticket.images ?? []).map(img => ({ id: img.id, url: formatTechSupportImageUrl(img.image), deletable: canDeleteTicketImages, source: { type: 'ticket' } }));
+        // photo — превью/WebP/BlurHash от бэка (toPhotoSource); url остаётся оригиналом (ключ для openSentImage).
+        const items: { id: string | number; url: string; photo: PhotoSource; deletable: boolean; source: SentImageSource }[] =
+            (ticket.images ?? []).map(img => ({ id: img.id, url: formatTechSupportImageUrl(img.image), photo: toPhotoSource(img, 'uploads/tech_supports'), deletable: canDeleteTicketImages, source: { type: 'ticket' } }));
         (ticket.messages ?? []).forEach(m => {
             const mine = !!currentUserId && m.author?.id === currentUserId;
             // Same appellant-only operator-reacted lock as the inline edit pencil (§11) —
@@ -666,11 +669,19 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             // would 403 tech_support_message_edit_locked on. isAdminUser bypasses it entirely
             // (the lock only ever gates the appellant, never the administrant).
             const deletableAsMine = mine && !isMessageLockedForAuthor(m);
-            (m.images ?? []).forEach(img => items.push({ id: img.id, url: formatTechSupportMessageImageUrl(img.image), deletable: isAdminUser || deletableAsMine, source: { type: 'message', messageId: m.id } }));
+            (m.images ?? []).forEach(img => items.push({ id: img.id, url: formatTechSupportMessageImageUrl(img.image), photo: toPhotoSource(img, 'uploads/tech_support_messages'), deletable: isAdminUser || deletableAsMine, source: { type: 'message', messageId: m.id } }));
         });
         return items;
     }, [ticket, isAdminUser, isTicketAuthor, isTicketEditWindowOpen, currentUserId, isMessageLockedForAuthor]);
     const sentImageUrls = useMemo(() => sentImages.map(img => img.url), [sentImages]);
+    // Просмотр: полный WebP; превью (уже в ленте) → мгновенное открытие; оригиналы — откат.
+    const sentGalleryImages = useMemo(() => sentImages.map(img => img.photo.webp ?? img.url), [sentImages]);
+    const sentGalleryPreviews = useMemo(() => sentImages.map(img => img.photo.thumbnail ?? img.url), [sentImages]);
+    // Для MediaSidebar: превью + BlurHash (сам компонент знает только url/thumbnail/blurhash/deletable).
+    const sidebarImages = useMemo(
+        () => sentImages.map(img => ({ id: img.id, url: img.url, thumbnail: img.photo.thumbnail, blurhash: img.photo.blurhash, deletable: img.deletable })),
+        [sentImages],
+    );
     const sentGallery = usePreview({ images: sentImageUrls });
     const openSentImage = (url: string) => {
         const index = sentImageUrls.indexOf(url);
@@ -926,10 +937,13 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                 <div className={styles.messageImages}>
                                     {ticket.images!.map(img => {
                                         const url = formatTechSupportImageUrl(img.image);
+                                        const photo = toPhotoSource(img, 'uploads/tech_supports');
                                         return (
-                                            <img loading="lazy" decoding="async"
+                                            <Img
                                                 key={img.id}
-                                                src={url}
+                                                src={photo.thumbnail ?? url}
+                                                fallbacks={[url]}
+                                                blurhash={photo.blurhash}
                                                 alt=""
                                                 className={styles.messageImage}
                                                 onClick={() => openSentImage(url)}
@@ -1050,10 +1064,13 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                                 <div className={styles.messageImages}>
                                                     {msg.images.map(img => {
                                                         const url = formatTechSupportMessageImageUrl(img.image);
+                                                        const photo = toPhotoSource(img, 'uploads/tech_support_messages');
                                                         return (
-                                                            <img loading="lazy" decoding="async"
+                                                            <Img
                                                                 key={img.id}
-                                                                src={url}
+                                                                src={photo.thumbnail ?? url}
+                                                                fallbacks={[url]}
+                                                                blurhash={photo.blurhash}
                                                                 alt=""
                                                                 className={styles.messageImage}
                                                                 onClick={() => openSentImage(url)}
@@ -1075,7 +1092,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                     </div>
 
                     <MediaSidebar
-                        images={sentImages}
+                        images={sidebarImages}
                         isOpen={isMediaOpen}
                         onClose={() => setIsMediaOpen(false)}
                         onOpenGallery={index => sentGallery.openGallery(index)}
@@ -1170,7 +1187,10 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             />
             <Preview
                 isOpen={sentGallery.isOpen}
-                images={sentImageUrls}
+                images={sentGalleryImages}
+                previews={sentGalleryPreviews}
+                thumbnails={sentGalleryPreviews}
+                originals={sentImageUrls}
                 currentIndex={sentGallery.currentIndex}
                 onClose={sentGallery.closeGallery}
                 onNext={sentGallery.goToNext}

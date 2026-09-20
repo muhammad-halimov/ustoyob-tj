@@ -8,7 +8,8 @@ import styles from './MainReviewsSection.module.scss';
 import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
 import { EmptyState } from '../../../widgets/EmptyState';
-import { getAuthorAvatar } from '../../../utils/imageUtils';
+import { resolveAvatar, resolveImage } from '../../../utils/imageUtils';
+import { Img } from '../../../shared/ui/Photo/Img';
 import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
 import { IoWarningOutline } from 'react-icons/io5';
 import Feedback from '../../../shared/ui/Modal/Feedback';
@@ -110,8 +111,8 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     // Верхний блок — реальный автор отзыва
     const getReviewAuthorName = (review: any): string =>
         isAuthoredByMaster(review) ? getMasterName(review) : getClientName(review);
-    const getReviewAuthorAvatarUrl = (review: any): string =>
-        getAuthorAvatar(isAuthoredByMaster(review) ? review.master : review.client);
+    const getReviewAuthorAvatar = (review: any) =>
+        resolveAvatar(isAuthoredByMaster(review) ? review.master : review.client);
     const getReviewAuthorId = (review: any): string | number | undefined =>
         isAuthoredByMaster(review) ? review.master?.id : review.client?.id;
     const handleAuthorProfileClick = (review: any) => {
@@ -174,15 +175,6 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
 
     // Функция для обновления
     const handleRefresh = () => fetchReviews(page);
-    // для получения URL изображения отзыва
-    const getReviewImageUrl = (imagePath: string): string => {
-        if (!imagePath) return '/img/icons/icons/default_user.png';
-        if (imagePath.startsWith('http')) return imagePath;
-        const base = import.meta.env.VITE_API_BASE_URL || '';
-        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${base}${imagePath}`;
-        return `${base}/uploads/reviews/${imagePath}`;
-    };
-
     const getPlainReviewText = (review: any) =>
         review.description ? review.description.replace(/<[^>]*>/g, '') : '';
 
@@ -220,16 +212,25 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         );
     };
 
-    // Собираем все изображения для галереи
-    const galleryImages = useMemo(() => {
+    // Для просмотра: полный WebP + превью (уже в ленте → окно открывается мгновенно) + оригиналы (откат).
+    const gallery = useMemo(() => {
         const images: string[] = [];
+        const previews: string[] = [];
+        const originals: string[] = [];
         reviews.forEach(review => {
             (review.images || []).forEach((image: any) => {
-                if (image.image) images.push(getReviewImageUrl(image.image));
+                if (!image.image) return;
+                const full = resolveImage(image, 'webp', 'uploads/reviews');
+                const thumb = resolveImage(image, 'thumbnail', 'uploads/reviews');
+                if (!full || !thumb) return;
+                images.push(full.src);
+                previews.push(thumb.src);
+                originals.push(resolveImage(image, 'full', 'uploads/reviews')?.src ?? full.src);
             });
         });
-        return images;
+        return { images, previews, originals };
     }, [reviews]);
+    const galleryImages = gallery.images;
 
     const photoGallery = usePreview({ images: galleryImages });
 
@@ -266,12 +267,12 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                 }]}
                             />
                             <div className={styles.reviews_naming}>
-                                <img loading="lazy" decoding="async"
-                                    src={getReviewAuthorAvatarUrl(review)}
+                                <Img
+                                    image={getReviewAuthorAvatar(review)}
+                                    placeholder="/img/icons/icons/default_user.png"
                                     alt={getReviewAuthorName(review)}
                                     onClick={() => handleAuthorProfileClick(review)}
                                     className={styles.reviewer_avatar}
-                                    onError={(e) => { e.currentTarget.src = '/img/icons/icons/default_user.png'; }}
                                 />
                                 <div className={styles.reviews_naming_title}>
                                     <div
@@ -314,16 +315,13 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                 {review.images && review.images.length > 0 && (
                                     <div className={styles.review_images}>
                                         {review.images.slice(0, 3).map((image: any, imageIndex: any) => (
-                                            <img loading="lazy" decoding="async"
+                                            <Img
                                                 key={image.id}
-                                                src={getReviewImageUrl(image.image)}
-                                                alt="Отзыв"
-                                                className={styles.review_image}
+                                                image={resolveImage(image, 'thumbnail', 'uploads/reviews')}
+                                                placeholder="/img/icons/icons/default_user.png"
                                                 onClick={() => photoGallery.openGallery(getImageGalleryIndex(reviewIndex, imageIndex))}
                                                 style={{ cursor: 'pointer' }}
-                                                onError={(e) => {
-                                                    e.currentTarget.src = '/img/icons/icons/default_user.png';
-                                                }}
+                                                className={styles.review_image}
                                             />
                                         ))}
                                     </div>
@@ -367,12 +365,12 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                         }]}
                                     />
                                     <div className={styles.reviews_naming}>
-                                        <img loading="lazy" decoding="async"
-                                            src={getReviewAuthorAvatarUrl(review)}
+                                        <Img
+                                            image={getReviewAuthorAvatar(review)}
+                                            placeholder="/img/icons/icons/default_user.png"
                                             alt={getReviewAuthorName(review)}
                                             onClick={() => handleAuthorProfileClick(review)}
                                             className={styles.reviewer_avatar}
-                                            onError={(e) => { e.currentTarget.src = '/img/icons/icons/default_user.png'; }}
                                         />
                                         <div className={styles.reviews_naming_title}>
                                             <div
@@ -415,16 +413,13 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                         {review.images && review.images.length > 0 && (
                                             <div className={styles.review_images}>
                                                 {review.images.slice(0, 2).map((image: any, imageIndex: any) => (
-                                                    <img loading="lazy" decoding="async"
+                                                    <Img
                                                         key={image.id}
-                                                        src={getReviewImageUrl(image.image)}
-                                                        alt="Отзыв"
-                                                        className={styles.review_image}
+                                                        image={resolveImage(image, 'thumbnail', 'uploads/reviews')}
+                                                        placeholder="/img/icons/icons/default_user.png"
                                                         onClick={() => photoGallery.openGallery(getImageGalleryIndex(reviewIndex, imageIndex))}
                                                         style={{ cursor: 'pointer' }}
-                                                        onError={(e) => {
-                                                            e.currentTarget.src = '/img/icons/icons/default_user.png';
-                                                        }}
+                                                        className={styles.review_image}
                                                     />
                                                 ))}
                                             </div>
@@ -457,6 +452,8 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
             <Preview
                 isOpen={photoGallery.isOpen}
                 images={galleryImages}
+                previews={gallery.previews}
+                originals={gallery.originals}
                 currentIndex={photoGallery.currentIndex}
                 onClose={photoGallery.closeGallery}
                 onNext={photoGallery.goToNext}
