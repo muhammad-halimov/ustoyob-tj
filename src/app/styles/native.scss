@@ -1,6 +1,10 @@
 // Стили ТОЛЬКО для пакетного iOS-приложения (подключаются из app/main.tsx — на `front` этого
 // файла нет). Активны под `html.native-ios`, который ставит utils/nativeChrome.ts.
 //
+// ВАЖНО про селекторы: классы CSS-модулей хешируются, поэтому цепляемся по подстроке `[class*='_имя_']`,
+// а это легко задевает чужие элементы с похожим именем (так `_footer_` зацепил `card_footer`).
+// Перед новым селектором проверяйте, что он находит ровно то, что нужно (сужайте тегом/родителем).
+//
 // Веб-вью на iOS рисуется на весь экран, включая область под статус-баром / Dynamic Island и
 // «домашней полоской» (Capacitor `ios.contentInset: never` + `viewport-fit=cover`, см.
 // capacitor.config.ts и nativeChrome.ts), а безопасные отступы приходят через
@@ -108,7 +112,7 @@ html.native-ios {
   }
 
   // 4) Нажатие: вкладка слегка «вдавливается».
-  [class*='_navLink_'] {
+  [class*='_mobile_header_'] [class*='_navLink_'] {
     transition: transform 0.16s ease;
     &:active { transform: scale(0.88); }
   }
@@ -117,7 +121,7 @@ html.native-ios {
     [class*='_mobile_header_'] { animation: none; }
     [class*='_mobile_header_'] > [class*='_bottomHeader_navList_']::before { transition: opacity 0.15s ease; }
     [class*='_mobile_header_'] > [class*='_bottomHeader_navList_'] > li[class*='_active_'] svg { animation: none; }
-    [class*='_navLink_'] { transition: none; }
+    [class*='_mobile_header_'] [class*='_navLink_'] { transition: none; }
   }
 
   // Затухание под капсулой: прокручиваемый контент не должен торчать в зазоре между панелью и краем
@@ -137,7 +141,9 @@ html.native-ios {
   // Футер резервирует место под фиксированную панель (см. Footer.module.scss: 20px + 64px) —
   // теперь панель ещё и приподнята над низом экрана (тот же bottom, что у панели) + небольшой зазор.
   @media screen and (max-width: 960px) {
-    [class*='_footer_'] {
+    // Именно тег <footer>: под `[class*='_footer_']` попадали и `card_footer` / `card_footer_right`
+    // (подвал карточки объявления) — каждому добавлялось по ~120px, и карточка раздувалась пустотой.
+    footer[class^='_footer_'] {
       padding-bottom: calc(20px + 64px + max(env(safe-area-inset-bottom, 0px) - 8px, 12px) + 12px);
     }
   }
