@@ -388,5 +388,5 @@ CORS_ALLOW_ORIGIN='^(https?://(ustoyob\.tj|localhost|127\.0\.0\.1)(:[0-9]+)?|cap
 Проверка (в ответе должен быть `access-control-allow-origin: capacitor://localhost`):
 
 ```bash
-curl -s -o /dev/null -D - -H "Origin: capacitor://localhost" "https://admin.ustoyob.tj/api/categories" | grep -i access-control-allow-origin
+curl -s -o /dev/null -D - -H "Origin: capacitor://localhost" "https://domain.com/api/categories" | grep -i access-control-allow-origin
 ```
