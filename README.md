@@ -32,6 +32,7 @@
 | Реалтайм | Mercure (чаты) |
 | Админка | EasyAdmin |
 | Файлы | VichUploader → `public/uploads` |
+| Картинки | Liip Imagine (GD): превью и WebP на лету; BlurHash-заглушки (`kornrunner/blurhash`) |
 | Уведомления | e-mail (Symfony Mailer), Telegram-бот (BotMan) |
 
 ## Быстрый старт
@@ -186,9 +187,34 @@ php -d variables_order=EGPCS -S 127.0.0.1:8001 -t public
 
 Жалоба на **чат** допускает только причины с `authRequired = false` (`fraud`, `racism_nazism_xenophobia`, `other`); иначе `auth_required_for_chat_appeals`. UUID причин различаются между окружениями — берите их через `GET /api/appeal-reasons?authRequired=false`.
 
-### Загрузки и кэш картинок
+### Картинки: превью, WebP и заглушка
 
-Файлы получают случайное имя (sha1) при каждой загрузке и не перезаписываются, поэтому URL в `/uploads` **неизменяем** и его можно кэшировать надолго — см. [Деплой](#деплой).
+Файлы получают случайное имя (sha1) при каждой загрузке и не перезаписываются, поэтому URL в `/uploads` **неизменяем** и его можно кэшировать надолго.
+
+Вместе с `image` (имя файла — как раньше) API отдаёт для каждой картинки готовые поля:
+
+| Поле | Что это |
+|---|---|
+| `imageUrl` | оригинал: `/uploads/<папка>/<файл>` (клиенту больше не нужно знать папку) |
+| `imageThumbnail` | WebP, длинная сторона **480 px** — ленты, карточки, аватары |
+| `imageMedium` | WebP, длинная сторона **800 px** — крупное превью |
+| `imageWebp` | оригинал целиком (до 2400 px) в WebP — для старых тяжёлых PNG/JPEG |
+| `imageBlurhash` | строка ~28 символов для мгновенной размытой заглушки ([BlurHash](https://blurha.sh)); `null`, если ещё не посчитана |
+
+Поля есть везде, где есть `image` (тикеты, отзывы, галереи, чаты — `MultipleImage`; аватары; категории, специальности, география) — их группы сериализации общие (`SingleImageTrait::IMAGE_GROUPS`). Все URL относительные, домен подставляет клиент. Старое поле `image` не изменилось.
+
+**Как это работает.** Превью строит **Liip Imagine** (`config/packages/liip_imagine.yaml`) по запросу на `/media/cache/resolve/<фильтр>/uploads/<папка>/<файл>`: строит файл один раз, кладёт в `public/media/cache/<фильтр>/…` (расширение `.webp`) и отвечает редиректом на статику. Оригиналы не меняются, поэтому **старые фото работают сразу**, без миграции файлов. Редирект кэшируется на сутки (`ImageResolveCacheSubscriber`), сам итоговый файл — надолго на стороне nginx (см. [Деплой](#деплой)).
+
+**Заглушка.** BlurHash считается один раз при загрузке (`ImageBlurhashListener` на событие Vich `POST_UPLOAD` — работает и для API, и для админки) и хранится в `imageBlurhash`. Для картинок, загруженных до релиза, — команда:
+
+```bash
+php bin/console app:images:backfill-blurhash --dry-run   # сколько записей
+php bin/console app:images:backfill-blurhash --warm      # посчитать хеш + заранее построить thumb_480
+```
+
+Безопасно запускать повторно — трогает только записи без хеша. Файла на диске нет → запись пропускается.
+
+**Как показывать на клиенте:** сначала рисуем размытую картинку из `imageBlurhash`, грузим `imageThumbnail` (в списках) или `imageMedium`/`imageUrl` (в просмотре), затем плавно подменяем. Оригинал нужен только в полноэкранной галерее.
 
 ## Админ-панель
 
@@ -228,18 +254,133 @@ php bin/console cache:clear --env=prod
 - `php bin/console app:delete-unactivated-users` — удаляет неподтверждённые аккаунты (по умолчанию старше 7 суток; `--days=N`, `--dry-run` — показать без удаления).
 - `php bin/console app:prune-entity-revisions` — чистит audit trail с истёкшим сроком (по умолчанию 14 суток).
 
-**Кэш картинок (nginx).** По умолчанию `/uploads` отдаётся без `Cache-Control`, и WebView/браузеры перекачивают картинки. Добавьте в nginx:
+### nginx (раздача, кэш картинок, превью)
+
+Схема: nginx и php-fpm на одной машине, `root` = `public/`. Полный рабочий конфиг (изменения относительно базового Symfony-конфига помечены `# NEW`):
 
 ```nginx
-location ^~ /uploads/ {
-    root /путь/к/проекту/public;
-    try_files $uri =404;
-    add_header Cache-Control "public, max-age=31536000, immutable";
-    access_log off;
+server {
+    include              mime.types;
+
+    default_type         application/octet-stream;
+    client_max_body_size 50M;                     # NEW: было 10M. За один запрос можно слать несколько фото
+                                                  #      (imageFile[]), каждое до 10 МБ — лимит на тело запроса
+                                                  #      должен быть больше суммы, иначе 413
+    sendfile             on;
+    gzip                 on;
+    keepalive_timeout    50;
+    server_name          admin.ustoyob.tj www.admin.ustoyob.tj;
+    root                 /var/www/ustoyob-tj/public;
+
+    location / {
+        try_files $uri /index.php$is_args$args;
+    }
+
+    # NEW: оригиналы фото. Имя файла — случайный sha1, при замене фото имя новое,
+    #      поэтому URL неизменяем и кэшируется на год.
+    location ^~ /uploads/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        access_log off;
+    }
+
+    # NEW: превью и WebP (Liip Imagine). Готовый файл отдаём статикой с длинным
+    #      кэшем; нет файла (это URL /media/cache/resolve/...) — в Symfony, он
+    #      построит превью и ответит редиректом на статику.
+    location ^~ /media/cache/ {
+        try_files $uri /index.php$is_args$args;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        access_log off;
+    }
+
+    location /.well-known/mercure {
+        proxy_pass http://127.0.0.1:9090;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 24h;
+        proxy_set_header Connection "";
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location ~ ^/index\.php(/|$) {
+        include fastcgi_params;
+
+        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
+        fastcgi_split_path_info ^(.+\.php)(/.*)$;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param DOCUMENT_ROOT $realpath_root;
+
+        internal;
+    }
+
+    location ~ \.php$ {
+        return 404;
+    }
+
+    error_log  /var/log/nginx/ustoyob-tj_error.log;
+    access_log /var/log/nginx/ustoyob-tj_access.log;
+
+    listen 443 ssl; # managed by Certbot
+    listen [::]:443 ssl;
+    http2 on;                                     # NEW: HTTP/2 (nginx >= 1.25.1) — списки грузят много превью параллельно.
+                                                  #      Для старых версий: listen 443 ssl http2; вместо этой строки
+    ssl_certificate /etc/letsencrypt/live/admin.ustoyob.tj/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/admin.ustoyob.tj/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+
+server {
+    if ($host = www.admin.ustoyob.tj) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+    if ($host = admin.ustoyob.tj) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+    listen               80;
+    server_name          admin.ustoyob.tj www.admin.ustoyob.tj;
+    return 404; # managed by Certbot
 }
 ```
 
-Нюансы: без `always`, чтобы 404 не кэшировался; `add_header` в `location` отменяет унаследованные из `server {}` (CORS, security-заголовки) — повторите их здесь; `expires` не добавляйте вместе с этим `add_header`. Проверка: `curl -sI https://<хост>/uploads/<файл> | grep -i cache-control`.
+**Почему именно так**
+- `^~` у обоих новых `location` **обязателен**: он запрещает проверять регулярные `location`, иначе `location ~ \.php$ { return 404; }` мог бы перехватывать запросы.
+- В `/media/cache/` фолбэк `try_files … /index.php` нужен для URL `…/media/cache/resolve/<фильтр>/…` — это не файл, а вызов Symfony. Иначе превью не будут строиться.
+- `add_header` из `/media/cache/` не попадает на ответ PHP (он обрабатывается в `location ~ ^/index\.php`), поэтому кэш редиректа (сутки) остаётся тем, что поставил Symfony (`ImageResolveCacheSubscriber`); статичный `.webp` получает `immutable`.
+- `add_header` внутри `location` **отменяет** унаследованные из `server {}` (CORS, HSTS, security-заголовки): если добавите их на уровне `server`, повторите в обоих блоках. CORS для картинок нужен только если фронт читает их через `fetch`/`canvas`.
+- Не добавляйте `expires` рядом с `add_header Cache-Control` — получится два заголовка. Нет `always` намеренно: 404 не должен кэшироваться на год.
+
+**Что ещё нужно на сервере**
+
+```bash
+# кэш превью: PHP-пользователь (пул php8.4-fpm, обычно www-data) должен писать в public/media
+mkdir -p /var/www/ustoyob-tj/public/media/cache
+chown -R www-data:www-data /var/www/ustoyob-tj/public/media
+
+# в старых mime.types нет image/webp — иначе статика отдаст application/octet-stream
+grep webp /etc/nginx/mime.types        # ожидается: image/webp  webp;
+
+nginx -t && systemctl reload nginx
+```
+
+PHP (`php.ini` для fpm): **GD с WebP** (`php -r 'var_dump(function_exists("imagewebp"));'`); `memory_limit = 512M` — превью строится декодированием оригинала, и фото с камеры на 48 МП (8000×6000) не влезает в 128 МБ (тогда превью отвечает 500); `upload_max_filesize = 10M`, `post_max_size = 50M` (не меньше `client_max_body_size`), `max_file_uploads` не меньше числа фото за раз.
+
+Каталог `public/media` — производный кэш: его можно безопасно удалить целиком, он пересоберётся по запросам (клиенты с закэшированным редиректом до суток могут получать 404 на удалённые файлы).
+
+**Проверка после релиза**
+
+```bash
+U=https://admin.ustoyob.tj
+curl -sI $U/media/cache/resolve/thumb_480/uploads/<папка>/<файл>   # 302, Cache-Control: max-age=86400, public
+curl -sI <Location из ответа выше>                                  # 200, image/webp, Cache-Control: … immutable
+curl -sI $U/uploads/<папка>/<файл>                                  # 200, Cache-Control: … immutable
+```
+
+После релиза с картинками: `doctrine:schema:update --force` (5 колонок `image_blurhash`), `cache:clear`, затем один раз `php bin/console app:images:backfill-blurhash --warm`.
 
 **Юридические документы** — заполните плейсхолдеры в `docs/legal` (см. выше) и убедитесь, что папка `docs/` попадает в деплой (иначе фикстура подставит короткие тексты).
 
@@ -259,10 +400,61 @@ location ^~ /uploads/ {
 | `auth_required_for_chat_appeals` при жалобе на чат | Выбрана причина с `authRequired = true` | Причина с `authRequired = false`; UUID брать из `GET /api/appeal-reasons?authRequired=false` |
 | `404 resource_not_found` на «мои»-коллекции | Коллекция пуста — так устроены self-коллекции | Обрабатывать 404 как «пусто» |
 | Публичный список тикетов пуст после фикстур | Тестовые тикеты неодобрены | Одобрить в админке (публикатор должен быть active+approved) |
-| Картинки перекачиваются на клиенте | Нет `Cache-Control` на `/uploads` | nginx-блок из «Деплой» |
+| Картинки перекачиваются на клиенте | Нет `Cache-Control` на `/uploads` и `/media/cache` | Блоки `location ^~ /uploads/` и `^~ /media/cache/` из раздела «nginx» |
+| Превью не строятся: `/media/cache/resolve/…` отдаёт 404 | В `location ^~ /media/cache/` нет фолбэка `try_files … /index.php`, либо запрос перехватил `location ~ \.php$` (нет `^~`) | Взять блок из раздела «nginx» целиком |
+| Превью отвечает 500 на больших фото | GD не хватает `memory_limit` для декодирования оригинала (например, 48 МП) | `memory_limit = 512M` в php-fpm; проверить `public/media` на права записи |
+| Статичный `.webp` отдаётся как `application/octet-stream` | В `mime.types` нет `image/webp` | Добавить `image/webp webp;` в `mime.types` (`grep webp /etc/nginx/mime.types`) |
+| `413 Request Entity Too Large` при загрузке нескольких фото | `client_max_body_size` (или PHP `post_max_size`) меньше суммарного размера файлов в одном запросе | `client_max_body_size 50M`, `post_max_size = 50M` |
+| Превью `/media/cache/resolve/...` анонимам отдаёт редирект на `/login` или отвечает `private, max-age=0` | Общий stateful-файервол `admin` (`pattern: ^/`) закрывал маршрут и стартовал сессию, из-за чего Symfony приписывал ответу `Cache-Control: private` | В `security.yaml` для `^/media/cache` заведён отдельный файервол `media` с `security: false`, а маршрут помечен `_stateless: true` (`config/routes/liip_imagine.yaml`) — оба нужны, не удалять. Любой новый публичный не-`/api` маршрут (картинки, файлы) заводить так же |
+| WebP-превью отдаётся с `Content-Type: image/png` | Кэш-файл лежал с расширением исходника (`.png`) | Резолвер `format_extension` (`config/services.yaml` + `liip_imagine.cache`) меняет расширение на `.webp`; не убирать |
+| `imageBlurhash: null` у старых фото | Хеш считается при загрузке, старые файлы его не имеют | `php bin/console app:images:backfill-blurhash` |
+| Postgres не стартует после сбоя/перезагрузки: `FATAL: lock file "postmaster.pid" already exists` | Осталась мёртвая блокировка, а её PID теперь занят посторонним процессом | Убедиться, что PID из `postmaster.pid` — не postgres (`ps -p <PID>`) и postgres не запущен, затем удалить этот файл (лучше сохранив копию); Postgres сам восстановится по WAL. Для Homebrew: `/opt/homebrew/var/postgresql@16/postmaster.pid` |
 | Админка: 500 «Cannot get entity outside of a CRUD context» | Открыт адрес вида `/?crudControllerFqcn=…` | Ходить по меню / красивым маршрутам (`/legal`) |
 | Фикстура юр. документов пишет «файл … не найден» | `docs/legal` не попала в деплой/путь | Убедиться, что `docs/` на месте; иначе загрузятся короткие тексты |
 | `php bin/phpunit`: 16 падений | Тесты ждут старые типы исключений | См. «Тесты»; привести тесты к `AppMessageException` |
+| `502 Bad Gateway` на всех запросах через PHP (`/api/*`, `/`), в т. ч. через Cloudflare | nginx-воркер не может подключиться к сокету php-fpm: `Permission denied (13)` | Подробно ниже: [502 после изменения конфигурации nginx](#502-bad-gateway-после-изменения-конфигурации-nginx) |
+
+### 502 Bad Gateway после изменения конфигурации nginx
+
+**Симптом:** сайт возвращает `502 Bad Gateway` (в т.ч. через Cloudflare) на всех запросах, идущих через PHP-FPM (`/api/*`, `/`, и т.д.).
+
+**Причина:** несовпадение пользователя, от имени которого запущен nginx worker-процесс, и владельца unix-сокета PHP-FPM.
+
+- nginx worker'ы запускаются от пользователя `nginx` (директива `user nginx;` в `/etc/nginx/nginx.conf`)
+- PHP-FPM пул `www` слушает сокет `/run/php/php8.4-fpm.sock` с правами `srw-rw----`, владелец `www-data:www-data` (см. `/etc/php/8.4/fpm/pool.d/www.conf`: `user`, `group`, `listen.owner`, `listen.group`)
+- Поскольку `nginx` не входит в группу `www-data`, worker получал `Permission denied (13)` при коннекте к сокету → PHP-FPM не отвечал → nginx отдавал 502
+
+**Диагностика:**
+
+```bash
+# лог конкретного вайртхоста показывает точную причину
+sudo tail -n 50 /var/log/nginx/ustoyob-tj_error.log
+# ищем строку вида:
+# connect() to unix:/var/run/php/php8.4-fpm.sock failed (13: Permission denied)
+
+# от какого юзера реально работают воркеры
+ps aux | grep "nginx: worker"
+
+# кому принадлежит сокет
+ls -la /var/run/php/php8.4-fpm.sock
+```
+
+**Решение:** добавить пользователя nginx в группу www-data и перезапустить сервисы:
+
+```bash
+sudo usermod -aG www-data nginx
+sudo systemctl restart php8.4-fpm
+sudo systemctl restart nginx
+```
+
+**Проверка:**
+
+```bash
+curl -I https://admin.ustoyob.tj/
+# должен вернуться 200/302, а не 502
+```
+
+**Когда может повториться:** после переустановки/обновления nginx или PHP-FPM, смены пула PHP-FPM, или если кто-то поменяет `user` в `nginx.conf` без учёта прав на сокет.
 
 ## Документы и ссылки
 

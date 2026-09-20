@@ -19,6 +19,18 @@ readonly class EntityDirectoryNamerService implements DirectoryNamerInterface //
 {
     public function directoryName(object|array $object, PropertyMapping $mapping): string
     {
+        return self::directoryFor($object);
+    }
+
+    /**
+     * Папка внутри public/uploads для сущности с картинкой. Вынесено в static,
+     * чтобы то же правило использовали не только Vich, но и сама сущность при
+     * сборке URL картинки/превью (см. ImageUrl, SingleImageTrait) — иначе путь
+     * пришлось бы дублировать. Поведение прежнее: для MultipleImage — по
+     * заполненной связи, для остальных — по классу сущности.
+     */
+    public static function directoryFor(object|array $object): string
+    {
         // MultipleImage — универсальная сущность; определяем папку по заполненной связи
         if ($object instanceof MultipleImage) {
             return match (true) {

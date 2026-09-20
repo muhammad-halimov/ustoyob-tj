@@ -1,0 +1,12 @@
+# Маршрут генерации превью: GET /media/cache/resolve/{filter}/{path}
+# (см. config/packages/liip_imagine.yaml и README, раздел "Картинки").
+#
+# _stateless: публичным картинкам сессия не нужна. Без этого сессионный
+# листенер Symfony (админский файервол stateful) дописывал ответу
+# "Cache-Control: private, max-age=0, must-revalidate" поверх нашего
+# (ImageResolveCacheSubscriber) — редирект нельзя было бы кэшировать, и
+# анонимам ставились бы лишние cookie.
+liip_imagine:
+    resource: "@LiipImagineBundle/Resources/config/routing.yaml"
+    defaults:
+        _stateless: true

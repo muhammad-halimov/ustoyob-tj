@@ -99,6 +99,9 @@
             "config/packages/lexik_jwt_authentication.yaml"
         ]
     },
+    "liip/imagine-bundle": {
+        "version": "2.17.2"
+    },
     "nelmio/cors-bundle": {
         "version": "2.5",
         "recipe": {

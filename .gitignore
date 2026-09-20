@@ -16,6 +16,7 @@
 /public/bundles/
 /public/images/*
 /public/uploads/*
+/public/media/
 /var/
 /vendor/
 ###< symfony/framework-bundle ###

@@ -102,7 +102,7 @@ interface User {
   patronymic: string | null;           // masters/clients/tech-support only
   rating: number | null;               // 0–5
   gender: 'gender_female' | 'gender_male' | 'gender_neutral';
-  image: string | null;                // filename, build full URL client-side
+  image: string | null;                // filename; ready-made URLs + BlurHash: see `ImageFields` in section 14 (imageUrl, imageThumbnail, imageMedium, imageWebp, imageBlurhash)
   imageExternalUrl: string | null;     // e.g. OAuth avatar (read-only)
   description: string | null;
   dateOfBirth: string | null;          // BREAKING (09.09.2026): only present on GET /users/me (own profile) now — see note below
@@ -631,15 +631,31 @@ Use to map backend error `code` → localized display text without hardcoding st
 ## 14. SHARED / CROSS-CUTTING TYPES
 
 ```ts
-interface MultipleImage {
+interface MultipleImage extends ImageFields {
   id: string;
   author: User | null;
-  image: string;        // filename — build full URL via configured storage base path
   priority: number | null;
   createdAt: string;
   updatedAt: string | null;
 }
+
+// Present on EVERY object that has an `image` (MultipleImage, User avatar, Category, Occupation, geography…).
+// All URLs are relative to the API host. `image` itself is unchanged (bare filename).
+interface ImageFields {
+  image: string | null;            // filename (as before)
+  imageUrl: string | null;         // original: /uploads/<folder>/<file>
+  imageThumbnail: string | null;   // WebP, longest side 480 px  — lists, cards, avatars
+  imageMedium: string | null;      // WebP, longest side 800 px  — larger preview
+  imageWebp: string | null;        // whole original (≤2400 px) as WebP — for old heavy PNG/JPEG
+  imageBlurhash: string | null;    // ~28-char BlurHash placeholder; null if not computed yet
+}
 ```
+**Images: previews, WebP, placeholder.** Use the `image*` fields instead of building URLs from the filename:
+- Render instantly from `imageBlurhash` (decode with any BlurHash library into a blurred placeholder), load `imageThumbnail` (lists) or `imageMedium`/`imageUrl` (detail view), then cross-fade. The full file is only needed in a fullscreen gallery.
+- `imageThumbnail`/`imageMedium`/`imageWebp` are `/media/cache/resolve/<filter>/uploads/<folder>/<file>` URLs — the first request builds the file and answers `302` to a static `.webp` (`image/webp`); the redirect is cacheable for 1 day and the final file is immutable. The URL for a given image never changes, so it is a stable HTTP-cache key. Works for old photos immediately (no re-upload).
+- Small originals are **not upscaled** (a 100 px image stays 100 px in every variant).
+- `imageBlurhash: null` on old photos until the backfill command has been run on the server; treat it as "no placeholder" and fall back to a neutral colour.
+- All new fields are read-only and additive — existing clients that only use `image` keep working.
 Universal image upload pattern — every resource that has images exposes:
 `POST /api/{resource}/{id}/upload-images` — `multipart/form-data`, field `imageFile[]` (multiple files, each ≤10MB, png/jpeg/jpg/webp) → `{ message: string, count: number }`.
 Reordering/removing already-uploaded images on PATCH: pass `images: [{ image: "<filename>" }, ...]` in entity's Patch DTO (Ticket, Review, Chat message, Tech support ticket, Tech support message — Gallery is its own case, see below) — order defines new `priority`; filenames omitted from the array are detached.

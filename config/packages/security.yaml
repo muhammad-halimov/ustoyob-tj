@@ -13,6 +13,13 @@ security:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
+        # Публичные картинки (превью Liip Imagine) — вне файерволов: без аутентификации,
+        # без сессии и без access_control. Иначе общий admin-файервол (pattern ^/, stateful)
+        # либо гонял анонимов на /login, либо стартовал сессию и Symfony приписывал ответу
+        # "Cache-Control: private, max-age=0" — картинки/редиректы нельзя было бы кэшировать.
+        media:
+            pattern: ^/media/cache
+            security: false
         api:
             pattern: ^/api
             stateless: true
