@@ -1473,6 +1473,7 @@ function Chat() {
                                             фотки в чате всегда показывались только инициалы. */}
                                         {resolveAvatar(interlocutor) ? (
                                             <Img
+                                                cache
                                                 image={resolveAvatar(interlocutor)}
                                                 placeholder="/img/icons/icons/default_user.png"
                                                 className={styles.avatarImage}
@@ -1577,6 +1578,7 @@ function Chat() {
                                         {/* см. комментарий у аватарки в списке чатов — учитываем imageExternalUrl */}
                                         {resolveAvatar(currentInterlocutor) ? (
                                             <Img
+                                                cache
                                                 image={resolveAvatar(currentInterlocutor)}
                                                 placeholder="/img/icons/icons/default_user.png"
                                                 loading="eager"
