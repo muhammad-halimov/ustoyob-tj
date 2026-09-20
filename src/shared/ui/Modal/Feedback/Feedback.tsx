@@ -9,6 +9,7 @@ import { SelectSearch } from '../../SelectSearch';
 import Grid, { PhotoItem } from '../../Photo/Grid';
 import { Preview, usePreview } from '../../Photo/Preview';
 import { uploadPhotos, toExistingPhoto } from '../../../../utils/imageUtils';
+import { fetchAllPages } from '../../../../utils/paginationUtils';
 import styles from './Feedback.module.scss';
 import type { Ticket, AppealReason } from '../../../../entities';
 
@@ -193,8 +194,8 @@ const Feedback: React.FC<FeedbackModalProps> = ({
             const endpoint = userRole === 'client'
                 ? `${API_ROUTES.TICKETS}?service=true&active=true&exists[author]=false&exists[master]=true&master=${targetUserId}`
                 : `${API_ROUTES.TICKETS}?service=false&active=true&exists[master]=false&exists[author]=true&author=${targetUserId}`;
-            const data: any = await universalApiRequest(endpoint);
-            const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
+            // ВСЕ активные объявления пользователя (fetchAllPages): первая страница из 25 обрезала выбор услуги для отзыва.
+            const arr = await fetchAllPages<any>(endpoint);
             setServices(arr.map(t => ({ id: t.id, title: t.title || 'Без названия' })));
         } catch (e) {
             console.error('Error fetching services:', e);
@@ -207,8 +208,8 @@ const Feedback: React.FC<FeedbackModalProps> = ({
 
     const fetchReviewCount = async (userId: string | number): Promise<number> => {
         try {
-            const data: any = await universalApiRequest(`${API_ROUTES.REVIEWS}?exists[ticket]=true&exists[master]=true&exists[client]=true&master=${userId}`);
-            const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
+            // ВСЕ отзывы (fetchAllPages): по первой странице счётчик отзывов занижался.
+            const arr = await fetchAllPages<any>(`${API_ROUTES.REVIEWS}?exists[ticket]=true&exists[master]=true&exists[client]=true&master=${userId}`);
             return arr.filter(r => r.master?.id === userId || r.client?.id === userId).length;
         } catch {
             return 0;
@@ -224,8 +225,8 @@ const Feedback: React.FC<FeedbackModalProps> = ({
             const endpoint = resolvedTargetRole === 'master'
                 ? `${API_ROUTES.TICKETS}?service=true&active=true&exists[master]=true&master=${targetUserId}`
                 : `${API_ROUTES.TICKETS}?service=false&active=true&exists[author]=true&author=${targetUserId}`;
-            const data: any = await universalApiRequest(endpoint);
-            const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
+            // ВСЕ активные объявления (fetchAllPages), чтобы жалобу можно было привязать к любому, а не только к первым 25.
+            const arr = await fetchAllPages<any>(endpoint);
             setTickets(arr.map(t => ({ id: t.id, title: t.title || 'Без названия' })));
         } catch (e) {
             console.error('Error fetching tickets:', e);

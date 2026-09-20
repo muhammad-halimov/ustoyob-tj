@@ -1,9 +1,9 @@
 import { getAuthToken } from './authUtils';
 import { universalApiRequest } from './apiUtils';
+import { fetchAllPages } from './paginationUtils';
 import { resolveApiError } from './appMessagesUtils';
 import i18n from 'i18next';
 import type { Chat } from '../entities';
-import type { HydraResponse } from '../entities';
 import type { User } from '../entities';
 import { getSessionJSON, setSessionJSON } from './storageUtils';
 import { API_ROUTES } from '../app/routers/routes';
@@ -191,18 +191,10 @@ export const getChatsMe = async (): Promise<Chat[]> => {
     }
     if (_chatsMePromise) return _chatsMePromise;
 
-    _chatsMePromise = universalApiRequest(API_ROUTES.CHATS_ME, { locale: false }).then((responseData) => {
-        let chatsArray: Chat[] = [];
-        if (Array.isArray(responseData)) {
-            chatsArray = responseData;
-        } else if (responseData && typeof responseData === 'object') {
-            if ('hydra:member' in responseData && Array.isArray((responseData as HydraResponse<Chat>)['hydra:member'])) {
-                chatsArray = (responseData as HydraResponse<Chat>)['hydra:member'];
-            } else if ((responseData as Chat).id) {
-                chatsArray = [responseData as Chat];
-            }
-        }
-        chatsArray = chatsArray.map(normalizeChatTicket);
+    // ВСЕ чаты (fetchAllPages): без пагинации приходили только первые 25 — «уже откликнулся»/«есть ли чат с этим
+    // человеком» не находили более старые чаты.
+    _chatsMePromise = fetchAllPages<Chat>(API_ROUTES.CHATS_ME, { locale: false }).then((chats) => {
+        const chatsArray = chats.map(normalizeChatTicket);
         _chatsMeCache = { data: chatsArray, timestamp: Date.now() };
         _chatsMePromise = null;
         return chatsArray;
@@ -232,23 +224,9 @@ export const invalidateChatsCache = (): void => {
  * `?user=` filter, so it's treated as "no chats" here rather than an error.
  */
 export const getChatsWithUser = async (userId: string | number): Promise<Chat[]> => {
-    try {
-        const responseData = await universalApiRequest(`${API_ROUTES.CHATS_ME}?user=${userId}`, { locale: false });
-        let chatsArray: Chat[] = [];
-        if (Array.isArray(responseData)) {
-            chatsArray = responseData;
-        } else if (responseData && typeof responseData === 'object') {
-            if ('hydra:member' in responseData && Array.isArray((responseData as HydraResponse<Chat>)['hydra:member'])) {
-                chatsArray = (responseData as HydraResponse<Chat>)['hydra:member'];
-            } else if ((responseData as Chat).id) {
-                chatsArray = [responseData as Chat];
-            }
-        }
-        return chatsArray.map(normalizeChatTicket);
-    } catch (e: any) {
-        if (e?.http === 404 || e?.status === 404) return [];
-        throw e;
-    }
+    // fetchAllPages сам считает 404 пустым списком.
+    const chats = await fetchAllPages<Chat>(`${API_ROUTES.CHATS_ME}?user=${userId}`, { locale: false });
+    return chats.map(normalizeChatTicket);
 };
 
 const findExistingChat = async (replyAuthorId: string | number): Promise<Chat | null> => {

@@ -32,6 +32,7 @@ import Recommendations from '../../main/recommendations/Recommendations';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { getPageSize } from '../../../utils/pageSizeUtils';
 import { getTicketFullAddress, parsePagedResponse, universalApiRequest } from '../../../utils/apiUtils';
+import { fetchAllPages } from '../../../utils/paginationUtils';
 import { useShowMore } from '../../../hooks';
 import { API_BASE_URL } from '../../../utils/configUtils';
 import { resolveApiError, ApiError } from '../../../utils/appMessagesUtils';
@@ -803,12 +804,9 @@ export function Ticket() {
                 params.append('author.id[ne]', String(currentUserId));
                 params.append('master.id[ne]', String(currentUserId));
             }
-            let data: ApiTicket[] = await universalApiRequest(`${API_ROUTES.TICKETS}?${params.toString()}`);
-                
-                // Если вернул Hydra формат
-                if (!Array.isArray(data) && (data as any)['hydra:member']) {
-                    data = (data as any)['hydra:member'];
-                }
+            // До 100 подходящих (две страницы по 50), а не первые 25: дальше объявления сортируются «свой город
+            // первым» и режутся до 6 — по одной странице город-приоритет работал только внутри неё.
+            let data: ApiTicket[] = await fetchAllPages<ApiTicket>(`${API_ROUTES.TICKETS}?${params.toString()}`, { maxPages: 2 });
                 
                 // Сортируем: сначала тикеты из того же города, затем по дате
                 const selectedCity = getStorageItem('selectedCity') || '';

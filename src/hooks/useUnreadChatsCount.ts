@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAuthToken } from '../utils/authUtils';
-import { universalApiRequest, parsePagedResponse } from '../utils/apiUtils';
+import { universalApiRequest } from '../utils/apiUtils';
+import { fetchAllPages } from '../utils/paginationUtils';
 import { openMercureSource } from '../utils/mercureUtils';
 import { API_ROUTES } from '../app/routers/routes';
 
 interface ChatListEntry {
     unreadCount?: number;
 }
-
-// Highest itemsPerPage the endpoint documents — good enough for the header badge (a user
-// with more than this many concurrently-unread chats is an edge case we accept missing).
-const CHATS_PAGE_SIZE = 50;
 
 /** Sums `unreadCount` across the caller's chats (`GET /api/chats/me`) for the header's
  *  unread-messages badge, and keeps it live over the same inbox Mercure topic Chat.tsx
@@ -28,8 +25,8 @@ export const useUnreadChatsCount = () => {
             return;
         }
         try {
-            const responseData = await universalApiRequest(`${API_ROUTES.CHATS_ME}?page=1&itemsPerPage=${CHATS_PAGE_SIZE}`, { locale: false });
-            const { items } = parsePagedResponse<ChatListEntry>(responseData, 1, CHATS_PAGE_SIZE);
+            // Бейдж считает непрочитанные по ВСЕМ чатам — раньше брались только первые 50 (и недосчитывал).
+            const items = await fetchAllPages<ChatListEntry>(API_ROUTES.CHATS_ME, { locale: false });
             const total = items.reduce((sum, chat) => sum + (chat.unreadCount ?? 0), 0);
             setUnreadCount(total);
         } catch {

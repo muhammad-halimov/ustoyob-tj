@@ -9,6 +9,7 @@ import type { AppealReason } from '../entities';
 import type { Unit } from '../entities';
 import type { LegalDocument } from '../entities';
 import { universalApiRequest } from './apiUtils';
+import { fetchAllPages } from './paginationUtils';
 import type { LocaleType } from './apiUtils';
 import { getStorageItem, getDefaultLocale } from './storageUtils';
 import { API_ROUTES } from '../app/routers/routes';
@@ -43,13 +44,6 @@ const normalizeLocale = (locale?: string): LocaleType => {
 
 const getCurrentLocale = (): LocaleType =>
     normalizeLocale(getStorageItem('i18nextLng') ?? undefined) || getDefaultLocale();
-
-const toArray = <T>(data: unknown): T[] =>
-    Array.isArray(data)
-        ? (data as T[])
-        : data && typeof data === 'object' && 'hydra:member' in (data as object)
-            ? ((data as { 'hydra:member': T[] })['hydra:member'])
-            : [];
 
 // ─── Фабрика ─────────────────────────────────────────────────────────────────
 
@@ -88,8 +82,9 @@ function createCachedFetcher<T>(
         const promise = (async (): Promise<T[]> => {
             try {
                 const apiLocale = opts.locale !== undefined ? opts.locale : (targetLocale as LocaleType);
-                const raw = await universalApiRequest(fullEndpoint, { locale: apiLocale, requiresAuth: opts.requiresAuth });
-                const items = toArray<T>(raw);
+                // Справочник — это ВСЕ записи, а не первая страница (бэкенд: 25 по умолчанию, максимум 50) —
+                // см. fetchAllPages. Раньше `/api/categories` отдавал 25 из 32, районы 25 из 30, подкатегории 50 из 124.
+                const items = await fetchAllPages<T>(fullEndpoint, { locale: apiLocale, requiresAuth: opts.requiresAuth });
                 cache.set(cacheKey, { data: items, locale: targetLocale, timestamp: Date.now() });
                 return items;
             } catch (error) {
@@ -115,7 +110,7 @@ function createCachedFetcher<T>(
  * про locale — просто помнит последний ответ на `cacheDuration` мс и позволяет
  * принудительно обойти кеш (`force`) после мутации на клиенте.
  */
-function createMeCache<T>(endpoint: string, cacheDuration = CACHE_DURATION) {
+function createMeCache<T>(endpoint: string, cacheDuration = CACHE_DURATION, paged = false) {
     let cached: { data: T; timestamp: number } | null = null;
     let inFlight: Promise<T> | null = null;
 
@@ -127,7 +122,8 @@ function createMeCache<T>(endpoint: string, cacheDuration = CACHE_DURATION) {
 
         inFlight = (async (): Promise<T> => {
             try {
-                const data = await universalApiRequest(endpoint) as T;
+                // paged — коллекция (например, свои обращения в ТП): нужны ВСЕ страницы, а не первые 25.
+                const data = (paged ? await fetchAllPages(endpoint) : await universalApiRequest(endpoint)) as T;
                 cached = { data, timestamp: Date.now() };
                 return data;
             } finally {
@@ -146,14 +142,14 @@ function createMeCache<T>(endpoint: string, cacheDuration = CACHE_DURATION) {
 
 export const getProvinces      = createCachedFetcher<Province>(API_ROUTES.PROVINCES);
 export const getCities         = createCachedFetcher<City>(API_ROUTES.CITIES);
-export const getOccupations    = createCachedFetcher<Occupation>(`${API_ROUTES.OCCUPATIONS}?itemsPerPage=500`);
+export const getOccupations    = createCachedFetcher<Occupation>(API_ROUTES.OCCUPATIONS);
 export const getCategories     = createCachedFetcher<Category>(API_ROUTES.CATEGORIES,       { requiresAuth: false }, STATIC_CACHE_DURATION);
 export const getDistricts      = createCachedFetcher<District>(API_ROUTES.DISTRICTS,        {}, STATIC_CACHE_DURATION);
 export const getUnits          = createCachedFetcher<Unit>(API_ROUTES.UNITS,                {}, STATIC_CACHE_DURATION);
 export const getAppealReasons  = createCachedFetcher<AppealReason>(API_ROUTES.APPEAL_REASONS);
 export const getLegalDocuments = createCachedFetcher<LegalDocument>(API_ROUTES.LEGAL_DOCUMENTS, {}, STATIC_CACHE_DURATION);
 /** Own tech-support tickets — short TTL since it's the user's own mutable data (see TechSupport.tsx). */
-export const getMyTechSupports = createMeCache<unknown>(API_ROUTES.TECH_SUPPORTS_ME, 60 * 1000);
+export const getMyTechSupports = createMeCache<unknown>(API_ROUTES.TECH_SUPPORTS_ME, 60 * 1000, true);
 
 // ─── Управление кешем ────────────────────────────────────────────────────────
 

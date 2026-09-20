@@ -38,6 +38,7 @@ import {Reset} from '../../../../shared/ui/Button/Reset/Reset';
 import {ShowMore} from '../../../../shared/ui/Button/ShowMore/ShowMore';
 import {getPageSize} from '../../../../utils/pageSizeUtils';
 import {formatTicketImageUrl, toPhotoSource, resolveAvatar} from '../../../../utils/imageUtils';
+import {fetchAllPages} from '../../../../utils/paginationUtils';
 import {getSessionJSON, getStorageItem, removeSessionItem, setSessionJSON} from '../../../../utils/storageUtils';
 import {resolveApiError} from '../../../../utils/appMessagesUtils';
 
@@ -192,17 +193,9 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     // Функция для извлечения городов из существующих тикетов
     const extractCitiesFromTickets = useCallback(async () => {
         try {
-            const ticketsData = await universalApiRequest(`${API_ROUTES.TICKETS}?active=true&itemsPerPage=100`);
-            let tickets: ApiTicket[] = [];
-
-            if (Array.isArray(ticketsData)) {
-                tickets = ticketsData;
-            } else if (ticketsData && typeof ticketsData === 'object' && 'hydra:member' in ticketsData) {
-                const hydraMember = (ticketsData as { 'hydra:member': ApiTicket[] })['hydra:member'];
-                if (Array.isArray(hydraMember)) {
-                    tickets = hydraMember;
-                }
-            }
+            // Раньше `itemsPerPage=100`, но бэкенд отдаёт максимум 50 за страницу — реально приходило 50. Берём две
+            // страницы по 50 (это как раз обещанные 100) через fetchAllPages.
+            const tickets = await fetchAllPages<ApiTicket>(`${API_ROUTES.TICKETS}?active=true`, { maxPages: 2 });
 
             // Извлекаем уникальные города из адресов тикетов
             const citiesMap = new Map<string, City>();
