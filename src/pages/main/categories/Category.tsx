@@ -14,6 +14,7 @@ import { getCategories } from '../../../utils/dataCacheUtils';
 import { setSessionJSON } from '../../../utils/storageUtils';
 import { Img } from '../../../shared/ui/Photo/Img';
 import { resolveImage, pickImageFields } from '../../../utils/imageUtils';
+import { preloadImages } from '../../../utils/imageCacheUtils';
 
 /**
  * Home page category strip.
@@ -27,6 +28,7 @@ export default function Category() {
     const [isMobile, setIsMobile] = useState(false);
     const [visibleCount, setVisibleCount] = useState(() => window.innerWidth <= 480 ? 6 : 8);
     const [searchQuery, setSearchQuery] = useState<string>('');
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const navigate = useNavigate();
     const { t } = useTranslation(['common', 'category']); // Добавьте перевод
 
@@ -50,6 +52,15 @@ export default function Category() {
                 const pb = b.priority ?? Infinity;
                 return pa - pb;
             });
+
+            // Сначала иконки, потом список: ждём (до 3 с) иконки первой видимой порции — они грузятся
+            // через кэш картинок, и `<Img cache>` берёт их из памяти мгновенно, поэтому категории
+            // появляются сразу с иконками, а не «вспыхивают» пустыми плашками. Остальные (за «Показать
+            // ещё») прогреваем в фоне. На повторном заходе всё уже в кэше — ожидания нет.
+            const iconUrl = (c: typeof formattedData[number]) => resolveImage(c, 'full', 'uploads/categories')?.src ?? '';
+            const initialCount = window.innerWidth <= 480 ? 6 : 8;
+            await preloadImages(formattedData.slice(0, initialCount).map(iconUrl).filter(Boolean));
+            void preloadImages(formattedData.slice(initialCount).map(iconUrl).filter(Boolean), 15000);
 
             setCategories(formattedData);
             // Cache for category tickets page title
@@ -137,6 +148,25 @@ export default function Category() {
     // Определяем какие категории показывать
     const filteredCategories = getFilteredCategories();
     const initialCount = isMobile ? 6 : 8;
+
+    // «Показать ещё»: как и при первой загрузке — сначала иконки новой порции, потом сами категории (без
+    // блюра/пустых плашек). Обычно порция уже прогрета в фоне (см. fetchCategories) и ждать не приходится;
+    // если нет — кнопка крутит спиннер до 3 с и порция показывается в любом случае.
+    const handleShowMore = async () => {
+        if (isLoadingMore) return;
+        const next = Math.min(visibleCount + initialCount, filteredCategories.length);
+        setIsLoadingMore(true);
+        try {
+            await preloadImages(
+                filteredCategories.slice(visibleCount, next)
+                    .map(c => resolveImage(c, 'full', 'uploads/categories')?.src ?? '')
+                    .filter(Boolean),
+            );
+        } finally {
+            setVisibleCount(next);
+            setIsLoadingMore(false);
+        }
+    };
     const visibleItems = searchQuery.trim()
         ? filteredCategories
         : filteredCategories.slice(0, visibleCount);
@@ -174,8 +204,11 @@ export default function Category() {
                             }}
                         >
                             <Img
-                                // Превью 480 px + BlurHash, оригинал — откат, локальная картинка — если нет/не грузится.
-                                image={resolveImage(item, 'thumbnail', 'uploads/categories')}
+                                cache
+                                // Иконка категории — PNG ~18 КБ: берём оригинал (иммутабельный, кэшируется браузером и
+                                // Cloudflare на год), а не превью — оно для них не нужно, а на бэке 480 px из RGBA-PNG
+                                // падает 500 (не кэшируется → каждый заход запрос заново). BlurHash — фон на время загрузки.
+                                image={resolveImage(item, 'full', 'uploads/categories')}
                                 placeholder="/img/icons/misc/fonTest4.png"
                                 alt={item.title}
                             />
@@ -198,7 +231,8 @@ export default function Category() {
                     <ShowMore
                         expanded={visibleCount > initialCount}
                         canLoadMore={visibleCount < filteredCategories.length}
-                        onShowMore={() => setVisibleCount(c => Math.min(c + initialCount, filteredCategories.length))}
+                        onShowMore={handleShowMore}
+                        loading={isLoadingMore}
                         onShowLess={() => setVisibleCount(c => Math.max(c - initialCount, initialCount))}
                         onClear={() => setVisibleCount(initialCount)}
                         showMoreText={t('common:app.showMore')}

@@ -612,8 +612,10 @@ function Category() {
                                 }}
                             >
                                 <Img
-                                    // Превью 480 px + BlurHash; оригинал — откат. Нет фото / не загрузилось — буква на плашке.
-                                    image={resolveImage(occupation, 'thumbnail', 'uploads/occupations')}
+                                    cache
+                                    // Иконка подкатегории — маленький PNG: оригинал (иммутабельный, кэшируется на год), см. main/categories.
+                                    // BlurHash — фон на время загрузки. Нет фото / не загрузилось — буква на плашке.
+                                    image={resolveImage(occupation, 'full', 'uploads/occupations')}
                                     placeholder={occupation.image ? occupationLetterAvatar(occupation.title) : '/img/icons/icons/default_subcategory.png'}
                                     placeholderClassName={styles.img_fallback}
                                     alt={occupation.title}

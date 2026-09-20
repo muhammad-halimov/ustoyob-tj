@@ -344,6 +344,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                     <div className={styles.review_header}>
                                         <div className={styles.reviewer_info}>
                                             <Img
+                                                cache
                                                 image={getReviewAuthorAvatar(review)}
                                                 placeholder="/img/icons/icons/default_user.png"
                                                 alt={getReviewAuthorName(review)}
@@ -458,6 +459,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                 <div className={styles.review_header}>
                                                     <div className={styles.reviewer_info}>
                                                         <Img
+                                                            cache
                                                             image={getReviewAuthorAvatar(review)}
                                                             placeholder="/img/icons/icons/default_user.png"
                                                             alt={getReviewAuthorName(review)}
@@ -565,6 +567,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                             <div className={styles.review_header}>
                                                 <div className={styles.reviewer_info}>
                                                     <Img
+                                                        cache
                                                         image={getReviewAuthorAvatar(review)}
                                                         placeholder="/img/icons/icons/default_user.png"
                                                         alt={getReviewAuthorName(review)}

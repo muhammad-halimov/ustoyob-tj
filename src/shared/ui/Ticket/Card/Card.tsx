@@ -487,6 +487,7 @@ export function Card({
                 onTouchEnd={(e) => e.stopPropagation()}
               >
                 <Img
+                  cache
                   image={authorAvatar}
                   src={authorImage}
                   placeholder="/img/icons/icons/default_user.png"
@@ -498,6 +499,7 @@ export function Card({
             ) : (
               <span className={styles.card_author}>
                 <Img
+                  cache
                   image={authorAvatar}
                   src={authorImage}
                   placeholder="/img/icons/icons/default_user.png"

@@ -248,6 +248,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 >
                     {avatar ? (
                         <Img
+                            cache
                             image={avatarImage}
                             src={avatar}
                             // Шапка профиля — первое, что видит пользователь: не откладываем загрузку.

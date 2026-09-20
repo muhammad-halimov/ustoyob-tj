@@ -268,6 +268,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                             />
                             <div className={styles.reviews_naming}>
                                 <Img
+                                    cache
                                     image={getReviewAuthorAvatar(review)}
                                     placeholder="/img/icons/icons/default_user.png"
                                     alt={getReviewAuthorName(review)}
@@ -366,6 +367,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                     />
                                     <div className={styles.reviews_naming}>
                                         <Img
+                                            cache
                                             image={getReviewAuthorAvatar(review)}
                                             placeholder="/img/icons/icons/default_user.png"
                                             alt={getReviewAuthorName(review)}

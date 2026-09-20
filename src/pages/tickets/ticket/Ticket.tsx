@@ -994,6 +994,7 @@ export function Ticket() {
                 <section className={styles.section}>
                     <div className={styles.section_photo}>
                         <Img
+                            cache
                             image={order.authorAvatar}
                             src={order.authorImage}
                             placeholder="/img/icons/icons/default_user.png"
