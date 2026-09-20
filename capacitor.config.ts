@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'tj.ustoyob.app',
-  appName: 'Ustoyob',
+  appName: 'ustoyob.tj',
   webDir: 'dist',
   ios: {
     // `never` (значение Capacitor по умолчанию, указано явно): веб-вью на весь экран, под статус-баром
