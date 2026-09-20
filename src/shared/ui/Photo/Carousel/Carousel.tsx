@@ -45,6 +45,16 @@ export function Carousel({ photos, sources, variant = 'medium', className, prior
     () => (usableSources ? usableSources.map(s => s.webp ?? s.url) : photos),
     [usableSources, photos],
   );
+  // Превью для мгновенного открытия галереи: ровно те же файлы, что уже показаны на странице
+  // (см. mainSrc), поэтому они в кэше браузера и окно не пустует, пока грузится полное фото.
+  const galleryPreviews = useMemo(
+    () => usableSources?.map(s => (variant === 'thumbnail' ? s.thumbnail ?? s.medium : s.medium) ?? s.url),
+    [usableSources, variant],
+  );
+  const galleryThumbnails = useMemo(
+    () => usableSources?.map(s => s.thumbnail ?? s.webp ?? s.url),
+    [usableSources],
+  );
   const mainPlaceholder = useMemo(() => blurhashToDataUrl(src(currentIndex)?.blurhash), [usableSources, currentIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const visibleThumbs = photos.slice(thumbOffset, thumbOffset + THUMB_PER_PAGE);
@@ -211,6 +221,9 @@ export function Carousel({ photos, sources, variant = 'medium', className, prior
       <Preview
         isOpen={isGalleryOpen}
         images={galleryImages}
+        thumbnails={galleryThumbnails}
+        previews={galleryPreviews}
+        originals={usableSources ? photos : undefined}
         currentIndex={galleryStartIndex}
         onClose={() => setIsGalleryOpen(false)}
         onNext={() => setGalleryStartIndex(i => (i + 1) % photos.length)}
