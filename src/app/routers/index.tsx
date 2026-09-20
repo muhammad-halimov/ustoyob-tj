@@ -56,6 +56,7 @@ const router = createBrowserRouter([
             { path: ROUTE_PATTERNS.PRIVACY_POLICY, element: <Legal /> },
             { path: ROUTE_PATTERNS.TERMS_OF_USE, element: <Legal /> },
             { path: ROUTE_PATTERNS.PUBLIC_OFFER, element: <Legal /> },
+            { path: ROUTE_PATTERNS.THIRD_PARTY, element: <Legal /> },
             { path: ROUTE_PATTERNS.TECH_SUPPORT, element: <Legal /> },
 
             // 404 — держим последним, чтобы не перехватывать реальные роуты выше

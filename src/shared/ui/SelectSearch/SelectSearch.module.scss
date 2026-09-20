@@ -142,6 +142,19 @@
   caret-color: transparent;
 }
 
+.altTextarea {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  resize: none;
+  overflow-y: auto;
+  line-height: 20px;
+  // ~6 строк, дальше — внутренний скролл, а не бесконечный рост
+  max-height: 120px;
+  word-break: break-word;
+}
+
 .altInputWrap {
   position: relative;
   flex: 1;

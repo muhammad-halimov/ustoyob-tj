@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import React from 'react';
-import DOMPurify from 'dompurify';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../app/routers/routes';
 import { Tabs } from '../../shared/ui/Tabs';
 import { EmptyState } from '../../widgets/EmptyState';
-import { IoDocumentTextOutline, IoShieldCheckmarkOutline, IoReceiptOutline, IoHeadsetOutline } from 'react-icons/io5';
+import { Markdown } from '../../shared/ui/Text/Markdown';
+import { IoDocumentTextOutline, IoShieldCheckmarkOutline, IoReceiptOutline, IoExtensionPuzzleOutline, IoHeadsetOutline } from 'react-icons/io5';
 import styles from './Legal.module.scss';
 import type { LegalDocument, LegalDocumentType } from '../../entities';
 import { getLegalDocuments } from '../../utils/dataCacheUtils';
@@ -19,13 +19,14 @@ type PageTab = LegalDocumentType | 'tech_support';
 
 /**
  * Legal documents page.
- * Serves three documents (Privacy Policy, Terms of Use, Public Offer) in tabs.
- * Content is fetched from the API per document type + locale and sanitised
- * with DOMPurify before being rendered as innerHTML.
+ * Serves four documents (Privacy Policy, Terms of Use, Public Offer, Third parties) in tabs.
+ * Content is fetched from the API per document type + locale and rendered via
+ * <Markdown trusted> (markdown or ready HTML, sanitised with DOMPurify).
  */
 function getTabFromPath(pathname: string): PageTab {
     if (pathname === ROUTES.TERMS_OF_USE) return 'terms_of_use';
     if (pathname === ROUTES.PUBLIC_OFFER) return 'public_offer';
+    if (pathname === ROUTES.THIRD_PARTY) return 'third_party';
     if (pathname === ROUTES.TECH_SUPPORT) return 'tech_support';
     return 'privacy_policy';
 }
@@ -81,6 +82,8 @@ function Legal() {
                 newPath = ROUTES.TERMS_OF_USE;
             } else if (type === 'public_offer') {
                 newPath = ROUTES.PUBLIC_OFFER;
+            } else if (type === 'third_party') {
+                newPath = ROUTES.THIRD_PARTY;
             } else if (type === 'tech_support') {
                 newPath = ROUTES.TECH_SUPPORT;
             }
@@ -92,6 +95,7 @@ function Legal() {
         { key: 'terms_of_use' as PageTab, icon: <IoDocumentTextOutline />, label: t('footer.termsOfUse', 'Условия использования') },
         { key: 'privacy_policy' as PageTab, icon: <IoShieldCheckmarkOutline />, label: t('footer.privacyPolicy', 'Политика конфиденциальности') },
         { key: 'public_offer' as PageTab, icon: <IoReceiptOutline />, label: t('footer.publicOffer', 'Публичная оферта') },
+        { key: 'third_party' as PageTab, icon: <IoExtensionPuzzleOutline />, label: t('footer.thirdParty', 'Третьи лица') },
         { key: 'tech_support' as PageTab, icon: <IoHeadsetOutline />, label: t('footer.techSupport', 'Техподдержка') },
     ];
 
@@ -124,10 +128,7 @@ function Legal() {
                         <div className={styles.meta}>
                             <p>{t('legal.lastUpdated', 'Последнее обновление')}: {new Date(document.updatedAt).toLocaleDateString('ru-RU')}</p>
                         </div>
-                        <div
-                            className={styles.description}
-                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(document.description) }}
-                        />
+                        <Markdown text={document.description} trusted className={styles.description} />
                     </>
                 )}
             </div>

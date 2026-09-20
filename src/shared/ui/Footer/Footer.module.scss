@@ -31,11 +31,22 @@
   color: map.get(vars.$colors, text-gray);
   text-decoration: none;
   font-size: 14px;
-  transition: color 0.2s ease;
+  transition: color 0.2s ease, opacity 0.2s ease;
+  // Как в хедере: без синей вспышки/рамки при тапе, отклик на касание — приглушение (.locate:active)
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  user-select: none;
 
-  &:hover {
-    color: map.get(vars.$colors, color-primary);
-    text-decoration: underline;
+  // Только для устройств с реальным hover: на таче :hover «залипает» после тапа
+  @media (hover: hover) {
+    &:hover {
+      color: map.get(vars.$colors, actual-blue);
+    }
+  }
+
+  &:active {
+    color: map.get(vars.$colors, actual-blue);
+    opacity: 0.75;
   }
 }
 
@@ -85,9 +96,15 @@
   
   .link {
     color: var(--color-text-gray);
-    
-    &:hover {
-      color: var(--color-primary);
+
+    @media (hover: hover) {
+      &:hover {
+        color: var(--color-actual-blue);
+      }
+    }
+
+    &:active {
+      color: var(--color-actual-blue);
     }
   }
   

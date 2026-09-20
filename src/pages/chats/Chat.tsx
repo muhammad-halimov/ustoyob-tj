@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
 import { getAuthToken, fetchCurrentUser, isAdmin } from "../../utils/authUtils";
 import { API_ROUTES, ROUTES } from '../../app/routers/routes';
@@ -129,7 +129,7 @@ function Chat() {
      *  attached (two-step create-then-upload-images flow) — this schedules one delayed
      *  `fetchChatMessages` to pick up any photos that land shortly after. */
     const messageImagesRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const messageInputRef = useRef<HTMLInputElement>(null);
+    const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
     const [searchParams] = useSearchParams();
     const chatIdFromUrl = searchParams.get('chatId');
@@ -963,12 +963,24 @@ function Chat() {
         fileInputRef.current?.click();
     }, []);
 
-    const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
+    // Как в Telegram: Enter — отправить, Shift+Enter — новая строка. На тач-устройствах
+    // Shift нет, поэтому там Enter вставляет перенос, отправка — кнопкой. Enter во время
+    // IME-композиции (подтверждение слова) не трогаем.
+    const handleKeyPress = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+        if (window.matchMedia('(pointer: coarse)').matches) return;
+        e.preventDefault();
+        sendMessage();
     }, [sendMessage]);
+
+    // Auto-grow поля сообщения: сбрасываем высоту, чтобы scrollHeight пересчитался и при
+    // удалении текста/после отправки поле сжималось; потолок — CSS max-height.
+    useLayoutEffect(() => {
+        const el = messageInputRef.current;
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+    }, [newMessage]);
 
     // Обработка клавиатуры на мобильных устройствах
     useEffect(() => {
@@ -1869,14 +1881,14 @@ function Chat() {
                                 </button>
                             )}
 
-                            <input
-                                type="text"
+                            <textarea
+                                rows={1}
                                 ref={messageInputRef}
                                 placeholder={t('chat.messageInput')}
                                 className={styles.inputField}
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
-                                onKeyPress={handleKeyPress}
+                                onKeyDown={handleKeyPress}
                                 disabled={isUploading}
                                 onFocus={() => {
                                     // Mobile-keyboard-only (matches this file's other window.innerWidth <= 960

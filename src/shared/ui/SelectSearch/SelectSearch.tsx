@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { IoEyeOutline, IoEyeOffOutline } from 'react-icons/io5';
@@ -29,9 +29,9 @@ interface SelectSearchProps<T = unknown> {
     /** Показывать иконку поиска в триггере */
     showSearchIcon?: boolean;
     /** onKeyDown для altMode input */
-    onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
+    onKeyDown?: React.KeyboardEventHandler<HTMLInputElement | HTMLTextAreaElement>;
     /** onWheel для altMode input — например, снять фокус у type="number", чтобы скролл мыши не менял значение. */
-    onWheel?: React.WheelEventHandler<HTMLInputElement>;
+    onWheel?: React.WheelEventHandler<HTMLInputElement | HTMLTextAreaElement>;
     /** onFocus для altMode input — вызывается вместе с внутренней логикой (снятие blur-маскировки) */
     onFocus?: () => void;
     /** onBlur для altMode input — вызывается вместе с внутренней логикой (blur-маскировка) */
@@ -48,6 +48,14 @@ interface SelectSearchProps<T = unknown> {
      * денег для поля цены. Рендерится как есть (размер/цвет — на совести вызывающего).
      */
     altIcon?: React.ReactNode;
+    /**
+     * Только altMode (не для пароля): поле ведёт себя как в Telegram — вместо одной строки
+     * это auto-growing textarea: когда текст доходит до края, он переносится на следующую
+     * строку и поле растёт по высоте (до ~6 строк, дальше внутренний скролл).
+     * Enter не вставляет перенос строки — если передан `onKeyDown`, Enter целиком на нём
+     * (например, "отправить"), иначе он просто игнорируется. По умолчанию false.
+     */
+    expandable?: boolean;
     /**
      * Скрывает кнопку очистки (×) даже когда value непустой — для полей, у которых
      * value никогда не бывает по-настоящему "пустым" по смыслу (например, номер
@@ -93,6 +101,7 @@ export function SelectSearch<T = unknown>({
     showSearchIcon = false,
     altMode = false,
     altIcon,
+    expandable = false,
     hideClear = false,
     noSearch = false,
     hideIcon = false,
@@ -118,6 +127,8 @@ export function SelectSearch<T = unknown>({
     const [passwordVisible, setPasswordVisible] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const searchRef = useRef<HTMLInputElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const isExpandable = expandable && altMode && !isPassword;
 
     const selectedOption = useMemo(
         () => options.find(o => o.value === value) ?? null,
@@ -129,6 +140,15 @@ export function SelectSearch<T = unknown>({
         if (!q) return options;
         return options.filter(o => o.label.toLowerCase().includes(q));
     }, [options, query]);
+
+    // Auto-grow: сбрасываем высоту, чтобы scrollHeight пересчитался и на удалении текста
+    // поле тоже сжималось, затем выставляем по содержимому (потолок — CSS max-height).
+    useLayoutEffect(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+    }, [value, isExpandable]);
 
     // Закрытие по клику снаружи
     useEffect(() => {
@@ -204,6 +224,29 @@ export function SelectSearch<T = unknown>({
                         </svg>
                     ))}
                     <div className={styles.altInputWrap}>
+                        {isExpandable ? (
+                            <textarea
+                                ref={textareaRef}
+                                rows={1}
+                                className={`${styles.altInput} ${styles.altTextarea}`}
+                                placeholder={resolvedPlaceholder}
+                                value={value}
+                                disabled={disabled}
+                                name={name}
+                                autoComplete={autoComplete}
+                                required={required}
+                                maxLength={maxLength}
+                                minLength={minLength}
+                                onChange={e => onChange(e.target.value)}
+                                onKeyDown={e => {
+                                    onKeyDown?.(e);
+                                    if (e.key === 'Enter' && !onKeyDown) e.preventDefault();
+                                }}
+                                onWheel={onWheel}
+                                onFocus={() => { setAltFocused(true); onFocus?.(); }}
+                                onBlur={() => { setAltFocused(false); onBlur?.(); }}
+                            />
+                        ) : (
                         <input
                             type={isPassword ? (passwordVisible ? 'text' : 'password') : inputType}
                             className={`${styles.altInput} ${value && !altFocused && !isPassword ? styles.altInputBlurred : ''}`}
@@ -224,9 +267,10 @@ export function SelectSearch<T = unknown>({
                             onFocus={() => { setAltFocused(true); onFocus?.(); }}
                             onBlur={() => { setAltFocused(false); onBlur?.(); }}
                         />
+                        )}
                         {/* Оверлей с плейсхолдером/значением скрыт для пароля — иначе он показал бы
                             символы пароля открытым текстом поверх замаркированного инпута. */}
-                        {!altFocused && !isPassword && (
+                        {!altFocused && !isPassword && !isExpandable && (
                             <div className={styles.altPlaceholder}>
                                 <Marquee text={value || resolvedPlaceholder} alwaysScroll={!!value} />
                             </div>

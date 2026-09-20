@@ -44,5 +44,7 @@
   "addressError": "Error in address data",
   "genericError": "An error occurred",
   "ticketLoadError": "Error loading ticket data",
-  "photoDeleteConfirm": "Are you sure you want to delete this photo?"
+  "photoDeleteConfirm": "Are you sure you want to delete this photo?",
+  "markdownHint": "Markdown is supported: **bold**, *italic*, - lists, [link](https://…)",
+  "previewLabel": "Preview"
 }

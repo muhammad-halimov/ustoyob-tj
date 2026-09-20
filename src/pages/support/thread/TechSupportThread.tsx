@@ -9,7 +9,7 @@ import { resolveApiError } from '../../../utils/appMessagesUtils';
 import { getUserData, isAdmin } from '../../../utils/authUtils';
 import { getFormattedDateTime } from '../../../utils/timeUtils';
 import { uploadPhotos, formatTechSupportImageUrl, formatTechSupportMessageImageUrl } from '../../../utils/imageUtils';
-import { decodeHtmlEntities } from '../../../utils/textUtils';
+import { decodeHtmlEntities, smartNameTranslator } from '../../../utils/textUtils';
 import { getAppealReasons, getMyTechSupports } from '../../../utils/dataCacheUtils';
 import { openMercureSource } from '../../../utils/mercureUtils';
 import { useLanguageChange } from '../../../hooks';
@@ -18,6 +18,7 @@ import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { MediaSidebar } from '../../../shared/ui/Photo/MediaSidebar/MediaSidebar';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
+import { Markdown } from '../../../shared/ui/Text/Markdown';
 import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 import { EmptyState } from '../../../widgets/EmptyState';
 import {
@@ -92,7 +93,14 @@ const isWithinTicketEditWindow = (createdAt?: string): boolean =>
  * Not real-time (no SSE/polling) by design, unlike the full Chat page.
  */
 function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps) {
-    const { t } = useTranslation('techSupport');
+    const { t, i18n } = useTranslation('techSupport');
+    // «Фамилия Имя» в языке интерфейса — имена в профилях хранятся как ввёл пользователь
+    // (кириллица/латиница), поэтому прогоняем через smartNameTranslator, как в Ticket.tsx.
+    const nameLang = i18n.language as 'ru' | 'tj' | 'eng';
+    const fullName = (person?: { surname?: string | null; name?: string | null } | null): string =>
+        person
+            ? `${smartNameTranslator(person.surname ?? '', nameLang)} ${smartNameTranslator(person.name ?? '', nameLang)}`.trim()
+            : '';
     const currentUserId = getUserData()?.id;
     // §11: PATCH /tech-supports/{id} — author gets `status` (state machine) + `title`/
     // `description`/`images` (24h edit window, see TICKET_EDIT_WINDOW_MS below); admin gets
@@ -362,8 +370,10 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        // Как в Telegram: Enter — отправить, Shift+Enter — новая строка. На тач-устройствах
+        // Shift нет, поэтому там Enter вставляет перенос, отправка — кнопкой.
+        if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) {
             e.preventDefault();
             handleSend();
         }
@@ -377,12 +387,8 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     const StatusIcon = statusKey ? STATUS_ICONS[statusKey] : null;
     const priorityKey = ticket?.priority != null ? String(ticket.priority) : null;
     const PriorityIcon = priorityKey ? PRIORITY_ICONS[priorityKey] : null;
-    const administrantName = ticket?.administrant
-        ? `${ticket.administrant.surname ?? ''} ${ticket.administrant.name ?? ''}`.trim()
-        : '';
-    const ticketAuthorName = ticket?.author
-        ? `${ticket.author.surname ?? ''} ${ticket.author.name ?? ''}`.trim()
-        : '';
+    const administrantName = fullName(ticket?.administrant);
+    const ticketAuthorName = fullName(ticket?.author);
     // Counterpart info shown next to status/priority/category: an author looking at their own
     // ticket cares who's handling it ("Исполнитель"), an admin cares who filed it ("Автор").
     const counterpartLabel = isAdminUser ? t('thread.authorRole') : t('thread.executorRole');
@@ -410,8 +416,8 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // getUserData() returns the full cached profile, not just the id.
     const myName = useMemo(() => {
         const me = getUserData();
-        return me ? `${me.surname ?? ''} ${me.name ?? ''}`.trim() : '';
-    }, []);
+        return fullName(me);
+    }, [nameLang]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Per-message role, for the message-header label ("Имя (Исполнитель)" / "Имя (Автор)").
     // Matched against the ticket's own author/administrant ids rather than just mirroring the
@@ -905,7 +911,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                     disabled={isSavingTicket}
                                 />
                             ) : (
-                                <div className={styles.messageBody}>{decodeHtmlEntities(ticket.description)}</div>
+                                <Markdown text={decodeHtmlEntities(ticket.description)} className={styles.messageBodyMd} />
                             )}
                             {isEditingTicket && canEditTicketContent ? (
                                 <Grid
@@ -936,9 +942,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
 
                         {(ticket.messages ?? []).map(msg => {
                             const isMine = !!currentUserId && msg.author?.id === currentUserId;
-                            const authorName = msg.author
-                                ? `${msg.author.surname ?? ''} ${msg.author.name ?? ''}`.trim()
-                                : '';
+                            const authorName = fullName(msg.author);
                             // Role by ticket membership (author/administrant id match), falling
                             // back to the binary "not me ⇒ the other side" guess only when that's
                             // unresolvable — see getMessageRole above.
@@ -1041,7 +1045,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                         </>
                                     ) : (
                                         <>
-                                            {msg.description && <div className={styles.messageBody}>{decodeHtmlEntities(msg.description)}</div>}
+                                            {msg.description && <Markdown text={decodeHtmlEntities(msg.description)} className={styles.messageBodyMd} />}
                                             {(msg.images ?? []).length > 0 && (
                                                 <div className={styles.messageImages}>
                                                     {msg.images.map(img => {
@@ -1117,6 +1121,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
 
                                 <SelectSearch
                                     altMode
+                                    expandable
                                     hideIcon
                                     options={[]}
                                     className={styles.inputField}
