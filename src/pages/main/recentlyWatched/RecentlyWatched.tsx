@@ -132,6 +132,7 @@ function RecentlyWatched() {
                             photos={ticket.photos}
                             photoSources={ticket.photoSources}
                             authorImage={ticket.authorImage}
+                            authorAvatar={ticket.authorAvatar}
                             negotiableBudget={ticket.negotiableBudget}
                             onClick={() => navigate(ROUTES.TICKET_BY_ID(ticket.id))}
                         />

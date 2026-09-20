@@ -430,6 +430,7 @@ function MyTickets() {
                             photos={ticket.photos}
                             photoSources={ticket.photoSources}
                             authorImage={ticket.authorImage}
+                            authorAvatar={ticket.authorAvatar}
                             negotiableBudget={ticket.negotiableBudget}
                             approved={ticket.approved}
                             banned={ticket.banned}

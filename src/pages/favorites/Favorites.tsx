@@ -31,7 +31,7 @@ import {ShowMore} from '../../shared/ui/Button/ShowMore/ShowMore';
 import {SelectSearch} from '../../shared/ui/SelectSearch';
 import {getPageSize} from '../../utils/pageSizeUtils';
 import {applyFavoriteSort, getTicketFullAddress, parsePagedResponse, universalApiRequest} from '../../utils/apiUtils';
-import {formatProfileImageUrl, formatTicketImageUrl, toPhotoSource} from '../../utils/imageUtils';
+import {formatProfileImageUrl, formatTicketImageUrl, toPhotoSource, resolveAvatar} from '../../utils/imageUtils';
 import type {
     FavoriteEntry,
     FavoriteTicketView,
@@ -431,7 +431,8 @@ function Favorites() {
                 name: u.name || '',
                 surname: u.surname || '',
                 rating: u.rating || 0,
-                image: u.image ? formatProfileImageUrl(String(u.image)) : (u.imageExternalUrl ? String(u.imageExternalUrl) : null),
+                image: resolveAvatar(u)?.src ?? null,
+                avatarImage: resolveAvatar(u),
                 role: isMaster ? 'master' : 'client',
                 specialties: ((u as { occupation?: Array<{ id: number; title: string }> }).occupation || []).map(o => o.title),
                 reviewsCount: (u as { reviewsCount?: number }).reviewsCount || 0,
@@ -496,7 +497,7 @@ function Favorites() {
                         const authorName = person
                             ? `${person.surname || ''} ${person.name || ''}`.trim() || (isMasterTicket ? 'Специалист' : 'Заказчик')
                             : 'Неизвестный';
-                        const authorImageSrc = person?.image || person?.imageExternalUrl;
+                        const authorAvatar = resolveAvatar(person);
                         tickets.push({
                             entryId: entry.id,
                             id: ticket.id,
@@ -515,7 +516,8 @@ function Favorites() {
                             type: isMasterTicket ? 'master' : 'client',
                             active: ticket.active,
                             service: ticket.service,
-                            authorImage: authorImageSrc ? formatProfileImageUrl(authorImageSrc) : undefined,
+                            authorImage: authorAvatar?.src,
+                            authorAvatar,
                             userRating: person?.rating || 0,
                             userReviewCount: ticket.reviewsCount || 0,
                             responsesCount: ticket.responsesCount,
@@ -535,6 +537,7 @@ function Favorites() {
                             surname: u.surname || '',
                             rating: u.rating || 0,
                             image: u.image || null,
+                            avatarImage: resolveAvatar(u),
                             role: isMaster ? 'master' : 'client',
                             specialties: ((u as { occupation?: Array<{ id: number; title: string }> }).occupation || []).map(o => o.title),
                             reviewsCount: (u as { reviewsCount?: number }).reviewsCount ?? 0,
@@ -959,6 +962,7 @@ function Favorites() {
                         photos={ticket.photos}
                         photoSources={ticket.photoSources}
                         authorImage={ticket.authorImage}
+                        authorAvatar={ticket.authorAvatar}
                         negotiableBudget={ticket.negotiableBudget}
                         onClick={() => handleCardClick(ticket.authorId, ticket.id)}
                         onRespondClick={ticket.authorId !== currentUserId ? (e) => { e.stopPropagation(); handleRespondCard(ticket.id, ticket.authorId); } : undefined}
@@ -978,7 +982,8 @@ function Favorites() {
                     >
                         <ProfileHeader
                             readOnly
-                            avatar={formatProfileImageUrl(user.image || '')}
+                            avatar={user.avatarImage?.src ?? formatProfileImageUrl(user.image || '')}
+                            avatarImage={user.avatarImage}
                             fullName={[user.surname, user.name].filter(Boolean).join(' ')}
                             email={user.email}
                             specialty={user.specialties[0] || ''}
@@ -992,7 +997,6 @@ function Favorites() {
                             userRole={user.role}
                             onAvatarClick={() => {}}
                             onFileChange={() => {}}
-                            onImageError={() => {}}
                             onEditStart={() => {}}
                             onTempValueChange={() => {}}
                             onInputSave={() => {}}

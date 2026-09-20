@@ -2,7 +2,7 @@ import { API_BASE_URL } from './configUtils';
 import { universalApiRequest } from './apiUtils';
 import { API_ROUTES } from '../app/routers/routes';
 import { compressImageFile } from './imageCompressUtils';
-import type { PhotoSource, ImageFields } from '../entities';
+import type { PhotoSource, ImageFields, ResolvedImage } from '../entities';
 
 // ─── Форматирование URL изображений ──────────────────────────
 const buildImageUrl = (imagePath: string, defaultFolder: string): string => {
@@ -32,6 +32,84 @@ export const toPhotoSource = (
     webp: img.imageWebp ? buildImageUrl(img.imageWebp, defaultFolder) : undefined,
     blurhash: img.imageBlurhash || undefined,
 });
+
+export type ImageVariant = 'thumbnail' | 'medium' | 'webp' | 'full';
+
+type ImageEntity = { image?: string | null; imageExternalUrl?: string | null } & ImageFields;
+
+/**
+ * Единая точка выбора картинки для показа (API_REFERENCE.md §14). Для своей загрузки берёт нужный
+ * вариант (`thumbnail` 480 px — ленты/аватары, `medium` 800 px, `webp` — полный WebP, `full` —
+ * оригинал), а оригинал кладёт в `fallbacks` — если превью не сгенерировалось/битый кэш, `<Img>`
+ * откатится на него, а не на пустоту. Для OAuth-аватара (`imageExternalUrl`) вариантов нет.
+ * Возвращает `null`, если у сущности нет вообще никакой картинки.
+ */
+export const resolveImage = (
+    entity: ImageEntity | null | undefined,
+    variant: ImageVariant = 'thumbnail',
+    defaultFolder = 'uploads/tickets',
+): ResolvedImage | null => {
+    if (!entity) return null;
+
+    const original = entity.imageUrl || entity.image
+        ? buildImageUrl(entity.imageUrl || entity.image || '', defaultFolder)
+        : '';
+
+    if (original) {
+        const variantPath = {
+            thumbnail: entity.imageThumbnail,
+            medium: entity.imageMedium ?? entity.imageThumbnail,
+            webp: entity.imageWebp,
+            full: null,
+        }[variant];
+        const variantUrl = variantPath ? buildImageUrl(variantPath, defaultFolder) : '';
+        const src = variantUrl || original;
+        return {
+            src,
+            fallbacks: src !== original ? [original] : undefined,
+            blurhash: entity.imageBlurhash || undefined,
+        };
+    }
+
+    const external = entity.imageExternalUrl?.trim();
+    if (external) return { src: external, external: true };
+
+    return null;
+};
+
+/** Вытаскивает поля превью/BlurHash из «сырой» сущности API — для мест, которые пересобирают объекты вручную и иначе теряют их. */
+export const pickImageFields = (raw: ImageFields | null | undefined): ImageFields => ({
+    imageUrl: raw?.imageUrl,
+    imageThumbnail: raw?.imageThumbnail,
+    imageMedium: raw?.imageMedium,
+    imageWebp: raw?.imageWebp,
+    imageBlurhash: raw?.imageBlurhash,
+});
+
+/**
+ * Существующее фото из API → элемент `Grid` (`PhotoItem`, type 'existing') с превью и BlurHash.
+ * Сетка форм показывает миниатюру, а не оригинал.
+ */
+export const toExistingPhoto = (
+    img: { id: string | number; image: string } & ImageFields,
+    folder: string,
+) => {
+    const thumb = resolveImage(img, 'thumbnail', folder);
+    const hasVariant = !!img.imageThumbnail;
+    return {
+        type: 'existing' as const,
+        id: img.id,
+        image: img.image,
+        thumbnail: hasVariant ? thumb?.src : undefined,
+        blurhash: thumb?.blurhash,
+    };
+};
+
+/** `resolveImage` для аватаров пользователей (папка `uploads/users`, превью 480 px). */
+export const resolveAvatar = (
+    user: ImageEntity | null | undefined,
+    variant: ImageVariant = 'thumbnail',
+): ResolvedImage | null => resolveImage(user, variant, 'uploads/users');
 
 /** Screenshots attached directly to a TechSupport ticket (`ticket.images`). */
 export const formatTechSupportImageUrl = (imagePath: string): string => buildImageUrl(imagePath, 'uploads/tech_supports');

@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ShowMore } from '../../../../../shared/ui/Button/ShowMore/ShowMore';
 import { Preview } from '../../../../../shared/ui/Photo/Preview';
+import { Img } from '../../../../../shared/ui/Photo/Img';
 import { SectionActions } from '../../../../../shared/ui/SectionActions';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import { ProfileSection } from '../ProfileSection';
@@ -28,7 +29,6 @@ interface WorkExamplesSectionProps {
     onShowMoreWorkExamples: () => void;
     onShowLessWorkExamples: () => void;
     onClearWorkExamples: () => void;
-    getImageUrlWithCacheBust: (url: string) => string;
     API_BASE_URL: string;
     onReorder?: (workExamples: WorkExample[]) => void;
     onRefresh?: () => void;
@@ -55,7 +55,6 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
     onShowMoreWorkExamples,
     onShowLessWorkExamples,
     onClearWorkExamples,
-    getImageUrlWithCacheBust,
     API_BASE_URL,
     onReorder,
     onRefresh,
@@ -104,31 +103,15 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                                                 onDragStart={() => workDrag.handleDragStart(index)}
                                             />
                                         )}
-                                        <img loading="lazy" decoding="async"
-                                            src={getImageUrlWithCacheBust(work.image)}
+                                        <Img
+                                            // Сетка — превью 480 px + BlurHash; оригинал и легаси-путь gallery_images — откат.
+                                            // Полный WebP/оригинал нужен только в просмотре (Preview ниже).
+                                            src={work.source?.thumbnail ?? work.image}
+                                            fallbacks={[work.image, `${API_BASE_URL}/uploads/gallery_images/${work.image.split('/').pop() || work.image}`]}
+                                            blurhash={work.source?.blurhash}
+                                            placeholder="/img/icons/misc/fonTest6.png"
                                             alt={work.title}
                                             draggable={false}
-                                            onError={(e) => {
-                                                const img = e.currentTarget;
-                                                const alternativePaths = [
-                                                    `${API_BASE_URL}/uploads/gallery_images/${work.image.split('/').pop() || work.image}`,
-                                                    '/img/icons/misc/fonTest6.png'
-                                                ];
-                                                let currentIndex = 0;
-                                                const tryNextSource = () => {
-                                                    if (currentIndex < alternativePaths.length) {
-                                                        const nextSource = alternativePaths[currentIndex];
-                                                        currentIndex++;
-                                                        const testImg = new Image();
-                                                        testImg.onload = () => { img.src = nextSource; };
-                                                        testImg.onerror = () => { tryNextSource(); };
-                                                        testImg.src = nextSource;
-                                                    } else {
-                                                        img.src = '/img/icons/misc/fonTest6.png';
-                                                    }
-                                                };
-                                                tryNextSource();
-                                            }}
                                         />
                                         {!readOnly && (
                                             <button
@@ -184,6 +167,9 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
             <Preview
                 isOpen={isGalleryOpen}
                 images={galleryImages}
+                previews={workExamples.map(w => w.source?.thumbnail ?? w.image)}
+                thumbnails={workExamples.map(w => w.source?.thumbnail ?? w.image)}
+                originals={workExamples.map(w => w.image)}
                 currentIndex={galleryCurrentIndex}
                 onClose={onCloseGallery}
                 onNext={onGalleryNext}

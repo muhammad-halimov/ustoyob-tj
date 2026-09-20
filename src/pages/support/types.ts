@@ -1,3 +1,4 @@
+import type { ImageFields } from '../../entities';
 /**
  * Shared types for the Tech Support feature (form, tickets table, message thread).
  * Kept local to the page (not in `entities/`) since the backend doesn't expose
@@ -29,7 +30,7 @@ export interface TechSupportAuthor {
     surname: string | null;
 }
 
-export interface TechSupportImage {
+export interface TechSupportImage extends ImageFields {
     id: string | number;
     image: string;
 }

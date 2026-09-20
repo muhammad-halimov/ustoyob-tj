@@ -3,7 +3,7 @@ import type { Occupation } from '../../api';
 import type { SocialNetwork } from '../../api';
 import type { Phone } from '../../api';
 import type { Ticket } from '../../api';
-import type { WorkExample } from '../../api';
+import type { WorkExample, ResolvedImage } from '../../api';
 import type { AddressFormData } from '../Address';
 import type { EducationItem } from '../Education';
 
@@ -18,6 +18,10 @@ export type ProfileData =
         specialties: Occupation[];
         reviews: number;
         avatar: string | null;
+        /** Аватар с превью/BlurHash/откатом на оригинал (resolveAvatar). `avatar` — его `src`. */
+        avatarImage?: ResolvedImage | null;
+        /** Полноразмерный вариант для просмотра аватара (WebP или оригинал). */
+        avatarFull?: string;
         education: EducationItem[];
         workExamples: WorkExample[];
         workArea: string;

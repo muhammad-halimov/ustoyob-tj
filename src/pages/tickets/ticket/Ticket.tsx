@@ -1,7 +1,7 @@
 import {useNavigate, useParams} from 'react-router-dom';
 import {useEffect, useRef, useState} from 'react';
 import {getAuthToken, getUserData, getUserRole} from '../../../utils/authUtils';
-import { getAuthorAvatar, formatTicketImageUrl, toPhotoSource } from '../../../utils/imageUtils';
+import { resolveAvatar, formatTicketImageUrl, toPhotoSource, pickImageFields } from '../../../utils/imageUtils';
 import { formatLocalizedDate, getTimeAgo } from '../../../utils/timeUtils';
 import styles from './Ticket.module.scss';
 import {createTicketChat, resolveTicketChat, getChatsWithUser, initChatModals} from "../../../utils/chatUtils";
@@ -16,6 +16,7 @@ import Feedback from '../../../shared/ui/Modal/Feedback';
 import {ExistingChatChoice} from '../../../shared/ui/Modal/ExistingChatChoice/ExistingChatChoice';
 import { Carousel } from '../../../shared/ui/Photo/Carousel';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
+import { Img } from '../../../shared/ui/Photo/Img';
 import { Markdown } from '../../../shared/ui/Text/Markdown';
 import {useFavorites} from '../../../hooks/useFavorites.ts';
 import {ROUTES, API_ROUTES} from '../../../app/routers/routes';
@@ -23,7 +24,7 @@ import {ReviewsSection} from '../../profile/shared/ui/ReviewsSection';
 import {SocialNetworksSection} from '../../profile/shared/ui/SocialNetworksSection';
 import {PhonesSection} from '../../profile/shared/ui/PhonesSection';
 import {SOCIAL_NETWORK_CONFIG, renderSocialIcon} from '../../profile/shared/config/socialNetworkConfig';
-import type {Review as ReviewType, Ticket as ApiTicket, Phone, TicketView, PhotoSource} from '../../../entities';
+import type {Review as ReviewType, Ticket as ApiTicket, Phone, TicketView, PhotoSource, ResolvedImage} from '../../../entities';
 import {PageLoader} from '../../../widgets/PageLoader';
 import {IoWarningOutline, IoStar, IoHeart, IoHeartOutline, IoChevronForward, IoCompass, IoChatbubbleOutline, IoCheckmarkCircleOutline, IoBanOutline} from 'react-icons/io5';
 import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
@@ -273,7 +274,7 @@ export function Ticket() {
             // Если master === null - это услуга специалиста, показываем автора (заказчика)
             let displayUserId: string | number;
             let displayUserName: string;
-            let displayUserImage: string;
+            let displayAvatar: ResolvedImage | null;
             let userTypeForRating: string | null;
             let userRating: number; // Рейтинг берем из данных тикета
 
@@ -281,14 +282,14 @@ export function Ticket() {
                 // Заявка заказчика - показываем специалиста
                 displayUserId = ticketData.master.id;
                 displayUserName = `${ticketData.master.surname || ''} ${ticketData.master.name || ''}`.trim() || t('components:app.defaultMaster');
-                displayUserImage = getAuthorAvatar(ticketData.master, '');
+                displayAvatar = resolveAvatar(ticketData.master);
                 userTypeForRating = 'master';
                 userRating = ticketData.master.rating || 0; // Рейтинг специалиста из тикета
             } else {
                 // Услуга специалиста - показываем автора (заказчика)
                 displayUserId = ticketData.author?.id ?? 0;
                 displayUserName = `${ticketData.author?.surname || ''} ${ticketData.author?.name || ''}`.trim() || t('components:app.defaultClient');
-                displayUserImage = getAuthorAvatar(ticketData.author ?? { id: 0 }, '');
+                displayAvatar = resolveAvatar(ticketData.author);
                 userTypeForRating = 'client';
                 userRating = ticketData.author?.rating || 0;
             }
@@ -301,7 +302,7 @@ export function Ticket() {
                 displayUserId,
                 displayUserName,
                 userTypeForRating,
-                displayUserImage,
+                displayAvatar,
                 userRating
             });
 
@@ -351,7 +352,8 @@ export function Ticket() {
                 photoSources: photoSources.length > 0 ? photoSources : undefined,
                 notice: ticketData.notice ? decodeHtmlEntities(ticketData.notice) : undefined,
                 rating: userRating,
-                authorImage: displayUserImage || undefined,
+                authorImage: displayAvatar?.src,
+                authorAvatar: displayAvatar,
                 active: ticketData.active,
                 approved: ticketData.approved,
                 banned: ticketData.banned,
@@ -663,15 +665,6 @@ export function Ticket() {
             }
             
             // Используем embedded данные из ответа API — без дополнительных запросов
-            const buildImageUrl = (image?: string, externalUrl?: string): string => {
-                if (image) {
-                    if (image.startsWith('http')) return image;
-                    if (image.startsWith('/')) return `${API_BASE_URL}${image}`;
-                    return `${API_BASE_URL}/uploads/users/${image}`;
-                }
-                if (externalUrl) return externalUrl;
-                return '';
-            };
 
             const transformedReviews = reviewsData.map((review: any) => {
                 const masterRaw = review.master;
@@ -683,8 +676,10 @@ export function Ticket() {
                     name: masterRaw.name || '',
                     surname: masterRaw.surname || '',
                     rating: masterRaw.rating || 0,
-                    image: buildImageUrl(masterRaw.image, masterRaw.imageExternalUrl),
+                    // Сырые image/imageExternalUrl + поля превью: аватар решает resolveAvatar() в ReviewsSection.
+                    image: masterRaw.image || '',
                     imageExternalUrl: masterRaw.imageExternalUrl || '',
+                    ...pickImageFields(masterRaw),
                 } : null;
 
                 const clientData = clientRaw ? {
@@ -693,8 +688,9 @@ export function Ticket() {
                     name: clientRaw.name || '',
                     surname: clientRaw.surname || '',
                     rating: clientRaw.rating || 0,
-                    image: buildImageUrl(clientRaw.image, clientRaw.imageExternalUrl),
+                    image: clientRaw.image || '',
                     imageExternalUrl: clientRaw.imageExternalUrl || '',
+                    ...pickImageFields(clientRaw),
                 } : null;
 
                 const serviceTitle = String(review.ticket?.title || 'Услуга');
@@ -997,14 +993,13 @@ export function Ticket() {
 
                 <section className={styles.section}>
                     <div className={styles.section_photo}>
-                        <img loading="lazy" decoding="async"
-                            src={order.authorImage || '/img/icons/icons/default_user.png'}
+                        <Img
+                            image={order.authorAvatar}
+                            src={order.authorImage}
+                            placeholder="/img/icons/icons/default_user.png"
                             alt="authorImage"
                             onClick={() => handleProfileClick(order.authorId!)}
                             style={{cursor: 'pointer'}}
-                            onError={(e) => {
-                                (e.target as HTMLImageElement).src = '/img/icons/icons/default_user.png';
-                            }}
                         />
                         <div className={styles.authorSection}>
                             <div className={styles.authorInfo}>

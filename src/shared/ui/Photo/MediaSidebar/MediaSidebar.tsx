@@ -1,10 +1,14 @@
 import { IoImages, IoEye, IoTrashOutline } from 'react-icons/io5';
 import { Clear } from '../../Button/Clear/Clear';
+import { Img } from '../Img';
 import styles from './MediaSidebar.module.scss';
 
 export interface MediaSidebarImage {
     id: number | string;
     url: string;
+    /** Превью 480 px для сетки (если есть); `url` — оригинал/полный. */
+    thumbnail?: string;
+    blurhash?: string;
     /** True when the current viewer is allowed to delete this specific image (their own upload) — offers the trash button on it when `onDeleteImage` is also given. */
     deletable?: boolean;
 }
@@ -77,11 +81,13 @@ export function MediaSidebar({
                 <div className={styles.thumbnails}>
                     {images.map((image, index) => (
                         <div key={image.id} className={styles.thumbnail} onClick={() => onOpenGallery(index)}>
-                            <img loading="lazy" decoding="async"
-                                src={image.url}
+                            <Img
+                                src={image.thumbnail ?? image.url}
+                                fallbacks={[image.url]}
+                                blurhash={image.blurhash}
+                                placeholder={fallbackImageSrc}
                                 alt={thumbnailAlt?.(index) ?? ''}
                                 className={styles.thumbnailImage}
-                                onError={e => { e.currentTarget.src = fallbackImageSrc; }}
                             />
                             <div className={styles.thumbnailOverlay}>
                                 <IoEye />

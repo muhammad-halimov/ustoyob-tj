@@ -2,9 +2,9 @@ import { getAuthToken, handleUnauthorized } from './authUtils';
 import { ApiError } from './appMessagesUtils';
 import { getDefaultLocale } from './storageUtils';
 import i18n from 'i18next';
-import type { Ticket, SortByType, FavoriteTicketView } from '../entities';
+import type { Ticket, SortByType, FavoriteTicketView, ResolvedImage } from '../entities';
 import type { TicketView } from '../entities';
-import { formatTicketImageUrl, formatProfileImageUrl, toPhotoSource } from './imageUtils';
+import { formatTicketImageUrl, toPhotoSource, resolveAvatar } from './imageUtils';
 import { API_BASE_URL } from './configUtils';
 
 export type LocaleType = 'tj' | 'ru' | 'eng';
@@ -211,15 +211,15 @@ export const getTicketShortAddress = (ticket: Ticket): string => {
 // ─── Маппинг Ticket → TicketView ───────────────────────────
 
 /** Извлекает данные автора тикета (мастер или заказчик) */
-export const getTicketAuthor = (ticket: Ticket): { name: string; id: string | number; imageSrc?: string } => {
+export const getTicketAuthor = (ticket: Ticket): { name: string; id: string | number; avatar: ResolvedImage | null } => {
     const person = ticket.service ? ticket.master : ticket.author;
     const name = `${person?.surname || ''} ${person?.name || ''}`.trim()
         || (ticket.service ? i18n.t('ticket:specialist') : i18n.t('ticket:customer'));
     return {
         name,
         id: person?.id || 0,
-        // imageThumbnail (WebP 480 px) вместо оригинала — аватар в карточке крошечный.
-        imageSrc: person?.imageThumbnail || person?.image || person?.imageExternalUrl || undefined,
+        // Превью 480 px + BlurHash + откат на оригинал (аватар в карточке крошечный).
+        avatar: resolveAvatar(person),
     };
 };
 
@@ -240,7 +240,8 @@ export const ticketToTicketView = (ticket: Ticket): TicketView => {
         date: ticket.createdAt ?? '',
         author: author.name,
         authorId: author.id,
-        authorImage: author.imageSrc ? formatProfileImageUrl(author.imageSrc) : undefined,
+        authorImage: author.avatar?.src,
+        authorAvatar: author.avatar,
         timeAgo: ticket.createdAt ?? '',
         category: ticket.category?.title || i18n.t('ticket:noCategory'),
         subcategory: ticket.subcategory?.title,

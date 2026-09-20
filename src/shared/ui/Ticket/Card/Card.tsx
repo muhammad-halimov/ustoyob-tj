@@ -11,6 +11,7 @@ import {getUserData} from '../../../../utils/authUtils';
 
 import {Marquee} from '../../Text/Marquee';
 import {Carousel} from '../../Photo/Carousel';
+import {Img} from '../../Photo/Img';
 import {Toggle} from '../../Button/Toggle/Toggle';
 import {ActionsDropdown} from '../../../../widgets/ActionsDropdown';
 import Status from '../../Modal/Status';
@@ -99,6 +100,7 @@ export function Card({
   photos,
   photoSources,
   authorImage,
+  authorAvatar,
   negotiableBudget,
   onRespondClick: externalOnRespondClick,
   isResponded: externalIsResponded = false,
@@ -484,20 +486,24 @@ export function Card({
                 onTouchStart={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => e.stopPropagation()}
               >
-                {authorImage ? (
-                  <img loading="lazy" decoding="async" src={authorImage} className={styles.card_author_avatar} alt="" />
-                ) : (
-                  <img loading="lazy" decoding="async" src="/img/icons/icons/default_user.png" className={styles.card_author_avatar} alt="" />
-                )}
+                <Img
+                  image={authorAvatar}
+                  src={authorImage}
+                  placeholder="/img/icons/icons/default_user.png"
+                  className={styles.card_author_avatar}
+                  alt=""
+                />
                 <Marquee text={translatedAuthor} alwaysScroll />
               </Link>
             ) : (
               <span className={styles.card_author}>
-                {authorImage ? (
-                  <img loading="lazy" decoding="async" src={authorImage} className={styles.card_author_avatar} alt="" />
-                ) : (
-                  <img loading="lazy" decoding="async" src="/img/icons/icons/default_user.png" className={styles.card_author_avatar} alt="" />
-                )}
+                <Img
+                  image={authorAvatar}
+                  src={authorImage}
+                  placeholder="/img/icons/icons/default_user.png"
+                  className={styles.card_author_avatar}
+                  alt=""
+                />
                 <Marquee text={translatedAuthor} alwaysScroll />
               </span>
             )}

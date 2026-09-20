@@ -14,7 +14,8 @@ import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
 import { MediaSidebar } from '../../shared/ui/Photo/MediaSidebar/MediaSidebar';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import { ActionsDropdown } from '../../widgets/ActionsDropdown';
-import { uploadPhotos, getAuthorAvatar } from '../../utils/imageUtils';
+import { uploadPhotos, resolveAvatar, toPhotoSource } from '../../utils/imageUtils';
+import { Img } from '../../shared/ui/Photo/Img';
 import { openMercureSource } from '../../utils/mercureUtils';
 import { Tabs } from '../../shared/ui/Tabs';
 import Grid, { PhotoItem, buildOrderedImagePayload } from '../../shared/ui/Photo/Grid';
@@ -136,7 +137,10 @@ function Chat() {
     const navigate = useNavigate();
 
     // Хук для галереи фотографий
-    const galleryImages = useMemo(() => chatImages.map(img => img.imageUrl), [chatImages]);
+    // Просмотр: полный WebP; превью (уже в боковой панели/ленте) → мгновенное открытие; оригиналы — откат.
+    const galleryImages = useMemo(() => chatImages.map(img => img.source?.webp ?? img.imageUrl), [chatImages]);
+    const galleryPreviews = useMemo(() => chatImages.map(img => img.source?.thumbnail ?? img.imageUrl), [chatImages]);
+    const galleryOriginals = useMemo(() => chatImages.map(img => img.imageUrl), [chatImages]);
     const photoGallery = usePreview({ images: galleryImages });
 
     // Gallery for selected (new-message) photos
@@ -348,7 +352,8 @@ function Chat() {
             images: (msg.images || []).map(img => ({
                 id: img.id,
                 url: getImageUrl(img.image),
-                name: img.image
+                name: img.image,
+                source: toPhotoSource(img, 'uploads/chat_messages'),
             }))
         };
     }, [currentUser, getImageUrl, getTranslatedFullName]);
@@ -407,6 +412,7 @@ function Chat() {
                 const allThumbnails: ChatImageThumbnail[] = (chatData.images || []).map(img => ({
                     id: img.id,
                     imageUrl: getImageUrl(img.image),
+                    source: toPhotoSource(img, 'uploads/chat_messages'),
                     author: img.author,
                     createdAt: img.createdAt || new Date().toISOString()
                 }));
@@ -545,6 +551,7 @@ function Chat() {
                 const newThumbs: ChatImageThumbnail[] = apiMsg.images.map(img => ({
                     id: img.id,
                     imageUrl: getImageUrl(img.image),
+                    source: toPhotoSource(img, 'uploads/chat_messages'),
                     author: img.author,
                     createdAt: img.createdAt || new Date().toISOString()
                 }));
@@ -558,6 +565,7 @@ function Chat() {
             const updThumbs: ChatImageThumbnail[] = (apiMsg.images || []).map(img => ({
                 id: img.id,
                 imageUrl: getImageUrl(img.image),
+                source: toPhotoSource(img, 'uploads/chat_messages'),
                 author: img.author,
                 createdAt: img.createdAt || new Date().toISOString()
             }));
@@ -1463,9 +1471,10 @@ function Chat() {
                                             (аватар из OAuth — Google/Facebook/Instagram/Telegram), а не только
                                             локальный image — иначе у OAuth-пользователей без своей загруженной
                                             фотки в чате всегда показывались только инициалы. */}
-                                        {getAuthorAvatar(interlocutor, '') ? (
-                                            <img loading="lazy" decoding="async"
-                                                src={getAuthorAvatar(interlocutor, '')}
+                                        {resolveAvatar(interlocutor) ? (
+                                            <Img
+                                                image={resolveAvatar(interlocutor)}
+                                                placeholder="/img/icons/icons/default_user.png"
                                                 className={styles.avatarImage}
                                                 alt={getTranslatedFullName(interlocutor)}
                                             />
@@ -1566,9 +1575,11 @@ function Chat() {
                                 <Link to={ROUTES.PROFILE_BY_ID(currentInterlocutor.id)} style={{ textDecoration: 'none' }}>
                                     <div className={styles.avatar}>
                                         {/* см. комментарий у аватарки в списке чатов — учитываем imageExternalUrl */}
-                                        {getAuthorAvatar(currentInterlocutor, '') ? (
-                                            <img decoding="async"
-                                                src={getAuthorAvatar(currentInterlocutor, '')}
+                                        {resolveAvatar(currentInterlocutor) ? (
+                                            <Img
+                                                image={resolveAvatar(currentInterlocutor)}
+                                                placeholder="/img/icons/icons/default_user.png"
+                                                loading="eager"
                                                 className={styles.avatarImage}
                                                 alt={getTranslatedFullName(currentInterlocutor)}
                                             />
@@ -1740,16 +1751,18 @@ function Chat() {
                                                                 {msg.images && msg.images.length > 0 && (
                                                                     <div className={`${styles.messageImagesGrid} ${msg.images.length === 1 ? styles.messageImages1 : msg.images.length === 2 ? styles.messageImages2 : styles.messageImages3}`}>
                                                                         {msg.images.map((img) => (
-                                                                            <img loading="lazy" decoding="async"
+                                                                            <Img
                                                                                 key={img.id}
-                                                                                src={img.url}
+                                                                                // Превью 480 px + BlurHash; оригинал — откат. Если не грузится ничего — скрыто (как раньше).
+                                                                                src={img.source?.thumbnail ?? img.url}
+                                                                                fallbacks={[img.url]}
+                                                                                blurhash={img.source?.blurhash}
                                                                                 alt=""
                                                                                 className={styles.messageGridImage}
                                                                                 onClick={() => {
                                                                                     const galleryIdx = chatImages.findIndex(ci => ci.imageUrl === img.url);
                                                                                     photoGallery.openGallery(galleryIdx >= 0 ? galleryIdx : 0);
                                                                                 }}
-                                                                                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                                                                             />
                                                                         ))}
                                                                     </div>
@@ -1777,7 +1790,7 @@ function Chat() {
                                                             {showEditButton && (
                                                                 <button
                                                                     className={styles.actionBtn}
-                                                                    onClick={() => { setEditingMessage(msg); setNewMessage(msg.text); setEditingPhotoItems((msg.images || []).map(img => ({ type: 'existing' as const, id: img.id, image: img.name }))); messageInputRef.current?.focus(); }}
+                                                                    onClick={() => { setEditingMessage(msg); setNewMessage(msg.text); setEditingPhotoItems((msg.images || []).map(img => ({ type: 'existing' as const, id: img.id, image: img.name, thumbnail: img.source?.thumbnail, blurhash: img.source?.blurhash }))); messageInputRef.current?.focus(); }}
                                                                     disabled={isEditWindowExpired}
                                                                     title={isEditWindowExpired ? t('chat.editWindowExpired') : t('chat.editMessage')}
                                                                 >
@@ -1815,6 +1828,8 @@ function Chat() {
                                 images={chatImages.map(img => ({
                                     id: img.id,
                                     url: img.imageUrl,
+                                    thumbnail: img.source?.thumbnail,
+                                    blurhash: img.source?.blurhash,
                                     // Own uploads only — same "each side manages their own" rule as the
                                     // inline message edit (pencil icon), just reachable from the panel too.
                                     deletable: !!currentUser && img.author?.id === currentUser.id,
@@ -1974,6 +1989,9 @@ function Chat() {
             <Preview
                 isOpen={photoGallery.isOpen}
                 images={galleryImages}
+                previews={galleryPreviews}
+                thumbnails={galleryPreviews}
+                originals={galleryOriginals}
                 currentIndex={photoGallery.currentIndex}
                 onClose={photoGallery.closeGallery}
                 onNext={photoGallery.goToNext}

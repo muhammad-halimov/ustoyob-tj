@@ -12,6 +12,8 @@ import type { Category } from '../../../entities';
 import { useEffect, useState } from "react";
 import { getCategories } from '../../../utils/dataCacheUtils';
 import { setSessionJSON } from '../../../utils/storageUtils';
+import { Img } from '../../../shared/ui/Photo/Img';
+import { resolveImage, pickImageFields } from '../../../utils/imageUtils';
 
 /**
  * Home page category strip.
@@ -38,7 +40,7 @@ export default function Category() {
                 title: item.title || 'Без названия',
                 description: item.description || '',
                 image: item.image || '',
-                imageThumbnail: item.imageThumbnail,
+                ...pickImageFields(item),
                 priority: item.priority ?? undefined
             })) : [];
 
@@ -139,27 +141,6 @@ export default function Category() {
         ? filteredCategories
         : filteredCategories.slice(0, visibleCount);
 
-    // Форматирование URL изображения
-    const getImageUrl = (imagePath?: string) => {
-        if (!imagePath) {
-            return '/img/icons/misc/fonTest4.png'; // Запасное изображение
-        }
-        const API_URL = import.meta.env.VITE_API_BASE_URL || '';
-
-        // Проверяем, начинается ли путь с /uploads/ или /images/
-        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/') || imagePath.startsWith('/media/')) {
-            return `${API_URL}${imagePath}`;
-        }
-
-        // Если путь уже содержит http или просто имя файла
-        if (imagePath.startsWith('http')) {
-            return imagePath;
-        }
-
-        // По умолчанию используем путь из API
-        return `${API_URL}/uploads/categories/${imagePath}`;
-    };
-
     return (
         <div className={styles.category}>
             <h3 className={styles.category_title}>{t('category:title', 'Категории')}</h3>
@@ -192,14 +173,11 @@ export default function Category() {
                                 }
                             }}
                         >
-                            <img decoding="async"
-                                src={getImageUrl(item.imageThumbnail || item.image)}
+                            <Img
+                                // Превью 480 px + BlurHash, оригинал — откат, локальная картинка — если нет/не грузится.
+                                image={resolveImage(item, 'thumbnail', 'uploads/categories')}
+                                placeholder="/img/icons/misc/fonTest4.png"
                                 alt={item.title}
-                                onError={(e) => {
-                                    // Если изображение не загружается, используем запасное
-                                    e.currentTarget.src = '/img/icons/misc/fonTest4.png';
-                                }}
-                                loading="lazy"
                             />
                             <p>
                                 <Marquee text={item.title} alwaysScroll duration={20}/>

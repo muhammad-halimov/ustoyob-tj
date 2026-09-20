@@ -8,12 +8,18 @@ import styles from './ProfileHeader.module.scss';
 import { EditActions } from '../EditActions/EditActions';
 import { SelectSearch } from '../../../../../shared/ui/SelectSearch';
 import { Preview, usePreview } from '../../../../../shared/ui/Photo/Preview';
+import { Img } from '../../../../../shared/ui/Photo/Img';
+import type { ResolvedImage } from '../../../../../entities';
 import { ActionsDropdown } from '../../../../../widgets/ActionsDropdown';
 import { IoStarOutline, IoWarningOutline } from 'react-icons/io5';
 import { getUserRole } from '../../../../../utils/authUtils';
 
 interface ProfileHeaderProps {
     avatar: string | null;
+    /** Аватар с превью/BlurHash/откатом (resolveAvatar); без него — обычный `avatar`. */
+    avatarImage?: ResolvedImage | null;
+    /** Полноразмерный вариант для просмотра (WebP/оригинал). */
+    avatarFull?: string;
     fullName: string;
     email?: string;
     gender?: string;
@@ -33,7 +39,6 @@ interface ProfileHeaderProps {
     userRole?: UserRole | null;
     onAvatarClick: () => void;
     onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
-    onImageError: (e: React.SyntheticEvent<HTMLImageElement, Event>) => void;
     onEditStart: (field: 'fullName' | 'specialty' | 'gender' | 'dateOfBirth') => void;
     onTempValueChange: (value: string) => void;
     onInputSave: (field: 'fullName' | 'specialty' | 'gender' | 'dateOfBirth') => void;
@@ -55,6 +60,8 @@ interface ProfileHeaderProps {
 
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     avatar,
+    avatarImage,
+    avatarFull,
     fullName,
     email,
     gender,
@@ -74,7 +81,6 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     userRole,
     onAvatarClick,
     onFileChange,
-    onImageError,
     onEditStart,
     onTempValueChange,
     onInputSave,
@@ -97,7 +103,10 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     const viewerRole = getUserRole();
     const sameRole = viewerRole !== null && viewerRole === userRole;
 
-    const avatarImages = avatar ? [avatar] : [];
+    // В просмотре — полный вариант, а превью (уже загруженное в шапке) показывается мгновенно.
+    const avatarImages = avatar ? [avatarFull ?? avatar] : [];
+    const avatarPreviews = avatar ? [avatar] : undefined;
+    const avatarOriginals = avatarImage?.fallbacks ?? undefined;
     const avatarPreview = usePreview({ images: avatarImages });
 
     // Split tempValue into surname / firstName for the two-input edit
@@ -238,11 +247,14 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                     style={{ cursor: avatar ? 'pointer' : 'default' }}
                 >
                     {avatar ? (
-                        <img decoding="async"
+                        <Img
+                            image={avatarImage}
                             src={avatar}
+                            // Шапка профиля — первое, что видит пользователь: не откладываем загрузку.
+                            loading="eager"
                             alt="Аватар"
                             className={styles.avatar}
-                            onError={onImageError}
+                            placeholder="/img/icons/icons/default_user.png"
                         />
                     ) : (
                         <img decoding="async"
@@ -605,6 +617,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         <Preview
             isOpen={avatarPreview.isOpen}
             images={avatarImages}
+            previews={avatarPreviews}
+            originals={avatarOriginals}
             currentIndex={avatarPreview.currentIndex}
             onClose={avatarPreview.closeGallery}
             onNext={avatarPreview.goToNext}

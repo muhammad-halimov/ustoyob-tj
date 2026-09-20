@@ -1,5 +1,5 @@
 import type { UserRole } from '../../../types/common';
-import type { Ticket, PhotoSource } from '../../api';
+import type { Ticket, PhotoSource, ResolvedImage } from '../../api';
 
 /**
  * UI representation of a ticket used by all list and detail components.
@@ -42,6 +42,8 @@ export interface TicketView {
      *  Параллельно `photos` (тот же порядок); Carousel берёт из них лёгкие варианты. */
     photoSources?: PhotoSource[];
     authorImage?: string;
+    /** Аватар автора с превью/BlurHash/откатом (resolveAvatar). `authorImage` — его `src`. */
+    authorAvatar?: ResolvedImage | null;
     negotiableBudget?: boolean;
     // Detail-page fields (injected in Ticket.tsx)
     rating?: number;

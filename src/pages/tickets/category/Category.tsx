@@ -32,7 +32,8 @@ import {
     universalApiRequest
 } from '../../../utils/apiUtils';
 import type {Occupation, Ticket, TicketView} from '../../../entities';
-import {API_BASE_URL} from '../../../utils/configUtils';
+import {Img} from '../../../shared/ui/Photo/Img';
+import {resolveImage} from '../../../utils/imageUtils';
 import {
     getSessionItem,
     getSessionJSON,
@@ -282,11 +283,12 @@ function Category() {
     // Функция для получения краткого адреса (город, район)
     const getShortAddress = getTicketShortAddress;
 
-    const formatOccupationImageUrl = (imagePath?: string): string => {
-        if (!imagePath) return '/img/icons/icons/default_subcategory.png';
-        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
-        if (imagePath.startsWith('http')) return imagePath;
-        return `${API_BASE_URL}/uploads/occupations/${imagePath}`;
+    // Заглушка для подкатегории без (или с не загрузившейся) картинкой — первая буква на плашке в цвет темы.
+    const occupationLetterAvatar = (title: string): string => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const bg = isDark ? '3A54DA' : 'e0e0e0';
+        const fg = isDark ? 'ffffff' : '555555';
+        return `https://ui-avatars.com/api/?name=${title.charAt(0).toUpperCase()}&background=${bg}&color=${fg}&size=64&font-size=0.5`;
     };
 
     const fetchTicketsByCategory = async () => {
@@ -609,20 +611,12 @@ function Category() {
                                     }
                                 }}
                             >
-                                <img decoding="async"
-                                    src={formatOccupationImageUrl(occupation.image ?? undefined)}
+                                <Img
+                                    // Превью 480 px + BlurHash; оригинал — откат. Нет фото / не загрузилось — буква на плашке.
+                                    image={resolveImage(occupation, 'thumbnail', 'uploads/occupations')}
+                                    placeholder={occupation.image ? occupationLetterAvatar(occupation.title) : '/img/icons/icons/default_subcategory.png'}
+                                    placeholderClassName={styles.img_fallback}
                                     alt={occupation.title}
-                                    className={!occupation.image ? styles.img_fallback : undefined}
-                                    onError={(e) => {
-                                        // Fallback изображение для профессий с первой буквой
-                                        const firstLetter = occupation.title.charAt(0).toUpperCase();
-                                        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-                                        const bg = isDark ? '3A54DA' : 'e0e0e0';
-                                        const fg = isDark ? 'ffffff' : '555555';
-                                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${firstLetter}&background=${bg}&color=${fg}&size=64&font-size=0.5`;
-                                        e.currentTarget.classList.add(styles.img_fallback);
-                                    }}
-                                    loading="lazy"
                                 />
                                 <p>{occupation.title}</p>
                             </div>
@@ -705,6 +699,7 @@ function Category() {
                             photos={ticket.photos}
                             photoSources={ticket.photoSources}
                             authorImage={ticket.authorImage}
+                            authorAvatar={ticket.authorAvatar}
                             negotiableBudget={ticket.negotiableBudget}
                             onClick={() => handleCardClick(ticket.id)}
                             onRespondClick={ticket.authorId !== currentUserId ? (e) => { e.stopPropagation(); handleRespondCard(ticket.id, ticket.authorId ?? 0); } : undefined}

@@ -14,7 +14,7 @@ import { useLanguageChange } from '../../../hooks';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
 import Grid, { PhotoItem, buildOrderedImagePayload } from '../../../shared/ui/Photo/Grid';
-import { uploadPhotos } from '../../../utils/imageUtils';
+import { uploadPhotos, toExistingPhoto } from '../../../utils/imageUtils';
 import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import { Markdown } from '../../../shared/ui/Text/Markdown';
@@ -250,11 +250,7 @@ const CreateEdit = () => {
             // Считаем договорной только если negotiableBudget=true И нет реального бюджета.
             // Если budget > 0 — значит цена есть, галочка была записана ошибочно.
             setNegotiableBudget(!!data.negotiableBudget && !(data.budget > 0));
-            setPhotos((data.images || []).map((img: { id: string | number; image: string }) => ({
-                type: 'existing' as const,
-                id: img.id,
-                image: img.image,
-            })));
+            setPhotos((data.images || []).map((img: Image) => toExistingPhoto(img, 'uploads/tickets')));
             
             console.log('State updated - category ID:', data.category?.id);
             console.log('State updated - subcategory ID:', data.subcategory?.id);

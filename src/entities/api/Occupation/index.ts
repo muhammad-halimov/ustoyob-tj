@@ -1,6 +1,7 @@
 import type { Category } from '../Category';
+import type { ImageFields } from '../Misc';
 
-export interface Occupation {
+export interface Occupation extends ImageFields {
     id: string | number;
     title: string;
     description?: string;

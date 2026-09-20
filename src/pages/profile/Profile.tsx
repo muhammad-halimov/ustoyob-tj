@@ -53,7 +53,7 @@ import Status from '../../shared/ui/Modal/Status';
 import Feedback from '../../shared/ui/Modal/Feedback';
 import Auth from '../../shared/ui/Modal/Auth/Auth';
 import { InstagramLinkNotice } from '../../shared/ui/Modal/InstagramLinkNotice';
-import { getAuthorAvatar } from '../../utils/imageUtils';
+import { resolveAvatar, toPhotoSource } from '../../utils/imageUtils';
 import { getFormattedDate } from '../../utils/timeUtils';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
 import { getPageSize } from '../../utils/pageSizeUtils';
@@ -459,7 +459,8 @@ function Profile() {
         }
     };
 
-    const galleryImages = profileData?.workExamples.map(work => work.image) || [];
+    // В просмотре — полный WebP (≤2400 px), а не оригинал; превью/оригиналы для Preview собирает WorkExamplesSection.
+    const galleryImages = profileData?.workExamples.map(work => work.source?.webp ?? work.image) || [];
     const {
         isOpen: isGalleryOpen,
         currentIndex: galleryCurrentIndex,
@@ -1199,15 +1200,6 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         }
     };
 
-    const checkImageExists = (url: string): Promise<boolean> => {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(false);
-            img.src = url;
-        });
-    };
-
     const fetchUserData = async (silent = false) => {
         try {
             if (!silent) setIsLoading(true);
@@ -1295,9 +1287,10 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             setUserRole(role);
             console.log('User role:', role);
 
-            const avatarUrl: string | null = (userData.image || userData.imageExternalUrl)
-                ? getAuthorAvatar(userData)
-                : null;
+            // resolveAvatar: превью 480 px + BlurHash + откат на оригинал; для OAuth-аватара — внешний URL.
+            const avatarImage = resolveAvatar(userData);
+            const avatarUrl: string | null = avatarImage?.src ?? null;
+            const avatarFull = resolveAvatar(userData, 'webp')?.src;
 
             // Получаем все адреса пользователя
             const userAddresses = userData.addresses as Address[] | undefined;
@@ -1376,6 +1369,8 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 rating: userData.rating || 0,
                 reviews: 0,
                 avatar: avatarUrl,
+                avatarImage,
+                avatarFull,
                 education: transformEducation(userData.education || [], localizedOccupations),
                 workExamples: [],
                 workArea: workArea,
@@ -2126,6 +2121,16 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         return `${API_BASE_URL}/uploads/galleries/${imagePath}`;
     };
 
+    // Без предзагрузки оригиналов: раньше каждый оригинал качался целиком (new Image + onload) и
+    // блок галереи оставался пустым, пока не догрузятся ВСЕ. Теперь рендерим сразу — `<Img>` сам
+    // показывает BlurHash/превью и откатывается на оригинал при ошибке.
+    const toWorkExample = (image: Image): WorkExample => ({
+        id: image.id ?? Date.now(),
+        image: getImageUrl(image.image),
+        title: 'Пример работы',
+        source: toPhotoSource(image, 'uploads/galleries'),
+    });
+
     const fetchUserGallery = async () => {
         try {
             console.log('Fetching user gallery...');
@@ -2151,17 +2156,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
                 const gallery = galleryArray[0] ?? null;
                 if (gallery?.images && gallery.images.length > 0) {
-                    const workExamplesLocal = await Promise.all(
-                        gallery.images.map(async (image: Image) => {
-                            const imageUrl = getImageUrl(image.image);
-                            const exists = await checkImageExists(imageUrl).catch(() => false);
-                            return {
-                                id: image.id ?? Date.now(),
-                                image: exists ? imageUrl : '/img/icons/misc/fonTest6.png',
-                                title: 'Пример работы'
-                            };
-                        })
-                    );
+                    const workExamplesLocal = gallery.images.map(toWorkExample);
                     setProfileData(prev => prev ? { ...prev, workExamples: workExamplesLocal } : null);
                 } else {
                     setProfileData(prev => prev ? { ...prev, workExamples: [] } : null);
@@ -2176,33 +2171,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 console.log('Gallery found:', gallery);
                 if (gallery.images && gallery.images.length > 0) {
                     console.log(`Found ${gallery.images.length} images in gallery`);
-                    const workExamplesLocal = await Promise.all(
-                        gallery.images.map(async (image: Image) => {
-                            const imagePath = image.image;
-                            const imageUrl = getImageUrl(imagePath);
-
-                            console.log(`Processing image ${image.id}: ${imagePath}`);
-                            console.log(`Image URL: ${imageUrl}`);
-
-                            try {
-                                const exists = await checkImageExists(imageUrl);
-                                console.log(`Image exists: ${exists}`);
-
-                                return {
-                                    id: image.id ?? Date.now(),
-                                    image: exists ? imageUrl : "/img/icons/misc/fonTest6.png",
-                                    title: "Пример работы"
-                                };
-                            } catch (error) {
-                                console.error(`Error checking image ${image.id}:`, error);
-                                return {
-                                    id: image.id ?? Date.now(),
-                                    image: "/img/icons/misc/fonTest6.png",
-                                    title: "Пример работы"
-                                };
-                            }
-                        })
-                    );
+                    const workExamplesLocal = gallery.images.map(toWorkExample);
 
                     console.log("Work examples loaded:", workExamplesLocal.length);
                     setProfileData(prev => prev ? {
@@ -2238,10 +2207,13 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             const currentLocale = getStorageItem('i18nextLng') || 'tj';
             const userPath = userId ? API_ROUTES.USER_BY_ID(userId) : API_ROUTES.USERS_ME;
             const userData: any = await universalApiRequest(userPath, { locale: currentLocale as any });
-            const avatarUrl = (userData.image || userData.imageExternalUrl)
-                ? getAuthorAvatar(userData)
-                : null;
-            setProfileData(prev => prev ? { ...prev, avatar: avatarUrl } : null);
+            const avatarImage = resolveAvatar(userData);
+            setProfileData(prev => prev ? {
+                ...prev,
+                avatar: avatarImage?.src ?? null,
+                avatarImage,
+                avatarFull: resolveAvatar(userData, 'webp')?.src,
+            } : null);
         } catch (error) {
             console.error('Error fetching user avatar:', error);
         }
@@ -2952,38 +2924,6 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         }
     };
 
-    const handleImageError = async (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-        console.log('Image loading error, trying fallback sources');
-        const img = e.currentTarget;
-
-        if (!profileData?.id) {
-            img.src = "/img/icons/misc/fonTest6.png";
-            return;
-        }
-
-        const fallbackSources = [
-            profileData.avatar?.includes("uploads/") ? `${API_BASE_URL}${API_ROUTES.USER_PROFILE_PHOTO(profileData.id)}` : null,
-            profileData.avatar?.includes("uploads/") ? `/uploads/avatars/${profileData.avatar.split("/").pop()}` : null,
-            "/img/icons/misc/fonTest6.png"
-        ].filter(Boolean) as string[];
-
-        for (const source of fallbackSources) {
-            if (source && source !== img.src) {
-                try {
-                    if (await checkImageExists(source)) {
-                        img.src = source;
-                        console.log('Fallback image loaded:', source);
-                        return;
-                    }
-                } catch {
-                    console.log('Fallback image failed:', source);
-                }
-            }
-        }
-
-        img.src = "/img/icons/misc/fonTest6.png";
-    };
-
     const calculateAverageRating = (reviews: ReviewType[]): number => {
         if (reviews.length === 0) return 0;
         const validReviews = reviews.filter(review =>
@@ -2994,13 +2934,6 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         const sum = validReviews.reduce((total, review) => total + review.rating, 0);
         const average = sum / validReviews.length;
         return Math.round(average * 10) / 10;
-    };
-
-    const getImageUrlWithCacheBust = (url: string): string => {
-        if (!url || url === "/img/icons/misc/fonTest6.png") return url;
-        const timestamp = new Date().getTime();
-        const separator = url.includes('?') ? '&' : '?';
-        return `${url}${separator}t=${timestamp}`;
     };
 
     const getMasterName = (review: ReviewType) => {
@@ -3203,6 +3136,8 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 {/* ProfileHeader Component */}
                 <ProfileHeader
                     avatar={profileData.avatar}
+                    avatarImage={profileData.avatarImage}
+                    avatarFull={profileData.avatarFull}
                     fullName={profileData.fullName}
                     email={profileData.email}
                     gender={profileData.gender}
@@ -3224,7 +3159,6 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                     lastSeen={profileData.lastSeen ?? undefined}
                     onAvatarClick={handleAvatarClick}
                     onFileChange={handleFileChange}
-                    onImageError={handleImageError}
                     onEditStart={handleEditStart}
                     onTempValueChange={setTempValue}
                     onInputSave={handleInputSave}
@@ -3352,7 +3286,6 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                             onShowMoreWorkExamples={() => setVisibleWorkExamplesCount(c => Math.min(c + (isMobile ? 6 : 8), profileData.workExamples.length))}
                             onShowLessWorkExamples={() => setVisibleWorkExamplesCount(c => Math.max(c - (isMobile ? 6 : 8), isMobile ? 6 : 8))}
                             onClearWorkExamples={() => setVisibleWorkExamplesCount(isMobile ? 6 : 8)}
-                            getImageUrlWithCacheBust={getImageUrlWithCacheBust}
                             API_BASE_URL={API_BASE_URL}
                             onReorder={!readOnly ? handleReorderWorkExamples : undefined}
                             onRefresh={async () => { setIsWorkExamplesRefreshing(true); await fetchUserGallery(); setIsWorkExamplesRefreshing(false); }}
