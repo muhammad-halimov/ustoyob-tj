@@ -1,5 +1,6 @@
 import { API_BASE_URL } from './configUtils';
 import { universalApiRequest } from './apiUtils';
+import { getAuthToken } from './authUtils';
 import { API_ROUTES } from '../app/routers/routes';
 import { compressImageFile } from './imageCompressUtils';
 import type { PhotoSource, ImageFields, ResolvedImage } from '../entities';
@@ -141,10 +142,15 @@ export const uploadPhotos = async (
         formData.append('imageFile[]', file);
     }
 
+    // Многие вызовы передают сюда обычный JWT — он уже уходит в Authorization. Лишний
+    // X-Guest-Access-Token в нативном приложении (кросс-доменный запрос) провоцирует CORS-preflight,
+    // а бэк этот заголовок в Access-Control-Allow-Headers не отдаёт → загрузка падает с 400.
+    const sendGuestHeader = !!guestToken && guestToken !== getAuthToken();
+
     return universalApiRequest(API_ROUTES.UPLOAD_IMAGES(endpoint, id), {
         method: 'POST',
         body: formData,
-        headers: guestToken ? { 'X-Guest-Access-Token': guestToken } : undefined,
+        headers: sendGuestHeader ? { 'X-Guest-Access-Token': guestToken } : undefined,
         locale: false, // upload endpoint doesn't use ?locale=, matches previous behavior
     });
 };

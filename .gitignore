@@ -1,4 +1,6 @@
+# ============================
 # Logs
+# ============================
 logs
 *.log
 npm-debug.log*
@@ -7,12 +9,20 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# ============================
+# Node / Frontend build
+# ============================
 node_modules
 dist
 dist-ssr
 *.local
+coverage/
+.turbo/
+.cache
 
-# Editor directories and files
+# ============================
+# Editor / OS
+# ============================
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -23,22 +33,52 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ============================
+# Environment / secrets
+# ============================
 .env
 .env.local
+.env.production
+.env.*.local
+*.pem
 .npm
-.cache
 .gitconfig
 .node_repl_history
 
-# Capacitor / native builds
+# ============================
+# Capacitor / Android
+# ============================
 android/app/build
 android/build
 android/.gradle
 android/local.properties
 android/captures
 android/.cxx
+android/app/release/
+*.apk
+*.aab
+
+# Android signing — КРИТИЧНО, никогда не коммитить
+android/keystore.properties
+*.jks
+*.keystore
+android/app/*.keystore
+
+# ============================
+# Capacitor / iOS
+# ============================
 ios/App/Pods
 ios/App/build
 ios/App/DerivedData
+ios/App/App.xcworkspace/xcuserdata/
 **/*.xcuserstate
 **/xcuserdata/
+*.dSYM
+*.dSYM.zip
+*.ipa
+
+# Если sync копирует web-билд в нативные проекты автоматически
+# (раскомментируй, если так и есть у тебя в workflow)
+# ios/App/App/public/
+# android/app/src/main/assets/public/
