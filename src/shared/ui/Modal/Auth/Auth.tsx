@@ -33,7 +33,7 @@ import type { OAuthProviderName, Occupation, Category } from '../../../../entiti
 import { ROUTES, API_ROUTES } from '../../../../app/routers/routes';
 import { universalApiRequest } from '../../../../utils/apiUtils';
 import { resolveApiError, ApiError } from '../../../../utils/appMessagesUtils';
-import { setSessionItem, removeSessionItem, removeSessionItems, removeStorageItem, removeStorageItems } from '../../../../utils/storageUtils';
+import { setSessionItem, removeSessionItem, removeSessionItems, removeStorageItems } from '../../../../utils/storageUtils';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -195,22 +195,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         return () => {
             window.removeEventListener('languageChanged', loadCategories);
         };
-    }, []);
-
-    // Виджет Telegram (data-auth-url) может вернуть колбэк не в эту же вкладку, а в
-    // новую — так работает мобильное приложение Telegram при подтверждении входа.
-    // TelegramCallbackPage в этом случае пишет сигнал в localStorage (и пытается
-    // закрыться) — здесь подхватываем его, если эта, оригинальная, вкладка ещё жива.
-    useEffect(() => {
-        const onStorage = (e: StorageEvent) => {
-            if (e.key !== 'telegram_login_success') return;
-            removeStorageItem('telegram_login_success');
-            const token = getAuthToken();
-            if (token) handleSuccessfulAuth(token, getUserData()?.email);
-        };
-        window.addEventListener('storage', onStorage);
-        return () => window.removeEventListener('storage', onStorage);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Модалка открылась (обычный клик "Войти", или Header.tsx открыл её сам, заметив на
@@ -408,98 +392,57 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     };
 
     // Функция для Telegram Widget. role отсутствует — вход с экрана LOGIN (см. handleOAuthStart).
+    // Виджет Telegram рендерится ВНУТРИ настоящего popup'а (тот же openOAuthPopup/
+    // waitForOAuthPopupResult, что и у Google/Facebook/Instagram), а не поверх текущей
+    // страницы, как раньше. Раньше data-auth-url уводил редиректом ЭТУ ЖЕ вкладку (закрыть
+    // было нечего — окно ведь не было открыто скриптом), так что после выбора роли страница
+    // просто зависала на пару секунд и потом SPA-навигировала на главную в этой же вкладке —
+    // заметно отличалось от Google/Facebook/Instagram, которые закрывают popup сразу.
+    // Роль передаём через query-параметр в /auth/telegram/start (см. TelegramMobileStartPage.tsx,
+    // тот же приём, что и у нативного флоу) — та страница сама сохранит её в sessionStorage
+    // ВНУТРИ этого popup'а, откуда её без проблем прочитает TelegramCallbackPage (та же вкладка,
+    // просто следующая навигация).
     const handleTelegramAuthClick = (role?: 'master' | 'client') => {
         if (isNativePlatform()) {
             handleNativeTelegramAuthClick(role);
             return;
         }
 
-        // Роль уже выбрана (SelectRoleModal, см. beginOAuth) — сохраняем, чтобы TelegramCallbackPage
-        // (та же вкладка в обычном случае — виджет полностью перегружает страницу, sessionStorage
-        // переживает такой переход) могла прислать её вместе с данными Telegram и получить аккаунт с
-        // готовой ролью за один шаг. С экрана LOGIN роли нет вовсе — не сохраняем ничего, а если
-        // аккаунт всё же окажется новым, роль спросит полноэкранный пикер на странице колбэка.
-        if (role) setSessionItem('pendingTelegramRole', role);
+        const popup = openOAuthPopup('oauth_telegram');
+        if (!popup) {
+            setError(t('common:oauth.popupBlocked', { provider: 'Telegram' }));
+            return;
+        }
 
-        // Создаем модальное окно для Telegram widget
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const state = `tg_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        markOAuthPopupFlow(state);
 
-        const telegramModalContainer = document.createElement('div');
-        telegramModalContainer.style.position = 'fixed';
-        telegramModalContainer.style.top = '0';
-        telegramModalContainer.style.left = '0';
-        telegramModalContainer.style.width = '100%';
-        telegramModalContainer.style.height = '100%';
-        telegramModalContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-        telegramModalContainer.style.display = 'flex';
-        telegramModalContainer.style.alignItems = 'center';
-        telegramModalContainer.style.justifyContent = 'center';
-        telegramModalContainer.style.zIndex = '10000';
+        const params = new URLSearchParams({ state });
+        if (role) params.set('role', role);
+        navigateOAuthPopup(popup, `${window.location.origin}${ROUTES.AUTH_TELEGRAM_MOBILE_START}?${params.toString()}`);
 
-        const widgetWrapper = document.createElement('div');
-        widgetWrapper.style.backgroundColor = isDark ? '#2a2a2a' : 'white';
-        widgetWrapper.style.borderRadius = '10px';
-        widgetWrapper.style.padding = '30px';
-        widgetWrapper.style.textAlign = 'center';
-        widgetWrapper.style.position = 'relative';
-        widgetWrapper.style.minWidth = '350px';
-
-        // Кнопка закрытия (Clear-стиль)
-        const closeBtn = document.createElement('button');
-        closeBtn.type = 'button';
-        closeBtn.setAttribute('aria-label', 'Clear');
-        closeBtn.innerHTML = `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="8" cy="8" r="7.5" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 5.5L10.5 10.5M10.5 5.5L5.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
-        closeBtn.style.position = 'absolute';
-        closeBtn.style.top = '10px';
-        closeBtn.style.right = '10px';
-        closeBtn.style.background = 'none';
-        closeBtn.style.border = 'none';
-        closeBtn.style.cursor = 'pointer';
-        closeBtn.style.color = isDark ? '#888' : '#999';
-        closeBtn.style.display = 'flex';
-        closeBtn.style.alignItems = 'center';
-        closeBtn.style.justifyContent = 'center';
-        closeBtn.style.padding = '4px';
-        closeBtn.onclick = () => {
-            telegramModalContainer.remove();
-        };
-
-        const widgetContainer = document.createElement('div');
-        widgetContainer.id = `telegram-widget-${Date.now()}`;
-        widgetContainer.style.marginTop = '20px';
-
-        // data-auth-url, не data-onauth: у telegram-widget.js data-onauth разбирает
-        // строку через eval() (window.__parseFunction) — CSP этого приложения
-        // (script-src без 'unsafe-eval', см. index.html) такой eval блокирует, и
-        // виджет ломается на самой инициализации, кнопка вообще не рендерится.
-        // Возврат к редиректу закрывает вопрос с рендером; устойчивость к тому,
-        // что мобильное приложение может вернуть колбэк в другую вкладку —
-        // на стороне TelegramCallbackPage (localStorage-сигнал), не здесь.
-        const script = document.createElement('script');
-        script.src = 'https://telegram.org/js/telegram-widget.js?22';
-        script.async = true;
-        script.setAttribute('data-telegram-login', import.meta.env.VITE_TELEGRAM_BOT_NAME);
-        script.setAttribute('data-size', 'large');
-        script.setAttribute('data-userpic', 'false');
-        script.setAttribute('data-radius', '10');
-        script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
-        script.setAttribute('data-request-access', 'write');
-
-        widgetContainer.appendChild(script);
-        widgetWrapper.appendChild(closeBtn);
-        widgetWrapper.appendChild(widgetContainer);
-        telegramModalContainer.appendChild(widgetWrapper);
-        document.body.appendChild(telegramModalContainer);
-
-        // Закрываем основную модалку
+        // Закрываем основную модалку — как и раньше, сразу после открытия popup'а.
         handleClose();
 
-        // Закрываем при клике за пределами модального окна
-        telegramModalContainer.onclick = (e) => {
-            if (e.target === telegramModalContainer) {
-                telegramModalContainer.remove();
-            }
-        };
+        setIsLoading(true);
+        waitForOAuthPopupResult(popup)
+            .then(() => {
+                const token = getAuthToken();
+                if (token) handleSuccessfulAuth(token, getUserData()?.email);
+            })
+            .catch((popupErr: Error) => {
+                if (popupErr.message === 'popup_closed') {
+                    // Popup закрылся без сигнала — Telegram иногда возвращает подтверждение в
+                    // НОВУЮ вкладку вместо этого popup'а (см. README, известный мобильно-веб
+                    // кейс) — тогда сигнал/закрытие приходят не сюда. Проверяем реальный
+                    // результат по localStorage напрямую, как и у остальных провайдеров.
+                    const token = getAuthToken();
+                    if (token) handleSuccessfulAuth(token, getUserData()?.email);
+                    return;
+                }
+                setError(resolveApiError(popupErr, 'Ошибка при авторизации через Telegram'));
+            })
+            .finally(() => setIsLoading(false));
     };
 
     // Обновляет одно поле formData — используется вместо onChange-события, так как

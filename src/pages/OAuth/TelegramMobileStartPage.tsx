@@ -2,11 +2,20 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setSessionItem } from '../../utils/storageUtils';
 import { markMobileOAuthFlowFromUrl } from '../../utils/mobileOAuth';
+import { markOAuthPopupFlow } from '../../utils/oauthPopup';
 
 /**
- * Entry point for the native app's Telegram login — see utils/mobileOAuth.ts. Only ever
- * opened via the app's in-app browser (`?mobile=1`), never linked to from the desktop web
- * UI (there, the widget is injected directly into the Auth modal — see Auth.tsx).
+ * Entry point for the Telegram widget button — shared by two callers:
+ *  - The native app's in-app browser (`?mobile=1`) — see utils/mobileOAuth.ts.
+ *  - The desktop web popup (`?state=...`) — Auth.tsx opens a real popup (same
+ *    utils/oauthPopup.ts mechanism as Google/Facebook/Instagram) and navigates it here,
+ *    instead of injecting the widget into the current tab's DOM like before. That old
+ *    approach made the widget's `data-auth-url` redirect happen in the SAME tab (Telegram
+ *    doesn't manage a popup of its own for that), so there was no popup to close — the
+ *    whole flow just sat in-place for a few seconds before doing an in-page SPA navigate,
+ *    unlike Google/Facebook/Instagram which close their popup and return control instantly.
+ *    Running the widget in a popup we opened means `data-auth-url`'s redirect lands INSIDE
+ *    that popup, so TelegramCallbackPage can close it the same way as the other providers.
  *
  * The ENTIRE point of running this on a page load of the real public website rather than
  * inside the packaged app is that `data-auth-url` below ends up built from *this* page's
@@ -15,9 +24,10 @@ import { markMobileOAuthFlowFromUrl } from '../../utils/mobileOAuth';
  * about. No BotFather changes needed; just don't run the widget inside the app's bundle.
  *
  * `role` travels as a query param (set by Auth.tsx's SelectRoleModal — see
- * handleNativeTelegramAuthClick — when opening this page), same reasoning as
- * OAuthMobileStartPage: stored into sessionStorage here so TelegramCallbackPage's
- * `pendingTelegramRole` read keeps working unmodified once the widget redirects back.
+ * handleNativeTelegramAuthClick/handleTelegramAuthClick — when opening this page), same
+ * reasoning as OAuthMobileStartPage: stored into sessionStorage here so
+ * TelegramCallbackPage's `pendingTelegramRole` read keeps working unmodified once the
+ * widget redirects back.
  */
 const TelegramMobileStartPage = () => {
     const { t } = useTranslation('common');
@@ -25,8 +35,15 @@ const TelegramMobileStartPage = () => {
     useEffect(() => {
         markMobileOAuthFlowFromUrl();
 
-        const role = new URLSearchParams(window.location.search).get('role');
+        const params = new URLSearchParams(window.location.search);
+        const role = params.get('role');
         if (role) setSessionItem('pendingTelegramRole', role);
+
+        // Desktop popup flow (see file header) — mark it so TelegramCallbackPage's
+        // finishOAuthPopup recognizes this state and closes the popup instead of
+        // navigating it. Absent for the native in-app-browser flow above.
+        const state = params.get('state');
+        if (state) markOAuthPopupFlow(state);
 
         const script = document.createElement('script');
         script.src = 'https://telegram.org/js/telegram-widget.js?22';
@@ -35,7 +52,11 @@ const TelegramMobileStartPage = () => {
         script.setAttribute('data-size', 'large');
         script.setAttribute('data-userpic', 'false');
         script.setAttribute('data-radius', '10');
-        script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
+        // Дописываем наш state в data-auth-url (Telegram сам добавит id/hash/... через '&') —
+        // так TelegramCallbackPage узнáет его обратно (см. finishOrNavigate/oauthStateRef там).
+        script.setAttribute('data-auth-url', state
+            ? `${window.location.origin}/auth/telegram/callback?state=${encodeURIComponent(state)}`
+            : `${window.location.origin}/auth/telegram/callback`);
         script.setAttribute('data-request-access', 'write');
 
         const container = document.getElementById('telegram-mobile-start-widget');

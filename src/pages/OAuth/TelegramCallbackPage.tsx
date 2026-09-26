@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ROUTES, API_ROUTES } from '../../app/routers/routes';
 import Status from '../../shared/ui/Modal/Status';
@@ -11,15 +11,18 @@ import {
     setAuthTokenExpiry,
     setUserRole,
     setUserData,
+    getUserData,
     setUserEmail,
     setUserOccupation,
     getAuthToken,
+    logout,
 } from '../../utils/authUtils';
 import type { TelegramUserData, BackendAuthCallbackResponse } from '../../entities';
 import { universalApiRequest } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
 import { getStorageItem, setStorageItem, removeStorageItem, getSessionItem, removeSessionItem } from '../../utils/storageUtils';
 import { finishMobileOAuthFlow } from '../../utils/mobileOAuth';
+import { finishOAuthPopup } from '../../utils/oauthPopup';
 
 /**
  * Handles the Telegram login callback.
@@ -39,28 +42,42 @@ const TelegramCallbackPage = () => {
     // Полноэкранный пикер здесь, на своей родной full-page территории, а не в модалке.
     const [showRoleSelect, setShowRoleSelect] = useState(false);
     const [grantingRole, setGrantingRole] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
     const { t } = useTranslation(['common', 'components']);
 
-    // Мобильное приложение (in-app browser) — отдаём ошибку через deep link вместо
-    // того, чтобы оставлять пользователя на странице сайта внутри Custom Tab / SFSafari.
-    // Возвращает true, если это был как раз такой случай (вызывающий тогда не планирует
-    // свой обычный navigate(ROUTES.HOME)).
-    const finishMobileOrNull = (message?: string): boolean => finishMobileOAuthFlow({ status: 'error', message });
+    // state из URL — НЕ от Telegram (у виджета нет такого понятия), а наш собственный,
+    // сгенерированный в Auth.tsx перед тем, как открыть popup и увести его на /auth/telegram/start
+    // (см. handleTelegramAuthClick). Тот же смысл и механизм, что oauthStateRef в
+    // OAuthCallbackPage.tsx: finishOAuthPopup сверяет его с тем, что было помечено через
+    // markOAuthPopupFlow — если это popup-флоу, отчитывается опенеру и закрывается сам, вместо
+    // того чтобы (как раньше) всегда донавигировать эту же вкладку на HOME.
+    const oauthStateRef = useRef<string | null>(null);
 
-    // Веб (не мобильное приложение): сигналим оригинальной вкладке и пробуем закрыться — Telegram
-    // иногда возвращает колбэк в НОВУЮ вкладку, а не в ту, где была открыта Auth-модалка (см.
-    // storage-листенер в Auth.tsx). window.close() сработает только если эта вкладка открыта
-    // скриптом; если это та же вкладка (обычный десктоп) — сработает fallback-навигация.
-    const finishWebFlow = () => {
-        setStorageItem('telegram_login_success', Date.now().toString());
-        setTimeout(() => {
-            window.close();
-            setTimeout(() => {
-                navigate(ROUTES.HOME);
-                window.dispatchEvent(new Event('login'));
-            }, 300);
-        }, 2000);
-    };
+    // Мобильное приложение проверяем первым (см. OAuthCallbackPage.tsx — тот же порядок и
+    // те же причины). Иначе — тот же popup-механизм, что у Google/Facebook/Instagram:
+    // закрывает popup и отчитывается опенеру, либо (не popup-флоу — прямой заход, или
+    // Telegram увёл в новую вкладку без сохранившегося state) навигирует эту же вкладку.
+    const finishOrNavigate = useCallback((
+        result: { status: 'success' } | { status: 'error'; message?: string },
+        fallbackRoute: string,
+        fallbackOptions?: { replace?: boolean },
+    ) => {
+        if (result.status === 'success') {
+            const token = getAuthToken();
+            if (token && finishMobileOAuthFlow({ status: 'success', token })) return;
+        } else if (finishMobileOAuthFlow({ status: 'error', message: result.message })) {
+            return;
+        }
+
+        if (!finishOAuthPopup(oauthStateRef.current, result)) {
+            navigate(fallbackRoute, fallbackOptions);
+            if (result.status === 'success') window.dispatchEvent(new Event('login'));
+            return;
+        }
+        // См. комментарий у аналогичного места в OAuthCallbackPage.tsx — страховка на
+        // случай, если ни postMessage/localStorage, ни window.close() не сработали.
+        window.setTimeout(() => navigate(fallbackRoute, fallbackOptions), 1500);
+    }, [navigate]);
 
     useEffect(() => {
         const processTelegramCallback = async () => {
@@ -73,13 +90,16 @@ const TelegramCallbackPage = () => {
                 const photoUrl = searchParams.get('photo_url');
                 const authDate = searchParams.get('auth_date');
                 const hash = searchParams.get('hash');
+                // Наш собственный state (см. комментарий у oauthStateRef выше) — Telegram его не
+                // трогает, просто дописывает свои id/hash/... следом через '&' (см. /auth/telegram/start).
+                oauthStateRef.current = searchParams.get('state');
 
                 // Проверяем что все необходимые параметры есть
                 if (!id || !firstName || !hash || !authDate) {
                     const message = t('oauth.insufficientData');
                     setError(message);
                     setLoading(false);
-                    if (!finishMobileOrNull(message)) setTimeout(() => navigate(ROUTES.HOME), 3000);
+                    finishOrNavigate({ status: 'error', message }, ROUTES.HOME);
                     return;
                 }
 
@@ -90,7 +110,7 @@ const TelegramCallbackPage = () => {
                     const message = t('oauth.expiredRequest');
                     setError(message);
                     setLoading(false);
-                    if (!finishMobileOrNull(message)) setTimeout(() => navigate(ROUTES.HOME), 3000);
+                    finishOrNavigate({ status: 'error', message }, ROUTES.HOME);
                     return;
                 }
 
@@ -259,16 +279,14 @@ const TelegramCallbackPage = () => {
                     setSuccess(true);
                     setLoading(false);
 
-                    // Приложение (in-app browser, см. utils/mobileOAuth.ts) — отдаём токен
-                    // через deep link и на этом всё, дальше приложение само разбирается.
-                    if (finishMobileOAuthFlow({ status: 'success', token: data.token })) return;
-
-                    finishWebFlow();
+                    // Даём секунду показать галочку "успешно", прежде чем закрыть popup/уйти —
+                    // тот же тайминг, что у Google/Facebook/Instagram (см. OAuthCallbackPage.tsx).
+                    setTimeout(() => finishOrNavigate({ status: 'success' }, ROUTES.HOME), 900);
                 } else {
                     const message = resolveApiError(null, t('oauth.tokenNotReceived'));
                     setError(message);
                     setLoading(false);
-                    if (!finishMobileOrNull(message)) setTimeout(() => navigate(ROUTES.HOME), 3000);
+                    finishOrNavigate({ status: 'error', message }, ROUTES.HOME);
                 }
 
             } catch (err) {
@@ -276,7 +294,7 @@ const TelegramCallbackPage = () => {
                 const message = resolveApiError(err);
                 setError(message);
                 setLoading(false);
-                if (!finishMobileOrNull(message)) setTimeout(() => navigate(ROUTES.HOME), 3000);
+                finishOrNavigate({ status: 'error', message }, ROUTES.HOME);
             }
         };
 
@@ -298,15 +316,32 @@ const TelegramCallbackPage = () => {
                     locale: false,
                 });
                 setUserRole(role);
-                const token = getAuthToken();
-                if (token && finishMobileOAuthFlow({ status: 'success', token })) return;
-                finishWebFlow();
+                finishOrNavigate({ status: 'success' }, ROUTES.HOME);
             } catch (err) {
                 setError(resolveApiError(err));
                 setShowRoleSelect(false);
             } finally {
                 setGrantingRole(false);
             }
+        };
+
+        // См. комментарий у аналогичного места в OAuthCallbackPage.tsx — аккаунт здесь уже
+        // реально создан (status:204), просто без роли; отмена удаляет этот незавершённый
+        // аккаунт и закрывает popup тем же 'popup_closed'-сентинелом, что уже не считается
+        // ошибкой в Auth.tsx.
+        const handleCancel = async () => {
+            if (!window.confirm(t('common:oauth.cancelRegistrationConfirm'))) return;
+            setCancelling(true);
+            const userId = getUserData()?.id;
+            try {
+                if (userId) {
+                    await universalApiRequest(`${API_ROUTES.USERS}/${userId}`, { method: 'DELETE', locale: false });
+                }
+            } catch (err) {
+                console.warn('Could not delete cancelled account:', err);
+            }
+            await logout();
+            finishOrNavigate({ status: 'error', message: 'popup_closed' }, ROUTES.HOME);
         };
 
         const roleItems: PerformerItem[] = [
@@ -319,12 +354,21 @@ const TelegramCallbackPage = () => {
                 <span style={{ fontSize: '52px', color: 'var(--color-actual-blue)' }}>✓</span>
                 <p style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--color-text-primary)', margin: 0 }}>{t('oauth.success')}</p>
                 <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{t('oauth.selectAccountType')}</p>
-                {grantingRole ? <PageLoader fullPage={false} compact /> : (
-                    <Performers
-                        items={roleItems}
-                        getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
-                        onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
-                    />
+                {grantingRole || cancelling ? <PageLoader fullPage={false} compact /> : (
+                    <>
+                        <Performers
+                            items={roleItems}
+                            getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
+                            onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
+                        />
+                        <button
+                            type="button"
+                            onClick={handleCancel}
+                            style={{ background: 'none', border: 'none', color: 'var(--color-text-secondary)', textDecoration: 'underline', cursor: 'pointer', fontSize: '14px' }}
+                        >
+                            {t('common:oauth.cancelRegistration')}
+                        </button>
+                    </>
                 )}
             </div>
         );

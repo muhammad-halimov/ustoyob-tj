@@ -12,9 +12,11 @@ import {
     setAuthTokenExpiry,
     setUserRole,
     setUserData,
+    getUserData,
     setUserEmail,
     setUserOccupation,
     getAuthToken,
+    logout,
 } from '../../utils/authUtils';
 import type { OAuthProviderName, BackendAuthCallbackResponse } from '../../entities';
 import { universalApiRequest } from '../../utils/apiUtils';
@@ -52,6 +54,7 @@ const OAuthCallbackPage = () => {
     const [showRoleSelect, setShowRoleSelect] = useState(false);
     const [pendingToken, setPendingToken] = useState<string | null>(null);
     const [grantingRole, setGrantingRole] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
     const [provider, setProvider] = useState<OAuthProviderName | null>(null);
     const [isLinkMode, setIsLinkMode] = useState(false);
     // Meta закрыла Basic Display API (04.12.2024) — у Personal-аккаунтов нет официального
@@ -358,6 +361,26 @@ const OAuthCallbackPage = () => {
             }
         };
 
+        // Аккаунт на этом экране уже реально создан на бэкенде (status:204 — см. выше), просто
+        // без роли. Раньше отсюда некуда было деться, кроме выбора роли — теперь можно отменить:
+        // удаляем этот незавершённый аккаунт (DELETE /users/{id}, ещё валидным токеном-владельцем),
+        // разлогиниваемся и закрываем popup тем же путём, что "пользователь сам закрыл popup"
+        // (сообщение 'popup_closed' — тот же сентинел, что уже НЕ считается ошибкой в Auth.tsx).
+        const handleCancel = async () => {
+            if (!window.confirm(t('common:oauth.cancelRegistrationConfirm'))) return;
+            setCancelling(true);
+            const userId = getUserData()?.id;
+            try {
+                if (userId) {
+                    await universalApiRequest(`${API_ROUTES.USERS}/${userId}`, { method: 'DELETE', locale: false });
+                }
+            } catch (err) {
+                console.warn('Could not delete cancelled account:', err);
+            }
+            await logout();
+            finishOrNavigate({ status: 'error', message: 'popup_closed' }, ROUTES.HOME);
+        };
+
         const roleItems: PerformerItem[] = [
             { id: 1, name: t('components:roles.customers'), title: t('components:roles.customersDesc'), img: '/img/misc/clientTest.jpg' },
             { id: 2, name: t('components:roles.masters'), title: t('components:roles.mastersDesc'), img: '/img/misc/master.jpg' },
@@ -371,12 +394,21 @@ const OAuthCallbackPage = () => {
                 </svg>
                 <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>{t('oauth.success')}</p>
                 <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{t('oauth.selectAccountType')}</p>
-                {grantingRole ? <PageLoader fullPage={false} compact /> : (
-                    <Performers
-                        items={roleItems}
-                        getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
-                        onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
-                    />
+                {grantingRole || cancelling ? <PageLoader fullPage={false} compact /> : (
+                    <>
+                        <Performers
+                            items={roleItems}
+                            getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
+                            onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
+                        />
+                        <button
+                            type="button"
+                            onClick={handleCancel}
+                            style={{ background: 'none', border: 'none', color: 'var(--color-text-secondary)', textDecoration: 'underline', cursor: 'pointer', fontSize: '14px' }}
+                        >
+                            {t('common:oauth.cancelRegistration')}
+                        </button>
+                    </>
                 )}
             </div>
         );
