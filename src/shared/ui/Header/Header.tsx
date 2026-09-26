@@ -190,11 +190,17 @@ function Header({ onOpenAuthModal }: HeaderProps) {
             // Баннер подтверждения аккаунта
             setShowConfirmationBanner(userData.approved === false);
 
-            // Проверка роли (только при явном запросе — монтирование / login)
+            // Проверка роли (только при явном запросе — монтирование / login). Актуально для
+            // ЛЮБОГО OAuth-провайдера (Google/Facebook/Instagram/Telegram), не только Google:
+            // свежезарегистрированный через OAuth аккаунт какое-то время существует без роли,
+            // пока пользователь не выберет её в SelectRoleModal (см. Auth.tsx). `roles` всегда
+            // содержит хотя бы неявный ROLE_USER, поэтому "есть роль" — это именно
+            // ROLE_MASTER/ROLE_CLIENT, а не просто непустой массив.
             if (opts.checkRole) {
-                const isGoogleAuth = userData.oauthProviders?.some(p => p.provider === 'google') ?? false;
-                const hasRole = userData.roles && userData.roles.length > 0;
-                if (isGoogleAuth && !hasRole && onOpenAuthModal) {
+                const isOAuthAccount = (userData.oauthProviders?.length ?? 0) > 0;
+                const roles = (userData.roles ?? []).map(r => r.toLowerCase());
+                const hasRole = roles.includes('role_master') || roles.includes('role_client');
+                if (isOAuthAccount && !hasRole && onOpenAuthModal) {
                     onOpenAuthModal();
                 }
             }

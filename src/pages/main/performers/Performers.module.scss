@@ -1,6 +1,14 @@
 @use '../../../app/styles/variables' as vars;
 @use 'sass:map';
 
+// Даёт корневому враперу определённую (не auto/fit-content) ширину — иначе внутри flex-
+// родителя с align-items:center (напр. .modalContent модалки) вложенный width:100% у
+// .performersMobile упирается в неопределённый containing block и раскладка/Swiper
+// считают ширину неправильно (напр. проваливаются к своему max-width как к дефолту).
+.root {
+  width: 100%;
+}
+
 .performersDesktop {
   max-width: 1150px;
   margin: 35px auto;
@@ -28,6 +36,10 @@
   display: flex;
   flex-direction: row;
   align-items: stretch;
+  // Не полагаемся на ambient text-align родителя (напр. .modalContent модалки задаёт
+  // text-align:center на весь контент, из-за чего заголовок/описание карточки съезжали
+  // в неаккуратный центрированный текст) — карточка сама фиксирует своё выравнивание.
+  text-align: left;
   overflow: hidden;
   box-sizing: border-box;
 
@@ -77,28 +89,51 @@
   :global(.swiper-pagination) {
     bottom: 0;
   }
-}
 
-/* Tablet padding starts at 1200px */
-@media screen and (max-width: 1200px) {
-  .performersDesktop {
-    padding: 0 20px;
+  // Размер задаём через переменную Swiper (а не напрямую width/height), т.к. его же base CSS
+  // центрирует стрелку по вертикали через `margin-top: calc(-1 * var(--swiper-navigation-size) / 2)`
+  // — если бы size переменной (44px по умолчанию) разошёлся с реальным width/height кнопки,
+  // стрелки съезжали бы по вертикали относительно заданного top.
+  --swiper-navigation-size: 34px;
+
+  :global(.swiper-button-next),
+  :global(.swiper-button-prev) {
+    background: #fff;
+    border-radius: 50%;
+    padding: 9px;
+    box-sizing: border-box;
+    color: #1a1a1a;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    transition: background-color 0.2s, transform 0.2s;
+
+    &:hover {
+      background: #f0f0f0;
+      transform: scale(1.06);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  :global(.swiper-button-prev) {
+    left: 12px;
+  }
+
+  :global(.swiper-button-next) {
+    right: 12px;
+  }
+
+  :global(.swiper-button-disabled) {
+    opacity: 0.35;
+    box-shadow: none;
   }
 }
 
-/* Desktop: show horizontal layout */
-@media screen and (min-width: 1201px) {
-  .performersDesktop {
-    display: flex !important;
-  }
-
-  .performersMobile {
-    display: none !important;
-  }
-}
-
-/* Mobile/Tablet: show slider */
-@media screen and (max-width: 1200px) {
+/* Общие правила компактной (мобильной) карточки — вынесены в mixin, чтобы применять их
+   не только по медиазапросу (реальный узкий вьюпорт), но и принудительно через .forceMobile
+   (компонент показан в узком контейнере на широком вьюпорте, напр. в модалке). */
+@mixin performersMobileLayout {
   .performersDesktop {
     display: none !important;
   }
@@ -143,6 +178,70 @@
       font-weight: 300;
       margin-bottom: 20px !important;
       line-height: 1.4;
+    }
+  }
+}
+
+// Кнопка выбора роли (компонент Add) в компактной карточке — переопределяет её десктопные
+// max-width:286px/margin-right:24px (рассчитанные на широкую карточку с текстом слева и картинкой
+// справа), из-за которых на full-width компактной карточке кнопка вместо всей ширины съезжала
+// влево с пустым местом справа.
+.compactButton {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin-right: 0 !important;
+}
+
+/* Tablet padding starts at 1200px */
+@media screen and (max-width: 1200px) {
+  .performersDesktop {
+    padding: 0 20px;
+  }
+}
+
+/* Desktop: show horizontal layout */
+@media screen and (min-width: 1201px) {
+  .performersDesktop {
+    display: flex !important;
+  }
+
+  .performersMobile {
+    display: none !important;
+  }
+}
+
+/* Mobile/Tablet: show slider */
+@media screen and (max-width: 1200px) {
+  @include performersMobileLayout;
+}
+
+/* Принудительно (независимо от вьюпорта) — см. проп forceMobile в Performers.tsx */
+.forceMobile {
+  @include performersMobileLayout;
+
+  .performersMobile {
+    max-width: 100%;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  // В отличие от полноэкранных контекстов (главная, OAuth-колбэк), здесь карточка — единственный
+  // контент в узкой модалке рядом с уже центрированными заголовком/подсказкой над ней, поэтому
+  // текст тоже центрируем — левое выравнивание рядом с центрированной шапкой смотрелось разнобойно.
+  // align-items у .performers_orders_welcome остаётся stretch, чтобы кнопка выбора роли не
+  // сжималась по ширине текста, а оставалась на всю ширину карточки.
+  .performers_orders {
+    text-align: center;
+  }
+
+  // Дефолт Swiper центрирует стрелки по всей высоте слайда (тут это середина текста под
+  // картинкой) — переносим их на вертикальный центр самой картинки (top: 20px паддинг
+  // карточки + 200px/2 высоты картинки).
+  .performersSwiper {
+    :global(.swiper-button-next),
+    :global(.swiper-button-prev) {
+      top: 120px;
     }
   }
 }

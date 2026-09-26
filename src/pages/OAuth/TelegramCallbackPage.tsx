@@ -4,6 +4,8 @@ import { ROUTES, API_ROUTES } from '../../app/routers/routes';
 import Status from '../../shared/ui/Modal/Status';
 import { PageLoader } from '../../widgets/PageLoader';
 import { useTranslation } from 'react-i18next';
+import { Performers } from '../main/performers/Performers';
+import type { PerformerItem } from '../main/performers/Performers';
 import {
     setAuthToken,
     setAuthTokenExpiry,
@@ -16,7 +18,7 @@ import {
 import type { TelegramUserData, BackendAuthCallbackResponse } from '../../entities';
 import { universalApiRequest } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
-import { getStorageItem, setStorageItem, removeStorageItem, getSessionItem, removeSessionItem, removeSessionItems } from '../../utils/storageUtils';
+import { getStorageItem, setStorageItem, removeStorageItem, getSessionItem, removeSessionItem } from '../../utils/storageUtils';
 import { finishMobileOAuthFlow } from '../../utils/mobileOAuth';
 
 /**
@@ -31,13 +33,34 @@ const TelegramCallbackPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>('');
     const [success, setSuccess] = useState(false);
-    const { t } = useTranslation('common');
+    // Новый пользователь БЕЗ заранее выбранной роли (savedRole пуст) — вход с экрана LOGIN (там
+    // роль не спрашивают заранее, см. Auth.tsx: handleTelegramAuthClick), мобильное приложение
+    // (роль там всегда приходит этим же путём) или cross-tab случай (выбор из REGISTER потерялся).
+    // Полноэкранный пикер здесь, на своей родной full-page территории, а не в модалке.
+    const [showRoleSelect, setShowRoleSelect] = useState(false);
+    const [grantingRole, setGrantingRole] = useState(false);
+    const { t } = useTranslation(['common', 'components']);
 
     // Мобильное приложение (in-app browser) — отдаём ошибку через deep link вместо
     // того, чтобы оставлять пользователя на странице сайта внутри Custom Tab / SFSafari.
     // Возвращает true, если это был как раз такой случай (вызывающий тогда не планирует
     // свой обычный navigate(ROUTES.HOME)).
     const finishMobileOrNull = (message?: string): boolean => finishMobileOAuthFlow({ status: 'error', message });
+
+    // Веб (не мобильное приложение): сигналим оригинальной вкладке и пробуем закрыться — Telegram
+    // иногда возвращает колбэк в НОВУЮ вкладку, а не в ту, где была открыта Auth-модалка (см.
+    // storage-листенер в Auth.tsx). window.close() сработает только если эта вкладка открыта
+    // скриптом; если это та же вкладка (обычный десктоп) — сработает fallback-навигация.
+    const finishWebFlow = () => {
+        setStorageItem('telegram_login_success', Date.now().toString());
+        setTimeout(() => {
+            window.close();
+            setTimeout(() => {
+                navigate(ROUTES.HOME);
+                window.dispatchEvent(new Event('login'));
+            }, 300);
+        }, 2000);
+    };
 
     useEffect(() => {
         const processTelegramCallback = async () => {
@@ -131,11 +154,17 @@ const TelegramCallbackPage = () => {
                     return;
                 }
 
-                // Получаем сохраненную роль из sessionStorage
-                const savedRole = getSessionItem('pendingTelegramRole') || 'client';
-                const savedSpecialty = getSessionItem('pendingTelegramSpecialty');
+                // Роль, выбранную в SelectRoleModal ДО начала этого флоу (см. Auth.tsx:
+                // handleTelegramAuthClick) — сохранена в sessionStorage, которая переживает обычную
+                // навигацию виджета в ТОЙ ЖЕ вкладке (redirect на data-auth-url — полная перезагрузка
+                // страницы, но того же таба). Отправляем её вместе с данными Telegram, чтобы бэкенд
+                // мог создать аккаунт сразу с этой ролью. Пусто — если Telegram открыл подтверждение в
+                // НОВОЙ вкладке (см. README.md, известный кейс на мобильном вебе): sessionStorage не
+                // переживает переход в другую вкладку, тогда просто не отправляем роль вовсе — ничего
+                // не гадаем (см. комментарий у 204 ниже).
+                const savedRole = getSessionItem('pendingTelegramRole') as 'master' | 'client' | null;
+                removeSessionItem('pendingTelegramRole');
 
-                // Подготавливаем запрос на бекенд
                 // hash/authDate обязательны с 27.08.2026 — бэкенд проверяет
                 // подпись виджета (TelegramHashVerifierService) вместо
                 // прежнего живого запроса к Bot API, который ломался для
@@ -146,8 +175,7 @@ const TelegramCallbackPage = () => {
                     lastName?: string;
                     username?: string;
                     photoUrl?: string;
-                    role: string;
-                    occupation?: string;
+                    role?: string;
                     hash: string;
                     authDate: number;
                 } = {
@@ -156,14 +184,10 @@ const TelegramCallbackPage = () => {
                     lastName: telegramData.last_name,
                     username: telegramData.username,
                     photoUrl: telegramData.photo_url,
-                    role: savedRole,
                     hash: telegramData.hash!,
                     authDate: telegramData.auth_date!,
                 };
-
-                if (savedRole === 'master' && savedSpecialty) {
-                    requestData.occupation = API_ROUTES.OCCUPATION_BY_ID(savedSpecialty);
-                }
+                if (savedRole) requestData.role = savedRole;
 
                 const data: BackendAuthCallbackResponse = await universalApiRequest(API_ROUTES.AUTH_PROVIDER_CALLBACK('telegram'), {
                     method: 'POST',
@@ -188,25 +212,49 @@ const TelegramCallbackPage = () => {
                         setUserEmail(data.user.email);
                     }
 
-                    // Определяем и сохраняем роль
-                    let finalRole = savedRole as 'master' | 'client';
-                    if (data.user.roles && data.user.roles.length > 0) {
-                        const roles = data.user.roles.map(r => r.toLowerCase());
-                        if (roles.includes('role_master') || roles.includes('master')) {
-                            finalRole = 'master';
-                        } else if (roles.includes('role_client') || roles.includes('client')) {
-                            finalRole = 'client';
+                    if ((data as any).status === 204) {
+                        // Новый пользователь. Если роль уже была выбрана до этого флоу (savedRole,
+                        // экран REGISTER) — она отправлена вместе с данными Telegram выше, но бэкенд
+                        // всё равно создаёт аккаунт без роли (`status: 204`) и ждёт отдельного
+                        // grant-role, так что назначаем её сейчас же, автоматически, без второго
+                        // вопроса. Если savedRole пуст — экран LOGIN неожиданно оказался новым
+                        // аккаунтом, либо мобильное приложение (спрашивает всегда так), либо
+                        // cross-tab случай (Telegram открыл подтверждение в новой вкладке) — в любом
+                        // из этих случаев спрашиваем роль здесь же, полноэкранным пикером.
+                        if (savedRole) {
+                            try {
+                                await universalApiRequest(API_ROUTES.USERS_GRANT_ROLE, {
+                                    method: 'POST',
+                                    body: { role: savedRole === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT' },
+                                    locale: false,
+                                });
+                                setUserRole(savedRole);
+                            } catch (grantErr) {
+                                console.warn('Could not grant pre-selected role, asking again:', grantErr);
+                                setLoading(false);
+                                setShowRoleSelect(true);
+                                return;
+                            }
+                        } else {
+                            setLoading(false);
+                            setShowRoleSelect(true);
+                            return;
+                        }
+                    } else {
+                        // Существующий пользователь — определяем роль из ответа. Роль тут есть всегда
+                        // (бизнес-инвариант для уже существующего аккаунта); если вдруг нет — не
+                        // гадаем, просто не трогаем setUserRole и даём тому же самообнаруживающему
+                        // механизму (Header.tsx: authenticated + нет роли → снова открыть Auth)
+                        // исправить это, как и для новых аккаунтов.
+                        const roles = (data.user.roles ?? []).map(r => r.toLowerCase());
+                        if (roles.includes('role_master') || roles.includes('master')) setUserRole('master');
+                        else if (roles.includes('role_client') || roles.includes('client')) setUserRole('client');
+
+                        // Сохраняем occupation если есть
+                        if (data.user.occupation) {
+                            setUserOccupation(data.user.occupation);
                         }
                     }
-                    setUserRole(finalRole);
-
-                    // Сохраняем occupation если есть
-                    if (data.user.occupation) {
-                        setUserOccupation(data.user.occupation);
-                    }
-
-                    // Очищаем временные данные
-                    removeSessionItems('pendingTelegramRole', 'pendingTelegramSpecialty');
 
                     setSuccess(true);
                     setLoading(false);
@@ -215,20 +263,7 @@ const TelegramCallbackPage = () => {
                     // через deep link и на этом всё, дальше приложение само разбирается.
                     if (finishMobileOAuthFlow({ status: 'success', token: data.token })) return;
 
-                    // На мобильном ВЕБЕ приложение Telegram может вернуть этот колбэк в
-                    // НОВУЮ вкладку, а не в ту, где была открыта Auth-модалка — сигналим
-                    // localStorage'ом (см. слушатель в Auth.tsx) и пробуем закрыться,
-                    // как уже делает ветка привязки провайдера выше. window.close()
-                    // сработает только если эта вкладка открыта скриптом; если это та
-                    // же вкладка (обычный десктоп) — сработает fallback-навигация.
-                    setStorageItem('telegram_login_success', Date.now().toString());
-                    setTimeout(() => {
-                        window.close();
-                        setTimeout(() => {
-                            navigate(ROUTES.HOME);
-                            window.dispatchEvent(new Event('login'));
-                        }, 300);
-                    }, 2000);
+                    finishWebFlow();
                 } else {
                     const message = resolveApiError(null, t('oauth.tokenNotReceived'));
                     setError(message);
@@ -246,10 +281,53 @@ const TelegramCallbackPage = () => {
         };
 
         processTelegramCallback();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams, navigate, t]);
 
     if (loading) {
         return <PageLoader text={t('oauth.processingTelegram')} />;
+    }
+
+    if (showRoleSelect) {
+        const handleGrantRole = async (role: 'master' | 'client') => {
+            setGrantingRole(true);
+            try {
+                await universalApiRequest(API_ROUTES.USERS_GRANT_ROLE, {
+                    method: 'POST',
+                    body: { role: role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT' },
+                    locale: false,
+                });
+                setUserRole(role);
+                const token = getAuthToken();
+                if (token && finishMobileOAuthFlow({ status: 'success', token })) return;
+                finishWebFlow();
+            } catch (err) {
+                setError(resolveApiError(err));
+                setShowRoleSelect(false);
+            } finally {
+                setGrantingRole(false);
+            }
+        };
+
+        const roleItems: PerformerItem[] = [
+            { id: 1, name: t('components:roles.customers'), title: t('components:roles.customersDesc'), img: '/img/misc/clientTest.jpg' },
+            { id: 2, name: t('components:roles.masters'), title: t('components:roles.mastersDesc'), img: '/img/misc/master.jpg' },
+        ];
+
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '20px', padding: '20px' }}>
+                <span style={{ fontSize: '52px', color: 'var(--color-actual-blue)' }}>✓</span>
+                <p style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--color-text-primary)', margin: 0 }}>{t('oauth.success')}</p>
+                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{t('oauth.selectAccountType')}</p>
+                {grantingRole ? <PageLoader fullPage={false} compact /> : (
+                    <Performers
+                        items={roleItems}
+                        getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
+                        onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
+                    />
+                )}
+            </div>
+        );
     }
 
     if (success) {

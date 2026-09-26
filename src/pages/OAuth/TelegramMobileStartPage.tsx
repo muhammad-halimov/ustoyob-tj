@@ -14,16 +14,19 @@ import { markMobileOAuthFlowFromUrl } from '../../utils/mobileOAuth';
  * own `https://localhost`, which is exactly what Telegram's "Bot domain invalid" error was
  * about. No BotFather changes needed; just don't run the widget inside the app's bundle.
  *
- * Role selection isn't available on this bare entry screen (it's meant to load and act
- * immediately, not show its own UI) — defaults to 'client', same fallback
- * TelegramCallbackPage already applies when no role was saved.
+ * `role` travels as a query param (set by Auth.tsx's SelectRoleModal — see
+ * handleNativeTelegramAuthClick — when opening this page), same reasoning as
+ * OAuthMobileStartPage: stored into sessionStorage here so TelegramCallbackPage's
+ * `pendingTelegramRole` read keeps working unmodified once the widget redirects back.
  */
 const TelegramMobileStartPage = () => {
     const { t } = useTranslation('common');
 
     useEffect(() => {
         markMobileOAuthFlowFromUrl();
-        setSessionItem('pendingTelegramRole', 'client');
+
+        const role = new URLSearchParams(window.location.search).get('role');
+        if (role) setSessionItem('pendingTelegramRole', role);
 
         const script = document.createElement('script');
         script.src = 'https://telegram.org/js/telegram-widget.js?22';
