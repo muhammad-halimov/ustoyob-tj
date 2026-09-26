@@ -13,6 +13,7 @@ use App\Service\OAuth\Interface\OAuthServiceInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
@@ -46,9 +47,10 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
         UserRepository                $userRepository,
         EntityManagerInterface        $entityManager,
         JWTTokenManagerInterface      $jwtManager,
+        Security                      $security,
         private readonly LoggerInterface $logger,
     ) {
-        parent::__construct($httpClient, $stateStorage, $userRepository, $entityManager, $jwtManager);
+        parent::__construct($httpClient, $stateStorage, $userRepository, $entityManager, $jwtManager, $security);
     }
 
     public function getProviderName(): string
@@ -191,7 +193,23 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
             return ['user' => $user, 'isNew' => false];
         }
 
-        // 2. New user — Instagram never provides email
+        // 2. Пользователь уже авторизован (см. докблок $security в
+        // AbstractOAuthService) и этот Instagram-аккаунт свободен — привязываем
+        // к текущей сессии вместо создания несвязанного дубля.
+        $currentUser = $this->security->getUser();
+        if ($currentUser instanceof User) {
+            $op = (new OAuthProvider())
+                ->setProvider('instagram')
+                ->setProviderId($instagramId)
+                ->setUser($currentUser);
+            $this->entityManager->persist($op);
+            $this->updateUserData($currentUser, $userData);
+            $this->entityManager->flush();
+
+            return ['user' => $currentUser, 'isNew' => false];
+        }
+
+        // 3. New user — Instagram never provides email
         $user = (new User())
             ->setEmail("oauth+instagram_{$instagramId}@internal.local")
             ->setLogin($userData['username'] ?? null)

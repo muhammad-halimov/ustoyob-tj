@@ -247,7 +247,27 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
             return ['user' => $existingUser, 'isNew' => false];
         }
 
-        // 3. New user
+        // 3. Пользователь уже авторизован (валидный Bearer у уже открытой сессии,
+        // например через Telegram) и этот Google-аккаунт свободен — привязываем
+        // к текущей сессии вместо создания несвязанного дубля. См. докблок
+        // $security в AbstractOAuthService — это тот самый случай "залогинился
+        // одним способом, потом по ошибке дёрнул логин вторым вместо
+        // /profile/oauth/link". updateUserData() сама подставит настоящий email
+        // вместо плейсхолдера @internal.local, если он верифицирован (см. её код).
+        $currentUser = $this->security->getUser();
+        if ($currentUser instanceof User) {
+            $op = (new OAuthProvider())
+                ->setProvider('google')
+                ->setProviderId($googleId)
+                ->setUser($currentUser);
+            $this->entityManager->persist($op);
+            $this->updateUserData($currentUser, $userData);
+            $this->entityManager->flush();
+
+            return ['user' => $currentUser, 'isNew' => false];
+        }
+
+        // 4. New user
         $user = (new User())
             ->setEmail($email ?? "oauth+google_{$googleId}@internal.local")
             ->setName($userData['given_name'] ?? '')

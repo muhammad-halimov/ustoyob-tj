@@ -15,6 +15,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Psr\Cache\InvalidArgumentException;
 use Random\RandomException;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -53,6 +54,17 @@ abstract class AbstractOAuthService implements
         protected readonly UserRepository           $userRepository,
         protected readonly EntityManagerInterface   $entityManager,
         protected readonly JWTTokenManagerInterface $jwtManager,
+        // БАГФИКС (26.09.2026, по жалобе "привязка Google плодит второй
+        // аккаунт"): findOrCreateUser() ниже (реализации в Google/Facebook/
+        // Instagram*OAuthService) раньше не знал о текущей сессии вообще —
+        // если фронт по ошибке шлёт /auth/{provider}/callback (логин), а не
+        // /profile/oauth/link, пока пользователь уже авторизован другим
+        // способом (например Telegram), providerId ни к кому не привязан →
+        // код падал в ветку "создать нового" и заводил сироту вместо
+        // привязки к уже открытой сессии. $security нужен, чтобы поймать
+        // этот случай ДО создания нового User — см. использование в каждом
+        // конкретном *OAuthService::findOrCreateUser().
+        protected readonly Security                 $security,
     ) {}
 
     /**

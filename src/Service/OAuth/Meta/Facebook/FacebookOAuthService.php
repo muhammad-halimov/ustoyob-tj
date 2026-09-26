@@ -137,7 +137,23 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
             return ['user' => $existingUser, 'isNew' => false];
         }
 
-        // 3. New user
+        // 3. Пользователь уже авторизован (см. докблок $security в
+        // AbstractOAuthService) и этот Facebook-аккаунт свободен — привязываем
+        // к текущей сессии вместо создания несвязанного дубля.
+        $currentUser = $this->security->getUser();
+        if ($currentUser instanceof User) {
+            $op = (new OAuthProvider())
+                ->setProvider('facebook')
+                ->setProviderId($facebookId)
+                ->setUser($currentUser);
+            $this->entityManager->persist($op);
+            $this->updateUserData($currentUser, $userData);
+            $this->entityManager->flush();
+
+            return ['user' => $currentUser, 'isNew' => false];
+        }
+
+        // 4. New user
         $user = (new User())
             ->setEmail($email ?? "oauth+facebook_{$facebookId}@internal.local")
             ->setName($nameParts[0] ?? '')

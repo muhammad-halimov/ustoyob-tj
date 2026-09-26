@@ -10,6 +10,7 @@ use App\Exception\AppMessageException;
 use App\Repository\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use Symfony\Bundle\SecurityBundle\Security;
 
 /**
  * Telegram-логин — СТРУКТУРНО другой флоу, чем у Google/Facebook/
@@ -49,6 +50,10 @@ readonly class TelegramOAuthService
         private EntityManagerInterface      $entityManager,
         private JWTTokenManagerInterface    $jwtManager,
         private TelegramHashVerifierService $hashVerifier,
+        // БАГФИКС (26.09.2026) — см. докблок $security в AbstractOAuthService,
+        // та же логика здесь: Telegram не наследует AbstractOAuthService (свой
+        // флоу без code/state), поэтому Security внедряется отдельно.
+        private Security                    $security,
     ){}
 
     /**
@@ -100,7 +105,26 @@ readonly class TelegramOAuthService
             return ['user' => $user, 'token' => $this->jwtManager->create($user), 'isNew' => false];
         }
 
-        // 2. New user — create immediately with a local placeholder email
+        // 2. Пользователь уже авторизован (валидный Bearer уже открытой сессии,
+        // например через Google) и этот Telegram-аккаунт свободен — привязываем
+        // к текущей сессии вместо создания несвязанного дубля. См. докблок
+        // $security в AbstractOAuthService — тот же случай, только зеркально
+        // (там: "TG первый, потом по ошибке логин вместо линковки Google",
+        // здесь — наоборот).
+        $currentUser = $this->security->getUser();
+        if ($currentUser instanceof User) {
+            $op = (new OAuthProvider())
+                ->setProvider('telegram')
+                ->setProviderId($telegramId)
+                ->setUser($currentUser);
+            $this->entityManager->persist($op);
+            $this->updateUserFromTelegramData($currentUser, $telegramData);
+            $this->entityManager->flush();
+
+            return ['user' => $currentUser, 'token' => $this->jwtManager->create($currentUser), 'isNew' => false];
+        }
+
+        // 3. New user — create immediately with a local placeholder email
         $user = (new User())
             ->setEmail("oauth+telegram_{$telegramId}@internal.local")
             ->setName($telegramData->firstName ?? '')
