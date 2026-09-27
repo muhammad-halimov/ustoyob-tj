@@ -43,9 +43,6 @@ const TelegramCallbackPage = () => {
     const [showRoleSelect, setShowRoleSelect] = useState(false);
     const [grantingRole, setGrantingRole] = useState(false);
     const [cancelling, setCancelling] = useState(false);
-    // См. комментарий у аналогичного места в OAuthCallbackPage.tsx — экран подтверждения отмены
-    // вместо window.confirm, БЕЗ таймера (удаление только по явному клику "Далее").
-    const [confirmingCancel, setConfirmingCancel] = useState(false);
     // См. комментарий у аналогичного места в OAuthCallbackPage.tsx — короткая пауза с обратным
     // отсчётом после успешной регистрации (роль уже назначена), с возможностью передумать.
     const PROCEED_COUNTDOWN_SECONDS = 5;
@@ -111,20 +108,25 @@ const TelegramCallbackPage = () => {
         finishOrNavigate({ status: 'success' }, ROUTES.HOME);
     }, [finishOrNavigate]);
 
-    // Пауза, пока сверху открыт confirmingCancel — см. комментарий у аналогичного места
-    // в OAuthCallbackPage.tsx.
     useEffect(() => {
-        if (!awaitingProceed || confirmingCancel) return;
+        if (!awaitingProceed) return;
         if (proceedSecondsLeft <= 0) {
             proceedNow();
             return;
         }
         const timer = window.setTimeout(() => setProceedSecondsLeft(s => s - 1), 1000);
         return () => window.clearTimeout(timer);
-    }, [awaitingProceed, confirmingCancel, proceedSecondsLeft, proceedNow]);
+    }, [awaitingProceed, proceedSecondsLeft, proceedNow]);
 
-    const handleCancelClick = () => setConfirmingCancel(true);
-    const handleAbortCancel = () => setConfirmingCancel(false);
+    // См. комментарий у аналогичного места в OAuthCallbackPage.tsx — window.confirm вместо
+    // отдельного экрана; на отказ даём свежий отсчёт вместо оставшихся секунд.
+    const handleCancelClick = () => {
+        if (window.confirm(`${t('common:oauth.cancelCountdownTitle')}? ${t('common:oauth.cancelCountdownMessage')}`)) {
+            performCancel();
+        } else {
+            setProceedSecondsLeft(PROCEED_COUNTDOWN_SECONDS);
+        }
+    };
 
     useEffect(() => {
         const processTelegramCallback = async () => {
@@ -353,31 +355,6 @@ const TelegramCallbackPage = () => {
         return <PageLoader text={t('oauth.processingTelegram')} />;
     }
 
-    // Экран подтверждения отмены — рендерится ПЕРВЫМ (до awaitingProceed/showRoleSelect), просто
-    // перекрывая тот экран, с которого его открыли (тот флаг всё это время остаётся true в фоне).
-    if (confirmingCancel) {
-        return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '20px', padding: '20px' }}>
-                <p style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--color-text-primary)', margin: 0 }}>
-                    {t('common:oauth.cancelCountdownTitle')}
-                </p>
-                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
-                    {t('common:oauth.cancelCountdownMessage')}
-                </p>
-                {cancelling ? <PageLoader fullPage={false} compact /> : (
-                    <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '286px' }}>
-                        <button type="button" onClick={handleAbortCancel} style={{ flex: 1, background: 'transparent', border: '1px solid var(--color-stroke, #444)', borderRadius: '10px', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: '14px', padding: '12px 16px' }}>
-                            {t('common:app.cancel')}
-                        </button>
-                        <button type="button" onClick={performCancel} style={{ flex: 1, background: 'var(--color-actual-blue, #3A54DA)', border: 'none', borderRadius: '10px', color: '#fff', cursor: 'pointer', fontSize: '14px', padding: '12px 16px' }}>
-                            {t('common:app.next')}
-                        </button>
-                    </div>
-                )}
-            </div>
-        );
-    }
-
     // Аккаунт только что создан и роль уже назначена — короткая пауза с обратным отсчётом, за
     // время которой можно передумать и удалить аккаунт (handleCancelClick).
     if (awaitingProceed) {
@@ -388,14 +365,16 @@ const TelegramCallbackPage = () => {
                 <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
                     {t('common:oauth.proceedCountdownMessage', { seconds: proceedSecondsLeft })}
                 </p>
-                <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '286px' }}>
-                    <button type="button" onClick={handleCancelClick} style={{ flex: 1, background: 'transparent', border: '1px solid var(--color-stroke, #444)', borderRadius: '10px', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: '14px', padding: '12px 16px' }}>
-                        {t('common:oauth.cancelRegistration')}
-                    </button>
-                    <button type="button" onClick={proceedNow} style={{ flex: 1, background: 'var(--color-actual-blue, #3A54DA)', border: 'none', borderRadius: '10px', color: '#fff', cursor: 'pointer', fontSize: '14px', padding: '12px 16px' }}>
-                        {t('common:app.next')}
-                    </button>
-                </div>
+                {cancelling ? <PageLoader fullPage={false} compact /> : (
+                    <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '400px' }}>
+                        <button type="button" onClick={handleCancelClick} style={{ flex: 1, whiteSpace: 'nowrap', background: 'transparent', border: '1px solid var(--color-stroke, #444)', borderRadius: '10px', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: '14px', padding: '12px 10px' }}>
+                            {t('common:oauth.cancelRegistration')}
+                        </button>
+                        <button type="button" onClick={proceedNow} style={{ flex: 1, background: 'var(--color-actual-blue, #3A54DA)', border: 'none', borderRadius: '10px', color: '#fff', cursor: 'pointer', fontSize: '14px', padding: '12px 10px' }}>
+                            {t('common:app.next')}
+                        </button>
+                    </div>
+                )}
             </div>
         );
     }
@@ -431,7 +410,7 @@ const TelegramCallbackPage = () => {
                 <span style={{ fontSize: '52px', color: 'var(--color-actual-blue)' }}>✓</span>
                 <p style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--color-text-primary)', margin: 0 }}>{t('oauth.success')}</p>
                 <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{t('oauth.selectAccountType')}</p>
-                {grantingRole ? <PageLoader fullPage={false} compact /> : (
+                {grantingRole || cancelling ? <PageLoader fullPage={false} compact /> : (
                     <>
                         <Performers
                             items={roleItems}
