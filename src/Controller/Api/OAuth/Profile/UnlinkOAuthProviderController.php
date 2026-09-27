@@ -25,6 +25,11 @@ use Symfony\Component\HttpFoundation\Request;
  * METHOD), если у юзера НЕТ пароля (например, завёлся только через OAuth,
  * плейсхолдер-пароль пуст) И это последний привязанный провайдер — иначе
  * пользователь потерял бы вообще все способы войти.
+ *
+ * Отдельно и безусловно (OAUTH_ORIGINAL_PROVIDER): провайдер, с которого
+ * аккаунт был изначально создан/зарегистрирован (самая ранняя запись
+ * OAuthProvider этого юзера), нельзя отвязать никогда — даже если есть
+ * пароль и/или другие провайдеры.
  */
 class UnlinkOAuthProviderController extends AbstractController
 {
@@ -49,6 +54,21 @@ class UnlinkOAuthProviderController extends AbstractController
 
         if ($providerEntity === null) {
             throw new AppMessageException(AppMessages::OAUTH_NOT_LINKED);
+        }
+
+        // Провайдер, с которого аккаунт был изначально создан (самая ранняя запись
+        // OAuthProvider по createdAt) — отвязать нельзя никогда, даже если есть пароль
+        // и/или другие провайдеры. Никакого отдельного флага "это регистрационный
+        // провайдер" в сущности нет — он и не нужен, т.к. запись создаётся один раз,
+        // при первом связывании этого провайдера с юзером, и больше не трогается.
+        $originalProvider = null;
+        foreach ($currentUser->getOauthProviders() as $p) {
+            if ($originalProvider === null || $p->getCreatedAt() < $originalProvider->getCreatedAt()) {
+                $originalProvider = $p;
+            }
+        }
+        if ($originalProvider !== null && UuidUtil::same($originalProvider->getId(), $providerEntity->getId())) {
+            throw new AppMessageException(AppMessages::OAUTH_ORIGINAL_PROVIDER);
         }
 
         $hasPassword      = !empty($currentUser->getPassword());

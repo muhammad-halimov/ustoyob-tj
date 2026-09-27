@@ -151,6 +151,7 @@ class AppMessages
     // ── OAuth ─────────────────────────────────────────────────────────────────
     const string OAUTH_NOT_LINKED               = 'oauth_not_linked';
     const string OAUTH_LAST_AUTH_METHOD         = 'oauth_last_auth_method';
+    const string OAUTH_ORIGINAL_PROVIDER        = 'oauth_original_provider';
     const string OAUTH_PROVIDER_TAKEN           = 'oauth_provider_taken';
     const string OAUTH_ALREADY_LINKED           = 'oauth_already_linked';
     const string OAUTH_INVALID_PROVIDER         = 'oauth_invalid_provider';
@@ -299,6 +300,7 @@ class AppMessages
         // OAuth
         self::OAUTH_NOT_LINKED               => ['http' => 400, 'messages' => ['tj' => 'Провайдер ба ин ҳисоб пайваст нашудааст',                                                  'eng' => 'Provider is not linked to this account',                        'ru' => 'Провайдер не привязан к этому аккаунту']],
         self::OAUTH_LAST_AUTH_METHOD         => ['http' => 400, 'messages' => ['tj' => 'Охирин усули тасдиқро ҷудо кардан мумкин нест',                                            'eng' => 'Cannot unlink the last authentication method',                  'ru' => 'Нельзя отвязать последний метод аутентификации']],
+        self::OAUTH_ORIGINAL_PROVIDER        => ['http' => 400, 'messages' => ['tj' => 'Провайдери аслӣ, ки бо он ҳисоб сохта шудааст, ҷудо кардан мумкин нест',                     'eng' => 'Cannot unlink the original provider the account was registered with', 'ru' => 'Нельзя отвязать провайдер, с которого была создана учётная запись']],
         self::OAUTH_PROVIDER_TAKEN           => ['http' => 400, 'messages' => ['tj' => 'Ин ҳисоби провайдер ба корбари дигар пайваст шудааст',                                    'eng' => 'This provider account is already linked to another user',       'ru' => 'Аккаунт провайдера уже привязан к другому пользователю']],
         self::OAUTH_ALREADY_LINKED           => ['http' => 400, 'messages' => ['tj' => 'Ин провайдер аллакай ба ҳисоби шумо пайваст шудааст',                                     'eng' => 'This provider is already linked to your account',               'ru' => 'Провайдер уже привязан к вашему аккаунту']],
         self::OAUTH_INVALID_PROVIDER         => ['http' => 400, 'messages' => ['tj' => 'Провайдери нодуруст',                                                                       'eng' => 'Invalid provider',                                             'ru' => 'Неверный провайдер']],
