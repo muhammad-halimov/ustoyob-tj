@@ -99,7 +99,8 @@
     "success": "Тасдиқшавӣ бомуваффақият анҷом ёфт!",
     "selectAccountType": "Намуди аккаунтро интихоб кунед:",
     "cancelRegistration": "Бекор кардани сабти ном",
-    "cancelRegistrationConfirm": "Сабти номро бекор мекунед? Аккаунт нест карда мешавад."
+    "cancelCountdownTitle": "Бекор кардани сабти ном",
+    "cancelCountdownMessage": "Аккаунт баъди {{seconds}} сония нест карда мешавад"
   },
   "confirmAccount": {
     "loading": "Санҷиши истинод...",

@@ -99,7 +99,8 @@
     "success": "Авторизация прошла успешно!",
     "selectAccountType": "Выберите тип аккаунта:",
     "cancelRegistration": "Отменить регистрацию",
-    "cancelRegistrationConfirm": "Отменить регистрацию? Аккаунт будет удалён."
+    "cancelCountdownTitle": "Отмена регистрации",
+    "cancelCountdownMessage": "Аккаунт будет удалён через {{seconds}} сек."
   },
   "confirmAccount": {
     "loading": "Проверка ссылки...",

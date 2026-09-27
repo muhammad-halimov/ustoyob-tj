@@ -55,6 +55,12 @@ const OAuthCallbackPage = () => {
     const [pendingToken, setPendingToken] = useState<string | null>(null);
     const [grantingRole, setGrantingRole] = useState(false);
     const [cancelling, setCancelling] = useState(false);
+    // Экран подтверждения отмены (вместо window.confirm) — обратный отсчёт: по истечении
+    // автоматически удаляет аккаунт, как и явный клик "Далее"; "Отмена" просто возвращает
+    // к выбору роли, ничего не трогая.
+    const CANCEL_COUNTDOWN_SECONDS = 5;
+    const [confirmingCancel, setConfirmingCancel] = useState(false);
+    const [cancelSecondsLeft, setCancelSecondsLeft] = useState(CANCEL_COUNTDOWN_SECONDS);
     const [provider, setProvider] = useState<OAuthProviderName | null>(null);
     const [isLinkMode, setIsLinkMode] = useState(false);
     // Meta закрыла Basic Display API (04.12.2024) — у Personal-аккаунтов нет официального
@@ -104,6 +110,45 @@ const OAuthCallbackPage = () => {
         // залогиненную страницу вместо вечного экрана "успешно".
         window.setTimeout(() => navigate(fallbackRoute, fallbackOptions), 1500);
     }, [navigate]);
+
+    // Аккаунт на экране showRoleSelect уже реально создан на бэкенде (status:204 — см. ниже),
+    // просто без роли. Отмена удаляет этот незавершённый аккаунт (DELETE /users/{id}, ещё
+    // валидным токеном-владельцем), разлогинивает и закрывает popup тем же путём, что
+    // "пользователь сам закрыл popup" (сообщение 'popup_closed' — тот же сентинел, что уже
+    // НЕ считается ошибкой в Auth.tsx). Вызывается и явным кликом "Далее", и по истечении
+    // таймера на экране подтверждения (см. useEffect ниже) — поэтому вынесена на верхний
+    // уровень компонента, а не внутрь showRoleSelect-блока.
+    const performCancel = useCallback(async () => {
+        setCancelling(true);
+        // finally, не последовательно после двух await — если DELETE/logout вдруг упадут
+        // с чем-то неожиданным (не пойманным их же внутренними try/catch), popup/страница
+        // всё равно должны закрыться/уйти, а не зависнуть на спиннере навсегда.
+        try {
+            const userId = getUserData()?.id;
+            if (userId) {
+                try {
+                    await universalApiRequest(`${API_ROUTES.USERS}/${userId}`, { method: 'DELETE', locale: false });
+                } catch (err) {
+                    console.warn('Could not delete cancelled account:', err);
+                }
+            }
+            await logout();
+        } finally {
+            finishOrNavigate({ status: 'error', message: 'popup_closed' }, ROUTES.HOME);
+        }
+    }, [finishOrNavigate]);
+
+    // Обратный отсчёт на экране подтверждения отмены — тикает, только пока он открыт;
+    // по достижении нуля отменяет регистрацию автоматически, как и явный клик "Далее".
+    useEffect(() => {
+        if (!confirmingCancel) return;
+        if (cancelSecondsLeft <= 0) {
+            performCancel();
+            return;
+        }
+        const timer = window.setTimeout(() => setCancelSecondsLeft(s => s - 1), 1000);
+        return () => window.clearTimeout(timer);
+    }, [confirmingCancel, cancelSecondsLeft, performCancel]);
 
     useEffect(() => {
         // Определяем провайдер по URL
@@ -355,31 +400,14 @@ const OAuthCallbackPage = () => {
             }
         };
 
-        // Аккаунт на этом экране уже реально создан на бэкенде (status:204 — см. выше), просто
-        // без роли. Раньше отсюда некуда было деться, кроме выбора роли — теперь можно отменить:
-        // удаляем этот незавершённый аккаунт (DELETE /users/{id}, ещё валидным токеном-владельцем),
-        // разлогиниваемся и закрываем popup тем же путём, что "пользователь сам закрыл popup"
-        // (сообщение 'popup_closed' — тот же сентинел, что уже НЕ считается ошибкой в Auth.tsx).
-        const handleCancel = async () => {
-            if (!window.confirm(t('common:oauth.cancelRegistrationConfirm'))) return;
-            setCancelling(true);
-            // finally, не последовательно после двух await — если DELETE/logout вдруг упадут
-            // с чем-то неожиданным (не пойманным их же внутренними try/catch), popup/страница
-            // всё равно должны закрыться/уйти, а не зависнуть на спиннере навсегда.
-            try {
-                const userId = getUserData()?.id;
-                if (userId) {
-                    try {
-                        await universalApiRequest(`${API_ROUTES.USERS}/${userId}`, { method: 'DELETE', locale: false });
-                    } catch (err) {
-                        console.warn('Could not delete cancelled account:', err);
-                    }
-                }
-                await logout();
-            } finally {
-                finishOrNavigate({ status: 'error', message: 'popup_closed' }, ROUTES.HOME);
-            }
+        // Открывает экран подтверждения с обратным отсчётом вместо немедленного удаления —
+        // сам performCancel (наверху компонента) запускается либо явным "Далее" на этом
+        // экране, либо истечением таймера (см. useEffect наверху).
+        const handleCancelClick = () => {
+            setCancelSecondsLeft(CANCEL_COUNTDOWN_SECONDS);
+            setConfirmingCancel(true);
         };
+        const handleAbortCancel = () => setConfirmingCancel(false);
 
         const roleItems: PerformerItem[] = [
             { id: 1, name: t('components:roles.customers'), title: t('components:roles.customersDesc'), img: '/img/misc/clientTest.jpg' },
@@ -388,36 +416,88 @@ const OAuthCallbackPage = () => {
 
         return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '20px', padding: '20px' }}>
-                <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="26" cy="26" r="25" stroke="#4caf50" strokeWidth="2" />
-                    <path d="M14 27l8 8 16-16" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>{t('oauth.success')}</p>
-                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{t('oauth.selectAccountType')}</p>
-                {grantingRole || cancelling ? <PageLoader fullPage={false} compact /> : (
+                {confirmingCancel ? (
                     <>
-                        <Performers
-                            items={roleItems}
-                            getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
-                            onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
-                        />
-                        <button
-                            type="button"
-                            onClick={handleCancel}
-                            style={{
-                                background: 'transparent',
-                                border: '1px solid var(--color-stroke, #444)',
-                                borderRadius: '10px',
-                                color: 'var(--color-text-secondary)',
-                                cursor: 'pointer',
-                                fontSize: '14px',
-                                padding: '12px 24px',
-                                width: '100%',
-                                maxWidth: '286px',
-                            }}
-                        >
-                            {t('common:oauth.cancelRegistration')}
-                        </button>
+                        <p style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--color-text-primary)', margin: 0 }}>
+                            {t('common:oauth.cancelCountdownTitle')}
+                        </p>
+                        <p style={{ color: 'var(--color-text-primary)', margin: 0, fontSize: '36px', fontWeight: 'bold' }}>
+                            {cancelSecondsLeft}
+                        </p>
+                        <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
+                            {t('common:oauth.cancelCountdownMessage', { seconds: cancelSecondsLeft })}
+                        </p>
+                        {cancelling ? <PageLoader fullPage={false} compact /> : (
+                            <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '286px' }}>
+                                <button
+                                    type="button"
+                                    onClick={handleAbortCancel}
+                                    style={{
+                                        flex: 1,
+                                        background: 'transparent',
+                                        border: '1px solid var(--color-stroke, #444)',
+                                        borderRadius: '10px',
+                                        color: 'var(--color-text-secondary)',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        padding: '12px 16px',
+                                    }}
+                                >
+                                    {t('common:app.cancel')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={performCancel}
+                                    style={{
+                                        flex: 1,
+                                        background: 'var(--color-actual-blue, #3A54DA)',
+                                        border: 'none',
+                                        borderRadius: '10px',
+                                        color: '#fff',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        padding: '12px 16px',
+                                    }}
+                                >
+                                    {t('common:app.next')}
+                                </button>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="26" cy="26" r="25" stroke="#4caf50" strokeWidth="2" />
+                            <path d="M14 27l8 8 16-16" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>{t('oauth.success')}</p>
+                        <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{t('oauth.selectAccountType')}</p>
+                        {grantingRole ? <PageLoader fullPage={false} compact /> : (
+                            <>
+                                <Performers
+                                    items={roleItems}
+                                    getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
+                                    onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleCancelClick}
+                                    style={{
+                                        background: 'transparent',
+                                        border: '1px solid var(--color-stroke, #444)',
+                                        borderRadius: '10px',
+                                        color: 'var(--color-text-secondary)',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        padding: '12px 24px',
+                                        width: '100%',
+                                        maxWidth: '286px',
+                                    }}
+                                >
+                                    {t('common:oauth.cancelRegistration')}
+                                </button>
+                            </>
+                        )}
                     </>
                 )}
             </div>

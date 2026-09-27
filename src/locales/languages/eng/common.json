@@ -99,7 +99,8 @@
     "success": "Authorization successful!",
     "selectAccountType": "Choose your account type:",
     "cancelRegistration": "Cancel registration",
-    "cancelRegistrationConfirm": "Cancel registration? The account will be deleted."
+    "cancelCountdownTitle": "Cancelling registration",
+    "cancelCountdownMessage": "The account will be deleted in {{seconds}}s"
   },
   "confirmAccount": {
     "loading": "Verifying link...",
