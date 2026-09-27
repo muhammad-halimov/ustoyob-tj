@@ -72,7 +72,6 @@ export const API_ROUTES = {
     // OAuth
     AUTH_PROVIDER_URL: (provider: string) => `/api/auth/${provider}/url`,
     AUTH_PROVIDER_CALLBACK: (provider: string) => `/api/auth/${provider}/callback`,
-    AUTH_TELEGRAM_COMPLETE: '/api/auth/telegram/complete',
     AUTH_TELEGRAM_LINK_EMAIL: '/api/auth/telegram/link-email',
     PROFILE_OAUTH_LINK: '/api/profile/oauth/link',
     PROFILE_OAUTH_UNLINK: (provider: string) => `/api/profile/oauth/unlink/${provider}`,

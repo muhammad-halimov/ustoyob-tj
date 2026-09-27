@@ -28,11 +28,12 @@ const getProviderFromPath = (pathname: string): OAuthProviderName | null => {
  * there" half of Auth.tsx's `handleOAuthStart`, minus everything popup-related (there's no
  * popup here — this whole page load runs on the public website, inside the in-app browser).
  *
- * `role`/`specialty` travel as query params (set by Auth.tsx when opening this page) rather
- * than sessionStorage, since sessionStorage from the *app's own* WebView isn't visible here
- * — this is a separate browser context that only shares storage with itself, from this page
- * load onward. Stored into sessionStorage here so OAuthCallbackPage's existing
- * `pending{Provider}Role` read keeps working unmodified once the provider redirects back.
+ * `role` travels as a query param (set by Auth.tsx's SelectRoleModal — see beginOAuth/
+ * handleNativeOAuthStart — when opening this page) rather than sessionStorage, since
+ * sessionStorage from the *app's own* WebView isn't visible here — this is a separate browser
+ * context that only shares storage with itself, from this page load onward. Stored into
+ * sessionStorage here so OAuthCallbackPage's `pending{Provider}Role` read keeps working
+ * unmodified once the provider redirects back.
  */
 const OAuthMobileStartPage = () => {
     const { t } = useTranslation('common');
@@ -65,12 +66,8 @@ const OAuthMobileStartPage = () => {
             window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
             setSessionItem('oauthMode', 'link');
         } else {
-            const role = params.get('role') || 'client';
-            const specialty = params.get('specialty');
-            setSessionItem(`pending${providerLabel}Role`, role);
-            if (role === 'master' && specialty) {
-                setSessionItem(`pending${providerLabel}Specialty`, specialty);
-            }
+            const role = params.get('role');
+            if (role) setSessionItem(`pending${providerLabel}Role`, role);
         }
 
         universalApiRequest(API_ROUTES.AUTH_PROVIDER_URL(provider), { requiresAuth: false, locale: false })

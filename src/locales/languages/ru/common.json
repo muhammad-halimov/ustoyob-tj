@@ -102,7 +102,9 @@
     "linkEmailSkip": "Пропустить",
     "invalidToken": "Сессия авторизации недействительна. Попробуйте снова.",
     "success": "Авторизация прошла успешно!",
-    "selectAccountType": "Выберите тип аккаунта:"
+    "selectAccountType": "Выберите тип аккаунта:",
+    "cancelRegistration": "Отменить регистрацию",
+    "cancelRegistrationConfirm": "Отменить регистрацию? Аккаунт будет удалён."
   },
   "confirmAccount": {
     "loading": "Проверка ссылки...",

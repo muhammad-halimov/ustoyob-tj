@@ -1,10 +1,11 @@
 import styles from "./Performers.module.scss";
 import { Add } from "../../../shared/ui/Button/Header/Add/Add.tsx";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { Pagination } from "swiper/modules";
+import { Navigation, Pagination } from "swiper/modules";
 
 import "swiper/css";
 import "swiper/css/pagination";
+import "swiper/css/navigation";
 
 export interface PerformerItem {
     id: number;
@@ -17,11 +18,16 @@ interface PerformersProps {
     items: PerformerItem[];
     getButtonText: (item: PerformerItem) => string;
     onItemClick: (item: PerformerItem) => void;
+    /** Пропустить брейкпоинты по ширине вьюпорта и всегда показывать компактный
+     *  мобильный Swiper-вариант с компактными карточками — нужно, когда компонент
+     *  показывается в узком контейнере (модалка) на широком вьюпорте, где обычные
+     *  `@media (max-width: 1200px)` сами не сработают. */
+    forceMobile?: boolean;
 }
 
-export function Performers({ items, getButtonText, onItemClick }: PerformersProps) {
+export function Performers({ items, getButtonText, onItemClick, forceMobile = false }: PerformersProps) {
     return (
-        <>
+        <div className={`${styles.root} ${forceMobile ? styles.forceMobile : ''}`.trim()}>
             {/* Desktop: horizontal layout */}
             <div className={styles.performersDesktop}>
                 {items.map(item => (
@@ -46,9 +52,14 @@ export function Performers({ items, getButtonText, onItemClick }: PerformersProp
             <div className={styles.performersMobile}>
                 <Swiper
                     spaceBetween={16}
-                    slidesPerView={1.1}
+                    // На реальной мобильной странице карточка чуть уже вьюпорта — виден край
+                    // следующей (подсказка, что можно свайпнуть). В модалке (forceMobile) карточка
+                    // одна на весь узкий контейнер — "подглядывающий" край там же съезжал по
+                    // центру и выглядел как случайный отступ, поэтому карточка ровно на всю ширину.
+                    slidesPerView={forceMobile ? 1 : 1.1}
                     pagination={{ clickable: true }}
-                    modules={[Pagination]}
+                    navigation={forceMobile}
+                    modules={[Pagination, Navigation]}
                     className={styles.performersSwiper}
                 >
                     {items.map(item => (
@@ -63,6 +74,7 @@ export function Performers({ items, getButtonText, onItemClick }: PerformersProp
                                         alwaysVisible
                                         text={getButtonText(item)}
                                         onClick={() => onItemClick(item)}
+                                        className={styles.compactButton}
                                     />
                                 </div>
                                 <img loading="lazy" decoding="async" src={item.img} alt={item.name} />
@@ -71,6 +83,6 @@ export function Performers({ items, getButtonText, onItemClick }: PerformersProp
                     ))}
                 </Swiper>
             </div>
-        </>
+        </div>
     );
 }

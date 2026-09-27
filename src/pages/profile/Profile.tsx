@@ -388,26 +388,31 @@ function Profile() {
 
     const handleUnlinkProvider = async (provider: string) => {
         try {
+            // DELETE /profile/oauth/unlink/{provider} обычно отвечает 204 без тела
+            // (universalApiRequest тогда возвращает null) — раньше код полагался на
+            // data.error/data.providers ПРЯМО на этом null, что кидало TypeError,
+            // тихо гасился catch'ем ниже, и список привязанных провайдеров никогда
+            // не обновлялся (компонент как будто не ре-рендерился). Не полагаемся на
+            // форму ответа вообще — просто перезапрашиваем актуальный список.
             const data: any = await universalApiRequest(API_ROUTES.PROFILE_OAUTH_UNLINK(provider), {
                 method: 'DELETE',
                 locale: false,
             });
-            if (data.error === 'last_auth_method') {
+            if (data?.error === 'last_auth_method') {
                 setModalMessage(t('profile:oauth.lastAuthMethod'));
                 setShowErrorModal(true);
                 return;
             }
-            if (data.error) {
+            if (data?.error) {
                 setModalMessage(data.message || resolveApiError(null, t('profile:oauth.unlinkError', 'Ошибка при отвязке аккаунта')));
                 setShowErrorModal(true);
                 return;
             }
-            if (data.providers) {
-                setLinkedProviders(data.providers);
-            } else if (Array.isArray(data)) {
-                setLinkedProviders(data);
-            }
-        } catch { /* silent */ }
+            loadProviders();
+        } catch (err) {
+            setModalMessage(resolveApiError(err, t('profile:oauth.unlinkError', 'Ошибка при отвязке аккаунта')));
+            setShowErrorModal(true);
+        }
     };
 
     // Проверяем начальный статус лайка при загрузке публичного профиля

@@ -1,0 +1,73 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modalContent {
+  width: 100%;
+  max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 8px 32px var(--color-shadow, rgba(0, 0, 0, 0.2));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+}
+
+.closeButton {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: var(--color-text-secondary, #888);
+
+  &:hover {
+    color: var(--color-text-primary);
+    background: var(--color-background-all);
+    border-radius: 50%;
+  }
+}
+
+.title {
+  margin: 8px 0 0;
+  // Крестик закрытия — 40px, top:16px right:16px (см. Clear.module.scss), т.е. занимает
+  // 16-56px от края modalContent. Паддинг заголовка должен перекрывать эту зону с запасом,
+  // иначе на узких экранах текст заголовка залезает под крестик (см. .modalContent padding
+  // ниже — на мобильном он меньше, поэтому там паддинг заголовка больше).
+  padding: 0 36px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.subtitle {
+  margin: 0 0 16px;
+  color: var(--color-text-secondary);
+  font-size: 15px;
+}
+
+@media (max-width: 768px) {
+  .modalContent {
+    max-width: 335px;
+    padding: 20px;
+  }
+
+  .title {
+    padding: 0 40px;
+  }
+}

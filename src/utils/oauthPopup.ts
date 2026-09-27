@@ -47,6 +47,14 @@ export type OAuthPopupResult =
     | { source: typeof OAUTH_POPUP_MESSAGE_SOURCE; status: 'success' }
     | { source: typeof OAUTH_POPUP_MESSAGE_SOURCE; status: 'error'; message?: string };
 
+// `Omit<Union, K>` does NOT distribute over each member — `keyof` a union only sees the
+// keys shared by every member, so a plain `Omit<OAuthPopupResult, 'source'>` silently
+// collapses to `{status: 'success' | 'error'}` and loses the 'error' branch's `message`
+// entirely (excess-property-checking then rejects `message` on any inline object literal
+// passed to finishOAuthPopup below). Distributing over `T` first (the `T extends any ?`
+// trick) keeps each branch's own extra fields intact.
+type WithoutSource<T> = T extends { source: unknown } ? Omit<T, 'source'> : never;
+
 /**
  * Opens a blank popup window synchronously — call this directly inside the
  * click handler, BEFORE any `await`/`.then()`. Popup blockers (Safari in
@@ -172,7 +180,7 @@ export function waitForOAuthPopupResult(popup: Window): Promise<void> {
  * marked — e.g. the callback URL was opened directly / navigated to normally
  * — so the caller can fall back to its regular navigate()-based behavior.
  */
-export function finishOAuthPopup(state: string | null | undefined, result: Omit<OAuthPopupResult, 'source'>): boolean {
+export function finishOAuthPopup(state: string | null | undefined, result: WithoutSource<OAuthPopupResult>): boolean {
     if (!consumeOAuthPopupFlow(state)) return false;
 
     const message: OAuthPopupResult = { source: OAUTH_POPUP_MESSAGE_SOURCE, ...result } as OAuthPopupResult;

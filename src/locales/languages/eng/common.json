@@ -102,7 +102,9 @@
     "linkEmailSkip": "Skip",
     "invalidToken": "Authorization session is invalid. Please try again.",
     "success": "Authorization successful!",
-    "selectAccountType": "Choose your account type:"
+    "selectAccountType": "Choose your account type:",
+    "cancelRegistration": "Cancel registration",
+    "cancelRegistrationConfirm": "Cancel registration? The account will be deleted."
   },
   "confirmAccount": {
     "loading": "Verifying link...",

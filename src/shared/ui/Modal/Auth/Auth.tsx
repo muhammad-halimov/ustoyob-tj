@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 import { InstagramLinkNotice } from '../InstagramLinkNotice';
+import { SelectRoleModal } from '../SelectRoleModal';
 import { InfoBanner } from '../../../../widgets/Banners/InfoBanner/InfoBanner';
 import { useLanguageChange } from '../../../../hooks';
 import styles from './Auth.module.scss';
@@ -28,11 +29,11 @@ import Status from '../Status';
 import { PageLoader } from '../../../../widgets/PageLoader';
 import { Clear } from '../../Button/Clear/Clear';
 import { SelectSearch } from '../../SelectSearch';
-import type { OAuthProviderName, User, Occupation, Category } from '../../../../entities';
+import type { OAuthProviderName, Occupation, Category } from '../../../../entities';
 import { ROUTES, API_ROUTES } from '../../../../app/routers/routes';
 import { universalApiRequest } from '../../../../utils/apiUtils';
 import { resolveApiError, ApiError } from '../../../../utils/appMessagesUtils';
-import { setSessionItem, removeSessionItem, removeSessionItems, removeStorageItem, removeStorageItems, getStorageJSON } from '../../../../utils/storageUtils';
+import { setSessionItem, removeSessionItem, removeSessionItems, removeStorageItems } from '../../../../utils/storageUtils';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -42,7 +43,6 @@ const AuthModalState = {
     VERIFY_CODE: 'verify_code',
     NEW_PASSWORD: 'new_password',
     CONFIRM_EMAIL: 'confirm_email',
-    TELEGRAM_ROLE_SELECT: 'telegram_role_select',
 } as const;
 
 type AuthModalStateType = typeof AuthModalState[keyof typeof AuthModalState];
@@ -73,33 +73,6 @@ interface LoginResponse {
 
 interface OAuthUrlResponse {
     url: string;
-}
-
-interface OAuthUserResponse {
-    user: {
-        id: string | number;
-        email: string;
-        name: string;
-        surname: string;
-        roles: string[];
-        occupation?: Array<{id: string | number; title: string; [key: string]: unknown}>;
-        oauthType?: {
-            googleId?: string;
-            instagramId?: string;
-            facebookId?: string;
-            telegramId?: string;
-            [key: string]: unknown;
-        };
-        [key: string]: unknown;
-    };
-    token: string;
-    message: string;
-    status?: number;
-}
-
-interface TelegramAuthResponse {
-    user: User;
-    token: string;
 }
 
 // Регулярное выражение для проверки пароля
@@ -140,8 +113,21 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     const [currentState, setCurrentState] = useState<AuthModalStateType>(AuthModalState.WELCOME);
     // Instagram-заглушка теперь отдельная модалка (shared/ui/Modal/InstagramLinkNotice)
     // поверх текущего экрана (LOGIN/REGISTER) — не отдельный currentState, так что
-    // возвращаться никуда не нужно, экран под ней просто остаётся как был.
-    const [showInstagramNotice, setShowInstagramNotice] = useState(false);
+    // возвращаться никуда не нужно, экран под ней просто остаётся как был. Значение — с какого
+    // экрана её открыли ('login'/'register'): нужно, чтобы после "продолжить" запустить OAuth
+    // ТЕМ же способом, что и остальные кнопки на этом экране (см. renderLoginScreen/
+    // renderRegisterScreen — только REGISTER спрашивает роль заранее, см. beginOAuth ниже).
+    const [instagramNoticeMode, setInstagramNoticeMode] = useState<null | 'login' | 'register'>(null);
+    // "Выберите тип аккаунта" (см. SelectRoleModal) — тот же паттерн overlay-поверх-текущего-экрана,
+    // что и showInstagramNotice, независимо от isOpen (см. финальный return). Два независимых повода:
+    // 'pre' — сразу по клику на кнопку провайдера, ДО начала OAuth (см. beginOAuth ниже); 'post' —
+    // самостраховка, если аккаунт всё же оказался без роли ПОСЛЕ (см. handleSuccessfulAuth) —
+    // например, Telegram вернул колбэк в НОВУЮ вкладку и выбор из 'pre' не долетел (sessionStorage
+    // не шарится между вкладками), см. storage-листенер ниже.
+    const [roleSelectMode, setRoleSelectMode] = useState<
+        null | { type: 'pre'; provider: OAuthProviderName } | { type: 'post' }
+    >(null);
+    const [isGrantingRole, setIsGrantingRole] = useState(false);
     const [categories, setCategories] = useState<Category[]>([]);
     const [formData, setFormData] = useState<FormData>({
         email: '',
@@ -211,21 +197,14 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         };
     }, []);
 
-    // Виджет Telegram (data-auth-url) может вернуть колбэк не в эту же вкладку, а в
-    // новую — так работает мобильное приложение Telegram при подтверждении входа.
-    // TelegramCallbackPage в этом случае пишет сигнал в localStorage (и пытается
-    // закрыться) — здесь подхватываем его, если эта, оригинальная, вкладка ещё жива.
+    // Модалка открылась (обычный клик "Войти", или Header.tsx открыл её сам, заметив на
+    // /users/me, что роль не назначена — см. Header.tsx) — если пользователь уже авторизован,
+    // но роли ещё нет, сразу показываем выбор роли вместо экрана WELCOME.
     useEffect(() => {
-        const onStorage = (e: StorageEvent) => {
-            if (e.key !== 'telegram_login_success') return;
-            removeStorageItem('telegram_login_success');
-            const token = getAuthToken();
-            if (token) handleSuccessfulAuth(token, getUserData()?.email);
-        };
-        window.addEventListener('storage', onStorage);
-        return () => window.removeEventListener('storage', onStorage);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        if (isOpen && getAuthToken() && !getUserRole()) {
+            setRoleSelectMode({ type: 'post' });
+        }
+    }, [isOpen]);
 
     // В пакетном (Capacitor) приложении window.open() не даёт настоящий popup — ОС молча
     // передаёт навигацию во внешний, никак не связанный с нами Chrome (проверено вживую
@@ -238,28 +217,33 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
         const user = await fetchCurrentUser();
         if (user) {
+            // Роль уже была выбрана ДО этого флоу (SelectRoleModal, см. handleNativeOAuthStart/
+            // handleNativeTelegramAuthClick) и передана через query-параметр в OAuthMobileStartPage/
+            // TelegramMobileStartPage → sessionStorage → OAuthCallbackPage/TelegramCallbackPage,
+            // которые сами гранты её сразу после создания аккаунта — так что роль здесь обычно уже
+            // есть. Если её всё-таки нет (edge-кейс — выбор потерялся где-то по пути), не угадываем —
+            // handleSuccessfulAuth сам покажет SelectRoleModal ещё раз.
             const roles = (user.roles || []).map(r => r.toLowerCase());
-            setUserRole(roles.includes('role_master') || roles.includes('master') ? 'master' : 'client');
+            if (roles.includes('role_master') || roles.includes('master')) setUserRole('master');
+            else if (roles.includes('role_client') || roles.includes('client')) setUserRole('client');
             if (user.occupation) setUserOccupation(user.occupation as Occupation[]);
-        } else if (!getUserRole()) {
-            setUserRole('client');
         }
 
         handleSuccessfulAuth(token, user?.email);
     };
 
-    const handleNativeOAuthStart = async (provider: OAuthProviderName) => {
+    // role отсутствует — вход с экрана LOGIN (см. renderLoginScreen): существующему аккаунту
+    // выбирать нечего, а если он всё же окажется новым — роль спросит полноэкранный пикер на
+    // самой странице колбэка (см. OAuthCallbackPage/TelegramCallbackPage: savedRole пуст → showRoleSelect).
+    const handleNativeOAuthStart = async (provider: OAuthProviderName, role?: 'master' | 'client') => {
         const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
         const startPath = provider === 'google' ? ROUTES.AUTH_GOOGLE_MOBILE_START
             : provider === 'facebook' ? ROUTES.AUTH_FACEBOOK_MOBILE_START
             : ROUTES.AUTH_INSTAGRAM_MOBILE_START;
 
-        const params = new URLSearchParams({ role: formData.role });
-        if (formData.role === 'master' && formData.specialty) params.set('specialty', formData.specialty);
-
         setIsLoading(true);
         try {
-            const { token } = await startNativeOAuth(`${startPath}?${params.toString()}`);
+            const { token } = await startNativeOAuth(role ? `${startPath}?role=${role}` : startPath);
             await applyNativeAuthToken(token);
         } catch (err) {
             // Пользователь сам закрыл in-app browser, не дойдя до конца — не ошибка.
@@ -278,14 +262,17 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     // не убирает целиком (это по-прежнему решение ОС/провайдера), но не отдаёт
     // саму нашу вкладку — OAuthCallbackPage внутри popup'а сам сообщает
     // результат через postMessage и закрывается (см. utils/oauthPopup).
-    const handleOAuthStart = (provider: OAuthProviderName) => {
+    // role отсутствует — вход с экрана LOGIN (renderLoginScreen вызывает без роли; renderRegisterScreen
+    // — через beginOAuth, роль уже выбрана в SelectRoleModal). Существующему аккаунту роль не нужна;
+    // если он всё же окажется новым — спросит полноэкранный пикер на странице колбэка (см.
+    // OAuthCallbackPage: savedRole пуст → showRoleSelect), а не эта функция.
+    const handleOAuthStart = (provider: OAuthProviderName, role?: 'master' | 'client') => {
         if (isNativePlatform()) {
-            handleNativeOAuthStart(provider);
+            handleNativeOAuthStart(provider, role);
             return;
         }
 
         const roleKey = `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`;
-        const specialtyKey = `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`;
         const csrfKey = `${provider}CsrfState`;
         const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
 
@@ -300,11 +287,11 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         }
 
         try {
-            // Сохраняем выбранную роль и специальность
-            setSessionItem(roleKey, formData.role);
-            if (formData.role === 'master' && formData.specialty) {
-                setSessionItem(specialtyKey, formData.specialty);
-            }
+            // Роль уже выбрана (SelectRoleModal, см. beginOAuth) — сохраняем, чтобы
+            // OAuthCallbackPage (тот же origin, popup или прямой заход) мог прислать её вместе
+            // с code/state и получить аккаунт с готовой ролью за один шаг, без второго вопроса.
+            // С экрана LOGIN роли нет вовсе — просто не сохраняем ничего.
+            if (role) setSessionItem(roleKey, role);
 
             // Получаем URL для OAuth
             universalApiRequest(API_ROUTES.AUTH_PROVIDER_URL(provider), {
@@ -365,14 +352,14 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                         })
                         .finally(() => {
                             setIsLoading(false);
-                            removeSessionItems(roleKey, specialtyKey, csrfKey);
+                            removeSessionItems(roleKey, csrfKey);
                         });
                 })
                 .catch(err => {
                     popup.close();
                     console.error(`${provider.toUpperCase()} auth error:`, err);
                     setError(resolveApiError(err, `Ошибка при авторизации через ${providerLabel}`));
-                    removeSessionItems(roleKey, specialtyKey, csrfKey);
+                    removeSessionItems(roleKey, csrfKey);
                 });
 
         } catch (err) {
@@ -381,59 +368,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             setError(resolveApiError(err, `Ошибка при авторизации через ${providerLabel}`));
 
             // Очищаем сохраненные данные при ошибке
-            removeSessionItems(roleKey, specialtyKey, csrfKey);
-        }
-    };
-
-    // Функция для сохранения данных пользователя
-    const saveUserData = (data: OAuthUserResponse | TelegramAuthResponse) => {
-        console.log('Saving user data:', data);
-
-        if (data.token) {
-            setAuthToken(data.token);
-            setTokenExpiry();
-        }
-
-        if (data.user) {
-            setUserData(data.user);
-
-            if (data.user.email) {
-                setUserEmail(data.user.email);
-            }
-
-            console.log('🔥🔥🔥 OAuth saveUserData - data.user:', data.user);
-            console.log('🔥 formData.role:', formData.role);
-            console.log('🔥 data.user.roles from OAuth:', data.user.roles);
-
-            // Определяем роль из ответа сервера
-            if (data.user.roles && data.user.roles.length > 0) {
-                const roles = data.user.roles.map(r => r.toLowerCase());
-                console.log('🔥 roles after toLowerCase():', roles);
-
-                if (roles.includes('role_master') || roles.includes('master')) {
-                    console.log('✅ OAuth MATCHED: role_master or master → setUserRole("master")');
-                    setUserRole('master');
-                } else if (roles.includes('role_client') || roles.includes('client')) {
-                    console.log('✅ OAuth MATCHED: role_client or client → setUserRole("client")');
-                    setUserRole('client');
-                } else {
-                    // Роли не распознаны - используем client как безопасный дефолт
-                    console.log('⚠️ OAuth NO MATCH in roles:', roles, '→ Using safe default: "client"');
-                    setUserRole('client');
-                }
-            } else {
-                // Нет ролей в ответе - используем client как безопасный дефолт
-                console.log('⚠️ OAuth no roles in response → Using safe default: "client"');
-                setUserRole('client');
-            }
-
-            // Сохраняем occupation если есть
-            if (data.user.occupation) {
-                console.log('User occupation from OAuth:', data.user.occupation);
-                setUserOccupation(data.user.occupation as Occupation[]);
-            }
-
-            console.log('Final user role set to:', getUserRole());
+            removeSessionItems(roleKey, csrfKey);
         }
     };
 
@@ -442,10 +377,10 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     // виджет проверяет data-auth-url против домена, зарегистрированного в BotFather —
     // внутри пакетного приложения это https://localhost ("Bot domain invalid"), а на
     // реальном сайте, куда открывается in-app browser — настоящий домен.
-    const handleNativeTelegramAuthClick = async () => {
+    const handleNativeTelegramAuthClick = async (role?: 'master' | 'client') => {
         setIsLoading(true);
         try {
-            const { token } = await startNativeOAuth(ROUTES.AUTH_TELEGRAM_MOBILE_START);
+            const { token } = await startNativeOAuth(role ? `${ROUTES.AUTH_TELEGRAM_MOBILE_START}?role=${role}` : ROUTES.AUTH_TELEGRAM_MOBILE_START);
             await applyNativeAuthToken(token);
         } catch (err) {
             if (!(err instanceof Error && err.message === 'popup_closed')) {
@@ -456,98 +391,58 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         }
     };
 
-    // Функция для Telegram Widget
-    const handleTelegramAuthClick = () => {
+    // Функция для Telegram Widget. role отсутствует — вход с экрана LOGIN (см. handleOAuthStart).
+    // Виджет Telegram рендерится ВНУТРИ настоящего popup'а (тот же openOAuthPopup/
+    // waitForOAuthPopupResult, что и у Google/Facebook/Instagram), а не поверх текущей
+    // страницы, как раньше. Раньше data-auth-url уводил редиректом ЭТУ ЖЕ вкладку (закрыть
+    // было нечего — окно ведь не было открыто скриптом), так что после выбора роли страница
+    // просто зависала на пару секунд и потом SPA-навигировала на главную в этой же вкладке —
+    // заметно отличалось от Google/Facebook/Instagram, которые закрывают popup сразу.
+    // Роль передаём через query-параметр в /auth/telegram/start (см. TelegramMobileStartPage.tsx,
+    // тот же приём, что и у нативного флоу) — та страница сама сохранит её в sessionStorage
+    // ВНУТРИ этого popup'а, откуда её без проблем прочитает TelegramCallbackPage (та же вкладка,
+    // просто следующая навигация).
+    const handleTelegramAuthClick = (role?: 'master' | 'client') => {
         if (isNativePlatform()) {
-            handleNativeTelegramAuthClick();
+            handleNativeTelegramAuthClick(role);
             return;
         }
 
-        // Сохраняем роль перед началом авторизации
-        setSessionItem('pendingTelegramRole', formData.role);
-        if (formData.role === 'master' && formData.specialty) {
-            setSessionItem('pendingTelegramSpecialty', formData.specialty);
+        const popup = openOAuthPopup('oauth_telegram');
+        if (!popup) {
+            setError(t('common:oauth.popupBlocked', { provider: 'Telegram' }));
+            return;
         }
 
-        // Создаем модальное окно для Telegram widget
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const state = `tg_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        markOAuthPopupFlow(state);
 
-        const telegramModalContainer = document.createElement('div');
-        telegramModalContainer.style.position = 'fixed';
-        telegramModalContainer.style.top = '0';
-        telegramModalContainer.style.left = '0';
-        telegramModalContainer.style.width = '100%';
-        telegramModalContainer.style.height = '100%';
-        telegramModalContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-        telegramModalContainer.style.display = 'flex';
-        telegramModalContainer.style.alignItems = 'center';
-        telegramModalContainer.style.justifyContent = 'center';
-        telegramModalContainer.style.zIndex = '10000';
+        const params = new URLSearchParams({ state });
+        if (role) params.set('role', role);
+        navigateOAuthPopup(popup, `${window.location.origin}${ROUTES.AUTH_TELEGRAM_MOBILE_START}?${params.toString()}`);
 
-        const widgetWrapper = document.createElement('div');
-        widgetWrapper.style.backgroundColor = isDark ? '#2a2a2a' : 'white';
-        widgetWrapper.style.borderRadius = '10px';
-        widgetWrapper.style.padding = '30px';
-        widgetWrapper.style.textAlign = 'center';
-        widgetWrapper.style.position = 'relative';
-        widgetWrapper.style.minWidth = '350px';
-
-        // Кнопка закрытия (Clear-стиль)
-        const closeBtn = document.createElement('button');
-        closeBtn.type = 'button';
-        closeBtn.setAttribute('aria-label', 'Clear');
-        closeBtn.innerHTML = `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="8" cy="8" r="7.5" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 5.5L10.5 10.5M10.5 5.5L5.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
-        closeBtn.style.position = 'absolute';
-        closeBtn.style.top = '10px';
-        closeBtn.style.right = '10px';
-        closeBtn.style.background = 'none';
-        closeBtn.style.border = 'none';
-        closeBtn.style.cursor = 'pointer';
-        closeBtn.style.color = isDark ? '#888' : '#999';
-        closeBtn.style.display = 'flex';
-        closeBtn.style.alignItems = 'center';
-        closeBtn.style.justifyContent = 'center';
-        closeBtn.style.padding = '4px';
-        closeBtn.onclick = () => {
-            telegramModalContainer.remove();
-        };
-
-        const widgetContainer = document.createElement('div');
-        widgetContainer.id = `telegram-widget-${Date.now()}`;
-        widgetContainer.style.marginTop = '20px';
-
-        // data-auth-url, не data-onauth: у telegram-widget.js data-onauth разбирает
-        // строку через eval() (window.__parseFunction) — CSP этого приложения
-        // (script-src без 'unsafe-eval', см. index.html) такой eval блокирует, и
-        // виджет ломается на самой инициализации, кнопка вообще не рендерится.
-        // Возврат к редиректу закрывает вопрос с рендером; устойчивость к тому,
-        // что мобильное приложение может вернуть колбэк в другую вкладку —
-        // на стороне TelegramCallbackPage (localStorage-сигнал), не здесь.
-        const script = document.createElement('script');
-        script.src = 'https://telegram.org/js/telegram-widget.js?22';
-        script.async = true;
-        script.setAttribute('data-telegram-login', import.meta.env.VITE_TELEGRAM_BOT_NAME);
-        script.setAttribute('data-size', 'large');
-        script.setAttribute('data-userpic', 'false');
-        script.setAttribute('data-radius', '10');
-        script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
-        script.setAttribute('data-request-access', 'write');
-
-        widgetContainer.appendChild(script);
-        widgetWrapper.appendChild(closeBtn);
-        widgetWrapper.appendChild(widgetContainer);
-        telegramModalContainer.appendChild(widgetWrapper);
-        document.body.appendChild(telegramModalContainer);
-
-        // Закрываем основную модалку
+        // Закрываем основную модалку — как и раньше, сразу после открытия popup'а.
         handleClose();
 
-        // Закрываем при клике за пределами модального окна
-        telegramModalContainer.onclick = (e) => {
-            if (e.target === telegramModalContainer) {
-                telegramModalContainer.remove();
-            }
-        };
+        setIsLoading(true);
+        waitForOAuthPopupResult(popup)
+            .then(() => {
+                const token = getAuthToken();
+                if (token) handleSuccessfulAuth(token, getUserData()?.email);
+            })
+            .catch((popupErr: Error) => {
+                if (popupErr.message === 'popup_closed') {
+                    // Popup закрылся без сигнала — Telegram иногда возвращает подтверждение в
+                    // НОВУЮ вкладку вместо этого popup'а (см. README, известный мобильно-веб
+                    // кейс) — тогда сигнал/закрытие приходят не сюда. Проверяем реальный
+                    // результат по localStorage напрямую, как и у остальных провайдеров.
+                    const token = getAuthToken();
+                    if (token) handleSuccessfulAuth(token, getUserData()?.email);
+                    return;
+                }
+                setError(resolveApiError(popupErr, 'Ошибка при авторизации через Telegram'));
+            })
+            .finally(() => setIsLoading(false));
     };
 
     // Обновляет одно поле formData — используется вместо onChange-события, так как
@@ -884,19 +779,67 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         }
     };
 
+    // Клик по кнопке провайдера (Google/Facebook/Telegram напрямую; Instagram — из onContinue
+    // InstagramLinkNotice) — сперва спрашиваем роль (SelectRoleModal, 'pre'), и только после выбора
+    // реально стартуем OAuth. Так пользователь всегда явно выбирает роль ДО провайдера, а не
+    // получает её угаданной/дефолтной, и она передаётся дальше без второго вопроса (см.
+    // handleOAuthStart/handleTelegramAuthClick — читает её OAuthCallbackPage/TelegramCallbackPage).
+    const beginOAuth = (provider: OAuthProviderName) => {
+        setRoleSelectMode({ type: 'pre', provider });
+    };
+
+    // Роль выбрана в SelectRoleModal — либо ДО OAuth (запускаем сам флоу с этой ролью), либо ПОСЛЕ,
+    // самостраховкой (грантим роль уже существующему аккаунту и завершаем вход, как раньше).
+    const handleRoleModalSelect = (role: 'master' | 'client') => {
+        if (roleSelectMode?.type === 'pre') {
+            const { provider } = roleSelectMode;
+            setRoleSelectMode(null);
+            if (provider === 'telegram') handleTelegramAuthClick(role);
+            else handleOAuthStart(provider, role);
+            return;
+        }
+        void grantRoleAndFinish(role);
+    };
+
+    // POST /users/grant-role + завершение входа — тот же формат роли (`ROLE_MASTER`/`ROLE_CLIENT`),
+    // что уже использует OAuthCallbackPage/TelegramCallbackPage для авто-гранта уже выбранной роли.
+    // Нужен только для самостраховки (roleSelectMode.type === 'post') — обычный путь (роль выбрана
+    // ДО OAuth) уже приходит с готовой ролью в ответе колбэка, гранта здесь не требует.
+    const grantRoleAndFinish = async (role: 'master' | 'client') => {
+        setIsGrantingRole(true);
+        try {
+            await universalApiRequest(API_ROUTES.USERS_GRANT_ROLE, {
+                method: 'POST',
+                body: { role: role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT' },
+                locale: false,
+            });
+            setUserRole(role);
+            setRoleSelectMode(null);
+            const token = getAuthToken();
+            if (token) handleSuccessfulAuth(token, getUserData()?.email);
+        } catch (err) {
+            setError(resolveApiError(err));
+        } finally {
+            setIsGrantingRole(false);
+        }
+    };
+
     const handleSuccessfulAuth = (token: string, email?: string) => {
         if (email) {
             setUserEmail(email);
         }
 
-        // НЕ перезаписываем роль здесь! Роль уже установлена в fetchUserData/saveUserData
+        // НЕ перезаписываем роль здесь! Роль уже установлена в fetchUserData (email-вход) или
+        // сразу после OAuth (см. applyNativeAuthToken/OAuthCallbackPage/TelegramCallbackPage — роль
+        // была выбрана ДО начала флоу, см. beginOAuth, и применена там). Для email-флоу роль всегда
+        // есть к этому моменту; для OAuth её отсутствие означает "аккаунт всё же создан без роли"
+        // (напр. Telegram открыл подтверждение в новой вкладке и выбор из beginOAuth не долетел,
+        // см. handleTelegramAuthClick) — вместо того чтобы тихо угадывать client, спрашиваем ещё раз
+        // (SelectRoleModal, 'post') и НЕ закрываем/перезагружаем модалку, пока роль не выбрана.
         const existingRole = getUserRole();
-        console.log('🔥🔥🔥 handleSuccessfulAuth - existing role in localStorage:', existingRole);
-        
         if (!existingRole) {
-            console.error('❌ No role found after auth! This should not happen!');
-            // Крайний случай - используем client как безопасный дефолт
-            setUserRole('client');
+            setRoleSelectMode({ type: 'post' });
+            return;
         }
 
         resetForm();
@@ -1252,7 +1195,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     <button
                         type="button"
                         className={styles.instagramButton}
-                        onClick={() => setShowInstagramNotice(true)}
+                        onClick={() => setInstagramNoticeMode('login')}
                         disabled={isLoading}
                         title={t('auth.loginViaInstagram')}
                     >
@@ -1261,7 +1204,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     <button
                         type="button"
                         className={styles.telegramButton}
-                        onClick={handleTelegramAuthClick}
+                        onClick={() => handleTelegramAuthClick()}
                         disabled={isLoading}
                         title={t('auth.loginViaTelegram')}
                     >
@@ -1270,10 +1213,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 </div>
 
                 {renderSocialLinkBanner()}
-
-                <div className={styles.socialNote}>
-                    <p>{t('auth.socialAuthNotice')} <strong>{formData.role === 'master' ? t('auth.specialist') : t('auth.client')}</strong></p>
-                </div>
 
                 <div className={styles.links}>
                     <div className={styles.registerPrompt}>
@@ -1483,7 +1422,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     <button
                         type="button"
                         className={styles.googleButton}
-                        onClick={() => handleOAuthStart('google')}
+                        onClick={() => beginOAuth('google')}
                         disabled={isLoading}
                         title={t('auth.registerViaGoogle')}
                     >
@@ -1492,7 +1431,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     <button
                         type="button"
                         className={styles.facebookButton}
-                        onClick={() => handleOAuthStart('facebook')}
+                        onClick={() => beginOAuth('facebook')}
                         disabled={isLoading}
                         title={t('auth.registerViaFacebook')}
                     >
@@ -1501,7 +1440,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     <button
                         type="button"
                         className={styles.instagramButton}
-                        onClick={() => setShowInstagramNotice(true)}
+                        onClick={() => setInstagramNoticeMode('register')}
                         disabled={isLoading}
                         title={t('auth.registerViaInstagram')}
                     >
@@ -1510,7 +1449,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     <button
                         type="button"
                         className={styles.telegramButton}
-                        onClick={handleTelegramAuthClick}
+                        onClick={() => beginOAuth('telegram')}
                         disabled={isLoading}
                         title={t('auth.registerViaTelegram')}
                     >
@@ -1522,10 +1461,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
                 <div id="telegram-widget-container-register" className={styles.telegramWidgetContainer}>
                     {/* Widget будет добавлен динамически */}
-                </div>
-
-                <div className={styles.socialNote}>
-                    <p>{t('auth.socialRegisterNotice')} <strong>{formData.role === 'master' ? t('auth.specialist') : t('auth.client')}</strong></p>
                 </div>
 
                 <div className={styles.links}>
@@ -1567,85 +1502,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         );
     };
 
-    const completeTelegramAuth = async (selectedRole: 'master' | 'client' = 'client') => {
-        try {
-            setIsLoading(true);
-            setError('');
-
-            const telegramUserData = getStorageJSON<User>('telegramUserData');
-            if (!telegramUserData) {
-                setError('Данные пользователя Telegram не найдены');
-                return;
-            }
-            console.log('Completing Telegram auth for role:', selectedRole);
-
-            const data: TelegramAuthResponse = await universalApiRequest(API_ROUTES.AUTH_TELEGRAM_COMPLETE, {
-                method: 'POST',
-                body: { userData: telegramUserData, role: selectedRole },
-                requiresAuth: false,
-                locale: false,
-            });
-            console.log('Telegram auth completed, data:', data);
-
-            if (data.token) {
-                saveUserData(data);
-                handleSuccessfulAuth(data.token, data.user?.email);
-                removeStorageItems('telegramUserData');
-            } else {
-                setError(resolveApiError(null, 'Ошибка при завершении авторизации через Telegram'));
-            }
-
-        } catch (err) {
-            console.error('Telegram auth completion error:', err);
-            setError(resolveApiError(err, 'Ошибка при завершении авторизации через Telegram'));
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const renderTelegramRoleSelectScreen = () => {
-        return (
-            <div className={styles.form}>
-                <h2>{t('auth.selectAccountType')}</h2>
-
-                <div className={styles.successMessage}>
-                    <p>Вы успешно авторизовались через Telegram!</p>
-                    <p>Пожалуйста, выберите тип аккаунта:</p>
-                </div>
-
-                <div className={styles.roleSelector}>
-                    <button
-                        type="button"
-                        className={styles.roleButton}
-                        onClick={() => completeTelegramAuth('master')}
-                        disabled={isLoading}
-                    >
-                        <Marquee text={t('auth.iAmSpecialist')} />
-                    </button>
-                    <button
-                        type="button"
-                        className={styles.roleButton}
-                        onClick={() => completeTelegramAuth('client')}
-                        disabled={isLoading}
-                    >
-                        <Marquee text={t('auth.iAmClient')} />
-                    </button>
-                </div>
-
-                <div className={styles.links}>
-                    <button
-                        type="button"
-                        className={styles.linkButton}
-                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
-                        disabled={isLoading}
-                    >
-                        {t('auth.backToLogin')}
-                    </button>
-                </div>
-            </div>
-        );
-    };
-
     const renderContent = () => {
         switch (currentState) {
             case AuthModalState.WELCOME:
@@ -1656,8 +1512,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 return renderRegisterScreen();
             case AuthModalState.CONFIRM_EMAIL:
                 return renderConfirmEmailScreen();
-            case AuthModalState.TELEGRAM_ROLE_SELECT:
-                return renderTelegramRoleSelectScreen();
             case AuthModalState.FORGOT_PASSWORD:
                 return renderForgotPasswordScreen();
             case AuthModalState.VERIFY_CODE:
@@ -1669,32 +1523,52 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         }
     };
 
-    if (!isOpen) {
-        return null;
-    }
-
     return (
         <>
-            <div className={styles.modalOverlay} onClick={handleOverlayClick}>
-                <div
-                    className={`${styles.modalContent} ${styles[`modal_${currentState}`]}`}
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <Clear className={styles.closeButton} onClick={handleClose} />
-                    {renderContent()}
+            {isOpen && (
+                <div className={styles.modalOverlay} onClick={handleOverlayClick}>
+                    <div
+                        className={`${styles.modalContent} ${styles[`modal_${currentState}`]}`}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <Clear className={styles.closeButton} onClick={handleClose} />
+                        {renderContent()}
+                    </div>
+                    <Status
+                        type="error"
+                        isOpen={!!error}
+                        onClose={() => setError('')}
+                        message={error}
+                    />
                 </div>
-                <Status
-                    type="error"
-                    isOpen={!!error}
-                    onClose={() => setError('')}
-                    message={error}
-                />
-            </div>
+            )}
             <InstagramLinkNotice
-                isOpen={showInstagramNotice}
-                onClose={() => setShowInstagramNotice(false)}
-                onContinue={() => { setShowInstagramNotice(false); handleOAuthStart('instagram'); }}
+                isOpen={!!instagramNoticeMode}
+                onClose={() => setInstagramNoticeMode(null)}
+                onContinue={() => {
+                    const mode = instagramNoticeMode;
+                    setInstagramNoticeMode(null);
+                    if (mode === 'register') beginOAuth('instagram');
+                    else handleOAuthStart('instagram');
+                }}
                 isLoading={isLoading}
+            />
+            {/*
+              Не гейтится через isOpen: в режиме 'post' пользователь мог оказаться "авторизован, но
+              без роли" уже после того, как основная модалка закрылась (напр. Telegram вернул
+              колбэк в исходную вкладку через storage-событие, пока сама модалка визуально закрыта,
+              см. useEffect выше) — тогда это единственное, что должно быть видно на экране.
+            */}
+            <SelectRoleModal
+                isOpen={!!roleSelectMode}
+                onClose={() => setRoleSelectMode(null)}
+                onSelectRole={handleRoleModalSelect}
+                isLoading={roleSelectMode?.type === 'post' && isGrantingRole}
+                hint={roleSelectMode?.type === 'pre'
+                    ? t('components:auth.selectRoleForProvider', {
+                        provider: roleSelectMode.provider.charAt(0).toUpperCase() + roleSelectMode.provider.slice(1),
+                    })
+                    : undefined}
             />
         </>
     );

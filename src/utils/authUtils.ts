@@ -165,10 +165,13 @@ export const getUserRole = (): 'client' | 'master' | null => {
 };
 
 export const setUserRole = (role: 'client' | 'master'): void => {
-    const formatted = formatRole(role);
-    console.log('💾💾💾 setUserRole - Setting role:', role, '-> Formatted:', formatted);
-    console.trace('💾 setUserRole CALL STACK');
-    setItem(STORAGE_KEYS.USER_ROLE, formatted);
+    setItem(STORAGE_KEYS.USER_ROLE, formatRole(role));
+    // Роль меняется ровно в момент грант-роли после OAuth — если к этому моменту где-то
+    // уже успел закэшироваться /users/me БЕЗ роли (см. ME_CACHE_TTL_MS, 30с), следующий
+    // fetchCurrentUser() в течение этого окна отдал бы устаревший снимок без роли — напр.
+    // Header.tsx-овская проверка "OAuth-аккаунт без роли -> открыть модалку" срабатывала бы
+    // ЗАНОВО уже ПОСЛЕ того, как роль реально назначена, вызывая видимое моргание модалки.
+    invalidateCurrentUserCache();
 };
 
 // ============ Работа с данными пользователя ============

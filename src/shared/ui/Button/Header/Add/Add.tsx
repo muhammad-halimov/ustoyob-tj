@@ -8,9 +8,10 @@ interface AdBtnProps {
     onClick?: () => void;
     text?: string;
     icon?: React.ReactNode;
+    className?: string;
 }
 
-export const Add = ({onClick, text, icon}: AdBtnProps) => {
+export const Add = ({onClick, text, icon, className}: AdBtnProps) => {
     const { t } = useTranslation(['header', 'common']);
     const isAuthenticated = !!getAuthToken();
     const userRole = getUserRole();
@@ -26,7 +27,7 @@ export const Add = ({onClick, text, icon}: AdBtnProps) => {
 
     return (
         <button
-            className={styles.btn}
+            className={className ? `${styles.btn} ${className}` : styles.btn}
             onClick={onClick}
             aria-label={getButtonText()}
             title={getButtonText()}
