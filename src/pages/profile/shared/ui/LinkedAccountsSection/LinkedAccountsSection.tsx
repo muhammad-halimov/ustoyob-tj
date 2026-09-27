@@ -74,6 +74,15 @@ export const LinkedAccountsSection: React.FC<LinkedAccountsSectionProps> = ({
 
     const linkedSet = new Set(providers.map(p => p.provider));
     const isOnlyOneLinked = providers.length === 1;
+    // Провайдер, с которого был создан аккаунт (самый ранний linkedAt) — бэкенд
+    // (UnlinkOAuthProviderController, oauth_original_provider) блокирует его отвязку
+    // безусловно, даже если есть пароль и другие провайдеры; здесь просто заранее
+    // отражаем это в UI, а не даём кликнуть и словить ошибку постфактум.
+    const originalProvider = providers.reduce<OAuthProvider | undefined>((earliest, p) => {
+        if (!p.linkedAt) return earliest;
+        if (!earliest?.linkedAt) return p;
+        return new Date(p.linkedAt) < new Date(earliest.linkedAt) ? p : earliest;
+    }, undefined);
 
     return (
         <ProfileSection<ProviderItem>
@@ -88,6 +97,8 @@ export const LinkedAccountsSection: React.FC<LinkedAccountsSectionProps> = ({
                 const linkedEntry = providers.find(p => p.provider === provider);
                 const isLinked = linkedSet.has(provider);
                 const isLastLinked = isOnlyOneLinked && isLinked;
+                const isOriginal = isLinked && originalProvider?.provider === provider;
+                const isUnlinkDisabled = isLastLinked || isOriginal;
                 return (
                     <>
                         <div className={styles.provider_icon}>
@@ -104,7 +115,7 @@ export const LinkedAccountsSection: React.FC<LinkedAccountsSectionProps> = ({
                             </div>
                         </div>
                         {isLinked ? (
-                            <div className={isLastLinked ? styles.tooltip_wrapper : undefined}>
+                            <div className={isUnlinkDisabled ? styles.tooltip_wrapper : undefined}>
                                 <button
                                     className={`${styles.action_btn} ${styles.unlink_btn}`}
                                     onClick={() => {
@@ -113,12 +124,14 @@ export const LinkedAccountsSection: React.FC<LinkedAccountsSectionProps> = ({
                                             onUnlink(provider);
                                         }
                                     }}
-                                    disabled={isLastLinked}
+                                    disabled={isUnlinkDisabled}
                                 >
                                     {t('oauth.unlinkBtn')}
                                 </button>
-                                {isLastLinked && (
-                                    <span className={styles.tooltip}>{t('oauth.lastAuthMethod')}</span>
+                                {isUnlinkDisabled && (
+                                    <span className={styles.tooltip}>
+                                        {isLastLinked ? t('oauth.lastAuthMethod') : t('oauth.originalProvider')}
+                                    </span>
                                 )}
                             </div>
                         ) : (

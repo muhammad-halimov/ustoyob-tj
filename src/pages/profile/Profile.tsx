@@ -6,7 +6,6 @@ import {openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult, markOAuthPo
 import {API_ROUTES, ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 import {useTranslation} from 'react-i18next';
-import {useTheme} from '../../contexts';
 import {useLanguageChange, useShowMore} from '../../hooks';
 import {getStorageItem, removeStorageItem, setStorageItem, setStorageJSON, getStorageJSON, setSessionItem, removeSessionItem} from '../../utils/storageUtils';
 import {createChatWithAuthor} from '../../utils/chatUtils';
@@ -53,6 +52,7 @@ import Status from '../../shared/ui/Modal/Status';
 import Feedback from '../../shared/ui/Modal/Feedback';
 import Auth from '../../shared/ui/Modal/Auth/Auth';
 import { InstagramLinkNotice } from '../../shared/ui/Modal/InstagramLinkNotice';
+import { TelegramLinkModal } from '../../shared/ui/Modal/TelegramLinkModal';
 import { resolveAvatar, toPhotoSource } from '../../utils/imageUtils';
 import { fetchAllPages } from '../../utils/paginationUtils';
 import { getFormattedDate } from '../../utils/timeUtils';
@@ -78,8 +78,7 @@ function Profile() {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>(); // Получаем id из URL
     const { t, i18n } = useTranslation(['profile', 'components', 'common']);
-    const { theme } = useTheme();
-    
+
     // Определяем, это публичный профиль или приватный
     const readOnly = !!id; // readOnly = true для публичных профилей
     const userId = id || null; // userId из URL параметра
@@ -133,6 +132,10 @@ function Profile() {
     // Instagram-only pre-linking notice (см. handleLinkProvider) — same explanation as
     // Auth.tsx's AuthModalState.INSTAGRAM_NOTICE, just gating the link flow instead of login.
     const [showInstagramLinkNotice, setShowInstagramLinkNotice] = useState(false);
+    // Модалка привязки Telegram к уже существующему аккаунту (см. handleLinkProvider ниже) —
+    // рендерится как обычный React-компонент (TelegramLinkModal), а не собирается вручную
+    // через document.createElement, как было раньше.
+    const [showTelegramLinkModal, setShowTelegramLinkModal] = useState(false);
     const [occupations, setOccupations] = useState<Occupation[]>([]);
     const [occupationsLoading, setOccupationsLoading] = useState(false);
     const [isSocialNetworksRefreshing, setIsSocialNetworksRefreshing] = useState(false);
@@ -212,7 +215,7 @@ function Profile() {
         const onStorage = (e: StorageEvent) => {
             if (e.key === 'telegram_link_success') {
                 removeStorageItem('telegram_link_success');
-                document.getElementById('telegram-link-modal')?.remove();
+                setShowTelegramLinkModal(false);
                 loadProviders();
             }
         };
@@ -308,44 +311,7 @@ function Profile() {
             // На мобильных нативное приложение открывает callback в новой вкладке,
             // где sessionStorage пустой — дублируем в localStorage
             setStorageItem('oauth_mode_telegram', 'link');
-
-            const overlay = document.createElement('div');
-            overlay.id = 'telegram-link-modal';
-            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
-
-            const isDark = theme === 'dark';
-            const box = document.createElement('div');
-            box.style.cssText = `background:${isDark ? '#2a2a2a' : '#fff'};border-radius:16px;padding:32px 28px;min-width:280px;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,.3)`;
-
-            const close = document.createElement('button');
-            close.textContent = '✕';
-            close.style.cssText = `position:absolute;top:12px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:${isDark ? '#888' : '#999'}`;
-            close.onclick = () => { removeSessionItem('oauthMode'); overlay.remove(); };
-
-            const title = document.createElement('p');
-            title.textContent = t('oauth.linkTelegramTitle');
-            title.style.cssText = `margin:0 0 18px;font-weight:600;font-size:15px;color:${isDark ? '#e5e5e5' : '#222'}`;
-
-            const widgetWrap = document.createElement('div');
-            widgetWrap.id = `tg-link-widget-${Date.now()}`;
-
-            const script = document.createElement('script');
-            script.src = 'https://telegram.org/js/telegram-widget.js?22';
-            script.async = true;
-            script.setAttribute('data-telegram-login', import.meta.env.VITE_TELEGRAM_BOT_NAME);
-            script.setAttribute('data-size', 'large');
-            script.setAttribute('data-userpic', 'false');
-            script.setAttribute('data-radius', '10');
-            script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
-            script.setAttribute('data-request-access', 'write');
-
-            widgetWrap.appendChild(script);
-            box.appendChild(close);
-            box.appendChild(title);
-            box.appendChild(widgetWrap);
-            overlay.appendChild(box);
-            overlay.onclick = (e: MouseEvent) => { if (e.target === overlay) { removeSessionItem('oauthMode'); overlay.remove(); } };
-            document.body.appendChild(overlay);
+            setShowTelegramLinkModal(true);
             return;
         }
         startProviderOAuthLink(provider);
@@ -3469,6 +3435,12 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 isOpen={showInstagramLinkNotice}
                 onClose={() => setShowInstagramLinkNotice(false)}
                 onContinue={() => { setShowInstagramLinkNotice(false); startProviderOAuthLink('instagram'); }}
+            />
+
+            <TelegramLinkModal
+                isOpen={showTelegramLinkModal}
+                onClose={() => { removeSessionItem('oauthMode'); setShowTelegramLinkModal(false); }}
+                botName={import.meta.env.VITE_TELEGRAM_BOT_NAME}
             />
 
             <CookieConsentBanner/>
