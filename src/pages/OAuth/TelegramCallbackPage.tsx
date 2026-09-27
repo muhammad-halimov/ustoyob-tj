@@ -41,6 +41,10 @@ const TelegramCallbackPage = () => {
     // (роль там всегда приходит этим же путём) или cross-tab случай (выбор из REGISTER потерялся).
     // Полноэкранный пикер здесь, на своей родной full-page территории, а не в модалке.
     const [showRoleSelect, setShowRoleSelect] = useState(false);
+    // См. комментарий у аналогичного места в OAuthCallbackPage.tsx — REGISTER уже спросил роль
+    // в SelectRoleModal, авто-грант просто не удался; не задаём тот же вопрос ещё раз тем же
+    // Performers-блоком, только отмена.
+    const [roleAlreadyAskedInModal, setRoleAlreadyAskedInModal] = useState(false);
     const [grantingRole, setGrantingRole] = useState(false);
     const [cancelling, setCancelling] = useState(false);
     const { t } = useTranslation(['common', 'components']);
@@ -250,7 +254,8 @@ const TelegramCallbackPage = () => {
                                 });
                                 setUserRole(savedRole);
                             } catch (grantErr) {
-                                console.warn('Could not grant pre-selected role, asking again:', grantErr);
+                                console.warn('Could not grant pre-selected role:', grantErr);
+                                setRoleAlreadyAskedInModal(true);
                                 setLoading(false);
                                 setShowRoleSelect(true);
                                 return;
@@ -359,14 +364,18 @@ const TelegramCallbackPage = () => {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '20px', padding: '20px' }}>
                 <span style={{ fontSize: '52px', color: 'var(--color-actual-blue)' }}>✓</span>
                 <p style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--color-text-primary)', margin: 0 }}>{t('oauth.success')}</p>
-                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{t('oauth.selectAccountType')}</p>
+                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
+                    {roleAlreadyAskedInModal ? t('oauth.tryLater') : t('oauth.selectAccountType')}
+                </p>
                 {grantingRole || cancelling ? <PageLoader fullPage={false} compact /> : (
                     <>
-                        <Performers
-                            items={roleItems}
-                            getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
-                            onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
-                        />
+                        {!roleAlreadyAskedInModal && (
+                            <Performers
+                                items={roleItems}
+                                getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
+                                onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
+                            />
+                        )}
                         <button
                             type="button"
                             onClick={handleCancel}

@@ -33,7 +33,7 @@ import type { OAuthProviderName, Occupation, Category } from '../../../../entiti
 import { ROUTES, API_ROUTES } from '../../../../app/routers/routes';
 import { universalApiRequest } from '../../../../utils/apiUtils';
 import { resolveApiError, ApiError } from '../../../../utils/appMessagesUtils';
-import { setSessionItem, removeSessionItem, removeSessionItems, removeStorageItems } from '../../../../utils/storageUtils';
+import { removeSessionItem, setStorageItem, removeStorageItems } from '../../../../utils/storageUtils';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -291,7 +291,14 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             // OAuthCallbackPage (тот же origin, popup или прямой заход) мог прислать её вместе
             // с code/state и получить аккаунт с готовой ролью за один шаг, без второго вопроса.
             // С экрана LOGIN роли нет вовсе — просто не сохраняем ничего.
-            if (role) setSessionItem(roleKey, role);
+            // localStorage, не sessionStorage: popup, открытый через window.open(), в реальном
+            // Chrome НЕ наследует sessionStorage опенера надёжно (проверено вживую — читалось
+            // пусто в popup'е сразу после записи в опенере), из-за чего роль из REGISTER-модалки
+            // терялась и полноэкранный пикер в popup'е спрашивал её ещё раз (см. showRoleSelect в
+            // OAuthCallbackPage.tsx). localStorage не привязан к конкретному window, поэтому этой
+            // проблемы не имеет — тот же приём уже используется для сигнала popup_closed/success
+            // (см. utils/oauthPopup.ts) и для oauthMode='link' (см. Profile.tsx).
+            if (role) setStorageItem(roleKey, role);
 
             // Получаем URL для OAuth
             universalApiRequest(API_ROUTES.AUTH_PROVIDER_URL(provider), {
@@ -313,10 +320,11 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                         setError('Получен некорректный URL для авторизации');
                         return;
                     }
-                    // Сохраняем state из реального redirect URL для CSRF-проверки на callback
+                    // Сохраняем state из реального redirect URL для CSRF-проверки на callback —
+                    // localStorage, той же причине, что и roleKey выше.
                     const stateFromUrl = parsed.searchParams.get('state');
                     if (stateFromUrl) {
-                        setSessionItem(csrfKey, stateFromUrl);
+                        setStorageItem(csrfKey, stateFromUrl);
                         // Помечаем именно этот state как popup-флоу — OAuthCallbackPage
                         // сверится с этим по своему state и поймёт, что надо не
                         // navigate(), а отчитаться нам и закрыться (см. utils/oauthPopup).
@@ -352,14 +360,14 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                         })
                         .finally(() => {
                             setIsLoading(false);
-                            removeSessionItems(roleKey, csrfKey);
+                            removeStorageItems(roleKey, csrfKey);
                         });
                 })
                 .catch(err => {
                     popup.close();
                     console.error(`${provider.toUpperCase()} auth error:`, err);
                     setError(resolveApiError(err, `Ошибка при авторизации через ${providerLabel}`));
-                    removeSessionItems(roleKey, csrfKey);
+                    removeStorageItems(roleKey, csrfKey);
                 });
 
         } catch (err) {
@@ -368,7 +376,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             setError(resolveApiError(err, `Ошибка при авторизации через ${providerLabel}`));
 
             // Очищаем сохраненные данные при ошибке
-            removeSessionItems(roleKey, csrfKey);
+            removeStorageItems(roleKey, csrfKey);
         }
     };
 
@@ -882,11 +890,13 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         setPasswordValidation({ isValid: false, message: '' });
         setShowPasswordRequirements(false);
 
-        // Очищаем все временные данные
+        // Очищаем все временные данные. Google/Facebook/Instagram теперь пишут roleKey/csrfKey в
+        // localStorage (см. handleOAuthStart), Telegram по-прежнему в sessionStorage — та же
+        // вкладка внутри popup'а, cross-window шаринг ему не нужен (см. TelegramMobileStartPage.tsx).
         ['google', 'instagram', 'facebook', 'telegram'].forEach(provider => {
-            removeSessionItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`);
-            removeSessionItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`);
-            removeSessionItem(`${provider}CsrfState`);
+            const Provider = provider.charAt(0).toUpperCase() + provider.slice(1);
+            removeStorageItems(`pending${Provider}Role`, `pending${Provider}Specialty`, `${provider}CsrfState`);
+            removeSessionItem(`pending${Provider}Role`);
         });
         removeStorageItems('tempGoogleToken', 'tempGoogleUserData', 'telegramUserData');
     };

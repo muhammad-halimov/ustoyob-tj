@@ -52,6 +52,11 @@ const OAuthCallbackPage = () => {
     // так и было задумано пользователем: см. Auth.tsx/SelectRoleModal) пикер здесь, на своей
     // родной full-page территории, а не втиснутый в модалку — там (см. историю правок) он ломался.
     const [showRoleSelect, setShowRoleSelect] = useState(false);
+    // Роль уже была выбрана ДО этого флоу (REGISTER, SelectRoleModal), но авто-грант всё равно
+    // не удался (см. catch ниже) — спрашивать её ЕЩЁ РАЗ через тот же Performers-пикер было бы
+    // вторым вопросом про то же самое (пользователь уже видел выбор ролей в модалке). В этом
+    // случае показываем только отмену — не блок с ролями (см. showRoleSelect ниже).
+    const [roleAlreadyAskedInModal, setRoleAlreadyAskedInModal] = useState(false);
     const [pendingToken, setPendingToken] = useState<string | null>(null);
     const [grantingRole, setGrantingRole] = useState(false);
     const [cancelling, setCancelling] = useState(false);
@@ -193,24 +198,27 @@ const OAuthCallbackPage = () => {
                     return;
                 }
 
-                // Валидируем CSRF state (sessionStorage доступен только если та же вкладка)
-                const savedCsrfState = getSessionItem(`${detectedProvider}CsrfState`);
+                // Валидируем CSRF state — localStorage, не sessionStorage: popup, открытый через
+                // window.open(), в реальном Chrome не наследует sessionStorage опенера надёжно
+                // (проверено вживую), так что эта проверка молча no-op'илась (savedCsrfState всегда
+                // пуст) и роль из REGISTER-модалки той же дорогой терялась (см. roleKey ниже).
+                const savedCsrfState = getStorageItem(`${detectedProvider}CsrfState`);
                 if (savedCsrfState && state !== savedCsrfState) {
-                    removeSessionItem(`${detectedProvider}CsrfState`);
+                    removeStorageItem(`${detectedProvider}CsrfState`);
                     const message = t('oauth.invalidState', 'Invalid OAuth state. Possible CSRF attack.');
                     setError(message);
                     setLoading(false);
                     setTimeout(() => finishOrNavigate({ status: 'error', message }, ROUTES.HOME), 1500);
                     return;
                 }
-                removeSessionItem(`${detectedProvider}CsrfState`);
+                removeStorageItem(`${detectedProvider}CsrfState`);
 
                 // Роль, выбранную в SelectRoleModal ДО начала этого флоу (см. Auth.tsx: beginOAuth/
-                // handleOAuthStart) — тот же origin (popup или прямой заход), sessionStorage доступен.
+                // handleOAuthStart) — localStorage, по той же причине, что и CSRF-state выше.
                 // Отправляем её вместе с code/state: бэкенд создаёт аккаунт сразу с этой ролью.
                 const roleKey = `pending${detectedProvider.charAt(0).toUpperCase() + detectedProvider.slice(1)}Role`;
-                const savedRole = getSessionItem(roleKey) as 'master' | 'client' | null;
-                removeSessionItem(roleKey);
+                const savedRole = getStorageItem(roleKey) as 'master' | 'client' | null;
+                removeStorageItem(roleKey);
 
                 const callbackData: BackendAuthCallbackResponse = await universalApiRequest(API_ROUTES.AUTH_PROVIDER_CALLBACK(detectedProvider), {
                     method: 'POST',
@@ -256,8 +264,9 @@ const OAuthCallbackPage = () => {
                                 });
                                 setUserRole(savedRole);
                             } catch (grantErr) {
-                                console.warn('Could not grant pre-selected role, asking again:', grantErr);
+                                console.warn('Could not grant pre-selected role:', grantErr);
                                 setPendingToken(token);
+                                setRoleAlreadyAskedInModal(true);
                                 setLoading(false);
                                 setShowRoleSelect(true);
                                 return;
@@ -399,14 +408,21 @@ const OAuthCallbackPage = () => {
                     <path d="M14 27l8 8 16-16" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>{t('oauth.success')}</p>
-                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{t('oauth.selectAccountType')}</p>
+                {/* Роль уже была выбрана в SelectRoleModal (REGISTER) — авто-грант просто не
+                    удался (см. catch у processCallback). Не спрашиваем её ЕЩЁ РАЗ тем же
+                    Performers-блоком (это и был баг "роль выбирается дважды") — только отмена. */}
+                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
+                    {roleAlreadyAskedInModal ? t('oauth.tryLater') : t('oauth.selectAccountType')}
+                </p>
                 {grantingRole || cancelling ? <PageLoader fullPage={false} compact /> : (
                     <>
-                        <Performers
-                            items={roleItems}
-                            getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
-                            onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
-                        />
+                        {!roleAlreadyAskedInModal && (
+                            <Performers
+                                items={roleItems}
+                                getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
+                                onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
+                            />
+                        )}
                         <button
                             type="button"
                             onClick={handleCancel}
