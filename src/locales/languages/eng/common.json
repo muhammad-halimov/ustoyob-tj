@@ -100,7 +100,8 @@
     "selectAccountType": "Choose your account type:",
     "cancelRegistration": "Cancel registration",
     "cancelCountdownTitle": "Cancelling registration",
-    "cancelCountdownMessage": "The account will be deleted in {{seconds}}s"
+    "cancelCountdownMessage": "The account will be permanently deleted.",
+    "proceedCountdownMessage": "Continuing in {{seconds}}s"
   },
   "confirmAccount": {
     "loading": "Verifying link...",

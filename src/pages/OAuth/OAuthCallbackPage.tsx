@@ -52,15 +52,21 @@ const OAuthCallbackPage = () => {
     // так и было задумано пользователем: см. Auth.tsx/SelectRoleModal) пикер здесь, на своей
     // родной full-page территории, а не втиснутый в модалку — там (см. историю правок) он ломался.
     const [showRoleSelect, setShowRoleSelect] = useState(false);
-    const [pendingToken, setPendingToken] = useState<string | null>(null);
     const [grantingRole, setGrantingRole] = useState(false);
     const [cancelling, setCancelling] = useState(false);
-    // Экран подтверждения отмены (вместо window.confirm) — обратный отсчёт: по истечении
-    // автоматически удаляет аккаунт, как и явный клик "Далее"; "Отмена" просто возвращает
-    // к выбору роли, ничего не трогая.
-    const CANCEL_COUNTDOWN_SECONDS = 5;
+    // Экран подтверждения отмены (вместо window.confirm) — БЕЗ таймера, удаление только по явному
+    // клику "Далее" (никогда само по себе, в отличие от awaitingProceed ниже — это разрушительное
+    // действие, бездействие не должно его подтверждать). "Отмена" просто возвращает к предыдущему
+    // экрану (showRoleSelect или awaitingProceed — какой из них сейчас "под ним", тот и останется,
+    // см. handleAbortCancel/рендер ниже), ничего не трогая.
     const [confirmingCancel, setConfirmingCancel] = useState(false);
-    const [cancelSecondsLeft, setCancelSecondsLeft] = useState(CANCEL_COUNTDOWN_SECONDS);
+    // Аккаунт только что создан (или роль только что выбрана/подтверждена) — короткая пауза
+    // с обратным отсчётом перед закрытием popup/уходом на главную, вместо мгновенного исчезновения
+    // без единого шанса передумать. Только для НОВЫХ аккаунтов (см. justCreated ниже) — для
+    // существующего пользователя, просто вошедшего в систему, это не показывается (см. success).
+    const PROCEED_COUNTDOWN_SECONDS = 5;
+    const [awaitingProceed, setAwaitingProceed] = useState(false);
+    const [proceedSecondsLeft, setProceedSecondsLeft] = useState(PROCEED_COUNTDOWN_SECONDS);
     const [provider, setProvider] = useState<OAuthProviderName | null>(null);
     const [isLinkMode, setIsLinkMode] = useState(false);
     // Meta закрыла Basic Display API (04.12.2024) — у Personal-аккаунтов нет официального
@@ -138,17 +144,50 @@ const OAuthCallbackPage = () => {
         }
     }, [finishOrNavigate]);
 
-    // Обратный отсчёт на экране подтверждения отмены — тикает, только пока он открыт;
-    // по достижении нуля отменяет регистрацию автоматически, как и явный клик "Далее".
-    useEffect(() => {
-        if (!confirmingCancel) return;
-        if (cancelSecondsLeft <= 0) {
-            performCancel();
+    // Обычное завершение флоу (закрыть popup / уйти на главную) — тот же код, что раньше был
+    // продублирован в двух местах (общая ветка после processCallback и handleGrantRole). Просто
+    // getAuthToken() — setAuthToken() уже успел записать его в localStorage синхронно, к этому
+    // моменту (в обоих местах, откуда вызывается) он уже точно там. Специально НЕ зависит от
+    // какого-либо state с самим token'ом (раньше был pendingToken) — это сделало бы identity
+    // функции нестабильной между рендерами и вызвало повторный запуск processCallback-эффекта
+    // ниже (он в зависимостях), т.е. двойной вызов /auth/{provider}/callback.
+    const proceedNow = useCallback(() => {
+        const token = getAuthToken();
+        if (token && finishMobileOAuthFlow({ status: 'success', token })) return;
+        if (!finishOAuthPopup(oauthStateRef.current, { status: 'success' })) {
+            navigate(ROUTES.HOME);
+            window.dispatchEvent(new Event('login'));
             return;
         }
-        const timer = window.setTimeout(() => setCancelSecondsLeft(s => s - 1), 1000);
+        // На случай мобильного app-switch в другую вкладку, которую некому слушать
+        // (см. комментарий в finishOrNavigate) — если за 1.5 секунды эта вкладка
+        // не закрылась, продолжаем сами.
+        window.setTimeout(() => navigate(ROUTES.HOME), 1500);
+    }, [navigate]);
+
+    // Обратный отсчёт на экране "готово, роль назначена" — тикает, только пока он открыт;
+    // по достижении нуля просто завершает флоу как обычно (НЕ удаляет аккаунт — в отличие от
+    // экрана подтверждения отмены выше, сюда попадают без явного намерения отменяться, так что
+    // бездействие должно означать "всё в порядке, продолжай", а не "передумал"). Пауза, пока
+    // сверху открыт confirmingCancel (см. handleCancelClick) — иначе этот таймер продолжал бы
+    // тикать в фоне и завершил бы регистрацию сам, пока пользователь ещё решает, отменять ли её.
+    useEffect(() => {
+        if (!awaitingProceed || confirmingCancel) return;
+        if (proceedSecondsLeft <= 0) {
+            proceedNow();
+            return;
+        }
+        const timer = window.setTimeout(() => setProceedSecondsLeft(s => s - 1), 1000);
         return () => window.clearTimeout(timer);
-    }, [confirmingCancel, cancelSecondsLeft, performCancel]);
+    }, [awaitingProceed, confirmingCancel, proceedSecondsLeft, proceedNow]);
+
+    // Общий переход в экран подтверждения отмены — вызывается и с awaitingProceed, и с
+    // showRoleSelect (см. рендер ниже): confirmingCancel рендерится первым и просто перекрывает
+    // тот экран, под которым был вызван; "Отмена" там (handleAbortCancel) снимает confirmingCancel
+    // и возвращает к нему же, поскольку его собственный флаг (awaitingProceed/showRoleSelect)
+    // всё это время оставался true в фоне.
+    const handleCancelClick = () => setConfirmingCancel(true);
+    const handleAbortCancel = () => setConfirmingCancel(false);
 
     useEffect(() => {
         // Определяем провайдер по URL
@@ -285,7 +324,8 @@ const OAuthCallbackPage = () => {
                     setUserData(data.user);
                     if (data.user.email) setUserEmail(data.user.email);
 
-                    if ((data as any).status === 204) {
+                    const justCreated = (data as any).status === 204;
+                    if (justCreated) {
                         // Новый пользователь. Если роль уже была выбрана ДО этого флоу (savedRole,
                         // экран REGISTER, см. Auth.tsx: beginOAuth/SelectRoleModal) — она была отправлена
                         // вместе с code/state выше, и бэкенд УЖЕ назначил её при создании аккаунта
@@ -302,7 +342,6 @@ const OAuthCallbackPage = () => {
                         if (savedRole) {
                             setUserRole(savedRole);
                         } else {
-                            setPendingToken(token);
                             setLoading(false);
                             setShowRoleSelect(true);
                             return;
@@ -320,23 +359,17 @@ const OAuthCallbackPage = () => {
                         if (data.user.occupation) setUserOccupation(data.user.occupation);
                     }
 
-                    setSuccess(true);
-                    setTimeout(() => {
-                        if (finishMobileOAuthFlow({ status: 'success', token })) return;
-                        // dispatchEvent('login') нужен только когда мы реально живём на
-                        // этой же вкладке (fallback-ветка) — в popup'е это событие никто
-                        // не услышит, опенер сам разберётся по своему собственному
-                        // getAuthToken() после finishOAuthPopup.
-                        if (!finishOAuthPopup(oauthStateRef.current, { status: 'success' })) {
-                            navigate(ROUTES.HOME);
-                            window.dispatchEvent(new Event('login'));
-                            return;
-                        }
-                        // На случай мобильного app-switch в другую вкладку, которую
-                        // некому слушать (см. комментарий в finishOrNavigate) — если
-                        // за 1.5 секунды эта вкладка не закрылась, продолжаем сами.
-                        window.setTimeout(() => navigate(ROUTES.HOME), 1500);
-                    }, 900);
+                    if (justCreated) {
+                        // Новый аккаунт — короткая пауза с обратным отсчётом и возможностью
+                        // отменить/удалить, вместо мгновенного исчезновения (см. awaitingProceed).
+                        setProceedSecondsLeft(PROCEED_COUNTDOWN_SECONDS);
+                        setAwaitingProceed(true);
+                    } else {
+                        // Существующий пользователь просто вошёл — как и раньше, без паузы
+                        // и без возможности "отменить"/удалить (это не регистрация).
+                        setSuccess(true);
+                        setTimeout(() => proceedNow(), 900);
+                    }
                 } else {
                     const message = resolveApiError(null, t('oauth.tokenNotReceived'));
                     setError(message);
@@ -365,10 +398,63 @@ const OAuthCallbackPage = () => {
         };
 
         processCallback();
-    }, [searchParams, navigate, t, finishOrNavigate]);
+    }, [searchParams, navigate, t, finishOrNavigate, proceedNow]);
 
     if (loading) {
         return <PageLoader text={t('oauth.processingVia', { provider: provider === 'google' ? 'Google' : provider === 'instagram' ? 'Instagram' : 'Facebook' })} />;
+    }
+
+    // Экран подтверждения отмены — рендерится ПЕРВЫМ (до awaitingProceed/showRoleSelect), просто
+    // перекрывая тот экран, с которого его открыли (см. handleCancelClick/handleAbortCancel
+    // наверху компонента: тот, "нижний" флаг всё это время остаётся true в фоне).
+    if (confirmingCancel) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '20px', padding: '20px' }}>
+                <p style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--color-text-primary)', margin: 0 }}>
+                    {t('common:oauth.cancelCountdownTitle')}
+                </p>
+                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
+                    {t('common:oauth.cancelCountdownMessage')}
+                </p>
+                {cancelling ? <PageLoader fullPage={false} compact /> : (
+                    <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '286px' }}>
+                        <button type="button" onClick={handleAbortCancel} style={{ flex: 1, background: 'transparent', border: '1px solid var(--color-stroke, #444)', borderRadius: '10px', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: '14px', padding: '12px 16px' }}>
+                            {t('common:app.cancel')}
+                        </button>
+                        <button type="button" onClick={performCancel} style={{ flex: 1, background: 'var(--color-actual-blue, #3A54DA)', border: 'none', borderRadius: '10px', color: '#fff', cursor: 'pointer', fontSize: '14px', padding: '12px 16px' }}>
+                            {t('common:app.next')}
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Аккаунт только что создан и роль уже назначена (пришла готовой из REGISTER-модалки, или
+    // только что выбрана в showRoleSelect ниже) — короткая пауза с обратным отсчётом, за время
+    // которой можно передумать и удалить аккаунт (handleCancelClick), вместо мгновенного перехода
+    // без единого шанса отменить.
+    if (awaitingProceed) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '20px', padding: '20px' }}>
+                <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="26" cy="26" r="25" stroke="#4caf50" strokeWidth="2" />
+                    <path d="M14 27l8 8 16-16" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>{t('oauth.success')}</p>
+                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
+                    {t('common:oauth.proceedCountdownMessage', { seconds: proceedSecondsLeft })}
+                </p>
+                <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '286px' }}>
+                    <button type="button" onClick={handleCancelClick} style={{ flex: 1, background: 'transparent', border: '1px solid var(--color-stroke, #444)', borderRadius: '10px', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: '14px', padding: '12px 16px' }}>
+                        {t('common:oauth.cancelRegistration')}
+                    </button>
+                    <button type="button" onClick={proceedNow} style={{ flex: 1, background: 'var(--color-actual-blue, #3A54DA)', border: 'none', borderRadius: '10px', color: '#fff', cursor: 'pointer', fontSize: '14px', padding: '12px 16px' }}>
+                        {t('common:app.next')}
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     if (showRoleSelect) {
@@ -381,17 +467,9 @@ const OAuthCallbackPage = () => {
                     locale: false,
                 });
                 setUserRole(role);
-                const token = pendingToken ?? getAuthToken();
-                if (token && finishMobileOAuthFlow({ status: 'success', token })) return;
-                if (!finishOAuthPopup(oauthStateRef.current, { status: 'success' })) {
-                    navigate(ROUTES.HOME);
-                    window.dispatchEvent(new Event('login'));
-                } else {
-                    // На случай мобильного app-switch в другую вкладку, которую некому
-                    // слушать (см. комментарий в finishOrNavigate) — если за 1.5 секунды
-                    // эта вкладка не закрылась, продолжаем сами.
-                    window.setTimeout(() => navigate(ROUTES.HOME), 1500);
-                }
+                setShowRoleSelect(false);
+                setProceedSecondsLeft(PROCEED_COUNTDOWN_SECONDS);
+                setAwaitingProceed(true);
             } catch (err) {
                 setError(resolveApiError(err));
                 setShowRoleSelect(false);
@@ -400,15 +478,6 @@ const OAuthCallbackPage = () => {
             }
         };
 
-        // Открывает экран подтверждения с обратным отсчётом вместо немедленного удаления —
-        // сам performCancel (наверху компонента) запускается либо явным "Далее" на этом
-        // экране, либо истечением таймера (см. useEffect наверху).
-        const handleCancelClick = () => {
-            setCancelSecondsLeft(CANCEL_COUNTDOWN_SECONDS);
-            setConfirmingCancel(true);
-        };
-        const handleAbortCancel = () => setConfirmingCancel(false);
-
         const roleItems: PerformerItem[] = [
             { id: 1, name: t('components:roles.customers'), title: t('components:roles.customersDesc'), img: '/img/misc/clientTest.jpg' },
             { id: 2, name: t('components:roles.masters'), title: t('components:roles.mastersDesc'), img: '/img/misc/master.jpg' },
@@ -416,88 +485,36 @@ const OAuthCallbackPage = () => {
 
         return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '20px', padding: '20px' }}>
-                {confirmingCancel ? (
+                <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="26" cy="26" r="25" stroke="#4caf50" strokeWidth="2" />
+                    <path d="M14 27l8 8 16-16" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>{t('oauth.success')}</p>
+                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{t('oauth.selectAccountType')}</p>
+                {grantingRole ? <PageLoader fullPage={false} compact /> : (
                     <>
-                        <p style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--color-text-primary)', margin: 0 }}>
-                            {t('common:oauth.cancelCountdownTitle')}
-                        </p>
-                        <p style={{ color: 'var(--color-text-primary)', margin: 0, fontSize: '36px', fontWeight: 'bold' }}>
-                            {cancelSecondsLeft}
-                        </p>
-                        <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
-                            {t('common:oauth.cancelCountdownMessage', { seconds: cancelSecondsLeft })}
-                        </p>
-                        {cancelling ? <PageLoader fullPage={false} compact /> : (
-                            <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '286px' }}>
-                                <button
-                                    type="button"
-                                    onClick={handleAbortCancel}
-                                    style={{
-                                        flex: 1,
-                                        background: 'transparent',
-                                        border: '1px solid var(--color-stroke, #444)',
-                                        borderRadius: '10px',
-                                        color: 'var(--color-text-secondary)',
-                                        cursor: 'pointer',
-                                        fontSize: '14px',
-                                        padding: '12px 16px',
-                                    }}
-                                >
-                                    {t('common:app.cancel')}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={performCancel}
-                                    style={{
-                                        flex: 1,
-                                        background: 'var(--color-actual-blue, #3A54DA)',
-                                        border: 'none',
-                                        borderRadius: '10px',
-                                        color: '#fff',
-                                        cursor: 'pointer',
-                                        fontSize: '14px',
-                                        padding: '12px 16px',
-                                    }}
-                                >
-                                    {t('common:app.next')}
-                                </button>
-                            </div>
-                        )}
-                    </>
-                ) : (
-                    <>
-                        <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="26" cy="26" r="25" stroke="#4caf50" strokeWidth="2" />
-                            <path d="M14 27l8 8 16-16" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                        <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>{t('oauth.success')}</p>
-                        <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{t('oauth.selectAccountType')}</p>
-                        {grantingRole ? <PageLoader fullPage={false} compact /> : (
-                            <>
-                                <Performers
-                                    items={roleItems}
-                                    getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
-                                    onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={handleCancelClick}
-                                    style={{
-                                        background: 'transparent',
-                                        border: '1px solid var(--color-stroke, #444)',
-                                        borderRadius: '10px',
-                                        color: 'var(--color-text-secondary)',
-                                        cursor: 'pointer',
-                                        fontSize: '14px',
-                                        padding: '12px 24px',
-                                        width: '100%',
-                                        maxWidth: '286px',
-                                    }}
-                                >
-                                    {t('common:oauth.cancelRegistration')}
-                                </button>
-                            </>
-                        )}
+                        <Performers
+                            items={roleItems}
+                            getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
+                            onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
+                        />
+                        <button
+                            type="button"
+                            onClick={handleCancelClick}
+                            style={{
+                                background: 'transparent',
+                                border: '1px solid var(--color-stroke, #444)',
+                                borderRadius: '10px',
+                                color: 'var(--color-text-secondary)',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                padding: '12px 24px',
+                                width: '100%',
+                                maxWidth: '286px',
+                            }}
+                        >
+                            {t('common:oauth.cancelRegistration')}
+                        </button>
                     </>
                 )}
             </div>

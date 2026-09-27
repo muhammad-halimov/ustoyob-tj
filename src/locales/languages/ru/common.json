@@ -100,7 +100,8 @@
     "selectAccountType": "Выберите тип аккаунта:",
     "cancelRegistration": "Отменить регистрацию",
     "cancelCountdownTitle": "Отмена регистрации",
-    "cancelCountdownMessage": "Аккаунт будет удалён через {{seconds}} сек."
+    "cancelCountdownMessage": "Аккаунт будет удалён без возможности восстановления.",
+    "proceedCountdownMessage": "Переход через {{seconds}} сек."
   },
   "confirmAccount": {
     "loading": "Проверка ссылки...",
