@@ -332,16 +332,22 @@ const TelegramCallbackPage = () => {
         const handleCancel = async () => {
             if (!window.confirm(t('common:oauth.cancelRegistrationConfirm'))) return;
             setCancelling(true);
-            const userId = getUserData()?.id;
+            // finally, не последовательно после двух await — если DELETE/logout вдруг упадут
+            // с чем-то неожиданным (не пойманным их же внутренними try/catch), popup/страница
+            // всё равно должны закрыться/уйти, а не зависнуть на спиннере навсегда.
             try {
+                const userId = getUserData()?.id;
                 if (userId) {
-                    await universalApiRequest(`${API_ROUTES.USERS}/${userId}`, { method: 'DELETE', locale: false });
+                    try {
+                        await universalApiRequest(`${API_ROUTES.USERS}/${userId}`, { method: 'DELETE', locale: false });
+                    } catch (err) {
+                        console.warn('Could not delete cancelled account:', err);
+                    }
                 }
-            } catch (err) {
-                console.warn('Could not delete cancelled account:', err);
+                await logout();
+            } finally {
+                finishOrNavigate({ status: 'error', message: 'popup_closed' }, ROUTES.HOME);
             }
-            await logout();
-            finishOrNavigate({ status: 'error', message: 'popup_closed' }, ROUTES.HOME);
         };
 
         const roleItems: PerformerItem[] = [
@@ -364,7 +370,17 @@ const TelegramCallbackPage = () => {
                         <button
                             type="button"
                             onClick={handleCancel}
-                            style={{ background: 'none', border: 'none', color: 'var(--color-text-secondary)', textDecoration: 'underline', cursor: 'pointer', fontSize: '14px' }}
+                            style={{
+                                background: 'transparent',
+                                border: '1px solid var(--color-stroke, #444)',
+                                borderRadius: '10px',
+                                color: 'var(--color-text-secondary)',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                padding: '12px 24px',
+                                width: '100%',
+                                maxWidth: '286px',
+                            }}
                         >
                             {t('common:oauth.cancelRegistration')}
                         </button>
