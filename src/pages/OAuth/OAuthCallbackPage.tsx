@@ -52,11 +52,6 @@ const OAuthCallbackPage = () => {
     // так и было задумано пользователем: см. Auth.tsx/SelectRoleModal) пикер здесь, на своей
     // родной full-page территории, а не втиснутый в модалку — там (см. историю правок) он ломался.
     const [showRoleSelect, setShowRoleSelect] = useState(false);
-    // Роль уже была выбрана ДО этого флоу (REGISTER, SelectRoleModal), но авто-грант всё равно
-    // не удался (см. catch ниже) — спрашивать её ЕЩЁ РАЗ через тот же Performers-пикер было бы
-    // вторым вопросом про то же самое (пользователь уже видел выбор ролей в модалке). В этом
-    // случае показываем только отмену — не блок с ролями (см. showRoleSelect ниже).
-    const [roleAlreadyAskedInModal, setRoleAlreadyAskedInModal] = useState(false);
     const [pendingToken, setPendingToken] = useState<string | null>(null);
     const [grantingRole, setGrantingRole] = useState(false);
     const [cancelling, setCancelling] = useState(false);
@@ -247,30 +242,20 @@ const OAuthCallbackPage = () => {
 
                     if ((data as any).status === 204) {
                         // Новый пользователь. Если роль уже была выбрана ДО этого флоу (savedRole,
-                        // экран REGISTER, см. Auth.tsx: beginOAuth/SelectRoleModal) — она отправлена
-                        // вместе с code/state выше, но бэкенд всё равно создаёт аккаунт без роли
-                        // (`status: 204`) и ждёт отдельного grant-role, так что назначаем её сейчас
-                        // же, автоматически, без второго вопроса. Если savedRole пуст — экран LOGIN
-                        // (там роль заранее не спрашивают, см. handleOAuthStart) неожиданно оказался
-                        // новым аккаунтом, либо мобильное приложение (спрашивает всегда так), либо
-                        // cross-tab случай (выбор из REGISTER потерялся) — в любом из этих случаев
-                        // спрашиваем роль здесь же, полноэкранным пикером, и НЕ финишируем сразу.
+                        // экран REGISTER, см. Auth.tsx: beginOAuth/SelectRoleModal) — она была отправлена
+                        // вместе с code/state выше, и бэкенд УЖЕ назначил её при создании аккаунта
+                        // (TelegramOAuthService/GoogleOAuthService и т.д. — match($role) на самом
+                        // создании User). Отдельный POST /users/grant-role здесь не нужен и даже вреден:
+                        // роль уже есть, и повторный грант той же ролью падает 403
+                        // (ROLE_ALREADY_CLIENT/ROLE_ALREADY_MASTER — см. ApiPostGrantRoleController).
+                        // Просто отражаем в локальном стейте то, что бэкенд уже сделал. Если savedRole
+                        // пуст — экран LOGIN (там роль заранее не спрашивают, см. handleOAuthStart)
+                        // неожиданно оказался новым аккаунтом, либо мобильное приложение (спрашивает
+                        // всегда так), либо cross-tab случай (выбор из REGISTER потерялся) — тогда роли
+                        // ДЕЙСТВИТЕЛЬНО нет, спрашиваем здесь же, полноэкранным пикером (который сам
+                        // вызовет grant-role — там она пока правда не назначена).
                         if (savedRole) {
-                            try {
-                                await universalApiRequest(API_ROUTES.USERS_GRANT_ROLE, {
-                                    method: 'POST',
-                                    body: { role: savedRole === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT' },
-                                    locale: false,
-                                });
-                                setUserRole(savedRole);
-                            } catch (grantErr) {
-                                console.warn('Could not grant pre-selected role:', grantErr);
-                                setPendingToken(token);
-                                setRoleAlreadyAskedInModal(true);
-                                setLoading(false);
-                                setShowRoleSelect(true);
-                                return;
-                            }
+                            setUserRole(savedRole);
                         } else {
                             setPendingToken(token);
                             setLoading(false);
@@ -408,21 +393,14 @@ const OAuthCallbackPage = () => {
                     <path d="M14 27l8 8 16-16" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>{t('oauth.success')}</p>
-                {/* Роль уже была выбрана в SelectRoleModal (REGISTER) — авто-грант просто не
-                    удался (см. catch у processCallback). Не спрашиваем её ЕЩЁ РАЗ тем же
-                    Performers-блоком (это и был баг "роль выбирается дважды") — только отмена. */}
-                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
-                    {roleAlreadyAskedInModal ? t('oauth.tryLater') : t('oauth.selectAccountType')}
-                </p>
+                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{t('oauth.selectAccountType')}</p>
                 {grantingRole || cancelling ? <PageLoader fullPage={false} compact /> : (
                     <>
-                        {!roleAlreadyAskedInModal && (
-                            <Performers
-                                items={roleItems}
-                                getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
-                                onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
-                            />
-                        )}
+                        <Performers
+                            items={roleItems}
+                            getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
+                            onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
+                        />
                         <button
                             type="button"
                             onClick={handleCancel}

@@ -41,10 +41,6 @@ const TelegramCallbackPage = () => {
     // (роль там всегда приходит этим же путём) или cross-tab случай (выбор из REGISTER потерялся).
     // Полноэкранный пикер здесь, на своей родной full-page территории, а не в модалке.
     const [showRoleSelect, setShowRoleSelect] = useState(false);
-    // См. комментарий у аналогичного места в OAuthCallbackPage.tsx — REGISTER уже спросил роль
-    // в SelectRoleModal, авто-грант просто не удался; не задаём тот же вопрос ещё раз тем же
-    // Performers-блоком, только отмена.
-    const [roleAlreadyAskedInModal, setRoleAlreadyAskedInModal] = useState(false);
     const [grantingRole, setGrantingRole] = useState(false);
     const [cancelling, setCancelling] = useState(false);
     const { t } = useTranslation(['common', 'components']);
@@ -238,28 +234,18 @@ const TelegramCallbackPage = () => {
 
                     if ((data as any).status === 204) {
                         // Новый пользователь. Если роль уже была выбрана до этого флоу (savedRole,
-                        // экран REGISTER) — она отправлена вместе с данными Telegram выше, но бэкенд
-                        // всё равно создаёт аккаунт без роли (`status: 204`) и ждёт отдельного
-                        // grant-role, так что назначаем её сейчас же, автоматически, без второго
-                        // вопроса. Если savedRole пуст — экран LOGIN неожиданно оказался новым
-                        // аккаунтом, либо мобильное приложение (спрашивает всегда так), либо
-                        // cross-tab случай (Telegram открыл подтверждение в новой вкладке) — в любом
-                        // из этих случаев спрашиваем роль здесь же, полноэкранным пикером.
+                        // экран REGISTER) — она была отправлена вместе с данными Telegram выше, и
+                        // бэкенд УЖЕ назначил её при создании аккаунта (TelegramOAuthService —
+                        // match($role) прямо на создании User). Отдельный POST /users/grant-role здесь
+                        // не нужен и даже вреден: роль уже есть, повторный грант той же ролью падает
+                        // 403 (ROLE_ALREADY_CLIENT/ROLE_ALREADY_MASTER). Просто отражаем в локальном
+                        // стейте то, что бэкенд уже сделал. Если savedRole пуст — экран LOGIN
+                        // неожиданно оказался новым аккаунтом, либо мобильное приложение (спрашивает
+                        // всегда так), либо cross-tab случай (Telegram открыл подтверждение в новой
+                        // вкладке) — тогда роли ДЕЙСТВИТЕЛЬНО нет, спрашиваем здесь же, полноэкранным
+                        // пикером (который сам вызовет grant-role — там она пока правда не назначена).
                         if (savedRole) {
-                            try {
-                                await universalApiRequest(API_ROUTES.USERS_GRANT_ROLE, {
-                                    method: 'POST',
-                                    body: { role: savedRole === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT' },
-                                    locale: false,
-                                });
-                                setUserRole(savedRole);
-                            } catch (grantErr) {
-                                console.warn('Could not grant pre-selected role:', grantErr);
-                                setRoleAlreadyAskedInModal(true);
-                                setLoading(false);
-                                setShowRoleSelect(true);
-                                return;
-                            }
+                            setUserRole(savedRole);
                         } else {
                             setLoading(false);
                             setShowRoleSelect(true);
@@ -364,18 +350,14 @@ const TelegramCallbackPage = () => {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '20px', padding: '20px' }}>
                 <span style={{ fontSize: '52px', color: 'var(--color-actual-blue)' }}>✓</span>
                 <p style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--color-text-primary)', margin: 0 }}>{t('oauth.success')}</p>
-                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
-                    {roleAlreadyAskedInModal ? t('oauth.tryLater') : t('oauth.selectAccountType')}
-                </p>
+                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{t('oauth.selectAccountType')}</p>
                 {grantingRole || cancelling ? <PageLoader fullPage={false} compact /> : (
                     <>
-                        {!roleAlreadyAskedInModal && (
-                            <Performers
-                                items={roleItems}
-                                getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
-                                onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
-                            />
-                        )}
+                        <Performers
+                            items={roleItems}
+                            getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
+                            onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
+                        />
                         <button
                             type="button"
                             onClick={handleCancel}
