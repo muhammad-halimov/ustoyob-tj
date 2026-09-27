@@ -43,6 +43,11 @@ const TelegramCallbackPage = () => {
     const [showRoleSelect, setShowRoleSelect] = useState(false);
     const [grantingRole, setGrantingRole] = useState(false);
     const [cancelling, setCancelling] = useState(false);
+    // См. комментарий у аналогичного места в OAuthCallbackPage.tsx — короткая пауза с обратным
+    // отсчётом после успешной регистрации (роль уже назначена), с возможностью передумать.
+    const PROCEED_COUNTDOWN_SECONDS = 5;
+    const [awaitingProceed, setAwaitingProceed] = useState(false);
+    const [proceedSecondsLeft, setProceedSecondsLeft] = useState(PROCEED_COUNTDOWN_SECONDS);
     const { t } = useTranslation(['common', 'components']);
 
     // state из URL — НЕ от Telegram (у виджета нет такого понятия), а наш собственный,
@@ -78,6 +83,50 @@ const TelegramCallbackPage = () => {
         // случай, если ни postMessage/localStorage, ни window.close() не сработали.
         window.setTimeout(() => navigate(fallbackRoute, fallbackOptions), 1500);
     }, [navigate]);
+
+    // См. комментарий у аналогичного места в OAuthCallbackPage.tsx — вынесено на верхний уровень,
+    // т.к. нужно и явному клику "Далее" на экране подтверждения, и таймеру обратного отсчёта.
+    const performCancel = useCallback(async () => {
+        setCancelling(true);
+        try {
+            const userId = getUserData()?.id;
+            if (userId) {
+                try {
+                    await universalApiRequest(`${API_ROUTES.USERS}/${userId}`, { method: 'DELETE', locale: false });
+                } catch (err) {
+                    console.warn('Could not delete cancelled account:', err);
+                }
+            }
+            await logout();
+        } finally {
+            finishOrNavigate({ status: 'error', message: 'popup_closed' }, ROUTES.HOME);
+        }
+    }, [finishOrNavigate]);
+
+    // См. комментарий у аналогичного места в OAuthCallbackPage.tsx.
+    const proceedNow = useCallback(() => {
+        finishOrNavigate({ status: 'success' }, ROUTES.HOME);
+    }, [finishOrNavigate]);
+
+    useEffect(() => {
+        if (!awaitingProceed) return;
+        if (proceedSecondsLeft <= 0) {
+            proceedNow();
+            return;
+        }
+        const timer = window.setTimeout(() => setProceedSecondsLeft(s => s - 1), 1000);
+        return () => window.clearTimeout(timer);
+    }, [awaitingProceed, proceedSecondsLeft, proceedNow]);
+
+    // См. комментарий у аналогичного места в OAuthCallbackPage.tsx — window.confirm вместо
+    // отдельного экрана; на отказ даём свежий отсчёт вместо оставшихся секунд.
+    const handleCancelClick = () => {
+        if (window.confirm(`${t('common:oauth.cancelCountdownTitle')}? ${t('common:oauth.cancelCountdownMessage')}`)) {
+            performCancel();
+        } else {
+            setProceedSecondsLeft(PROCEED_COUNTDOWN_SECONDS);
+        }
+    };
 
     useEffect(() => {
         const processTelegramCallback = async () => {
@@ -245,29 +294,21 @@ const TelegramCallbackPage = () => {
                         setUserEmail(data.user.email);
                     }
 
-                    if ((data as any).status === 204) {
+                    const justCreated = (data as any).status === 204;
+                    if (justCreated) {
                         // Новый пользователь. Если роль уже была выбрана до этого флоу (savedRole,
-                        // экран REGISTER) — она отправлена вместе с данными Telegram выше, но бэкенд
-                        // всё равно создаёт аккаунт без роли (`status: 204`) и ждёт отдельного
-                        // grant-role, так что назначаем её сейчас же, автоматически, без второго
-                        // вопроса. Если savedRole пуст — экран LOGIN неожиданно оказался новым
-                        // аккаунтом, либо мобильное приложение (спрашивает всегда так), либо
-                        // cross-tab случай (Telegram открыл подтверждение в новой вкладке) — в любом
-                        // из этих случаев спрашиваем роль здесь же, полноэкранным пикером.
+                        // экран REGISTER) — она была отправлена вместе с данными Telegram выше, и
+                        // бэкенд УЖЕ назначил её при создании аккаунта (TelegramOAuthService —
+                        // match($role) прямо на создании User). Отдельный POST /users/grant-role здесь
+                        // не нужен и даже вреден: роль уже есть, повторный грант той же ролью падает
+                        // 403 (ROLE_ALREADY_CLIENT/ROLE_ALREADY_MASTER). Просто отражаем в локальном
+                        // стейте то, что бэкенд уже сделал. Если savedRole пуст — экран LOGIN
+                        // неожиданно оказался новым аккаунтом, либо мобильное приложение (спрашивает
+                        // всегда так), либо cross-tab случай (Telegram открыл подтверждение в новой
+                        // вкладке) — тогда роли ДЕЙСТВИТЕЛЬНО нет, спрашиваем здесь же, полноэкранным
+                        // пикером (который сам вызовет grant-role — там она пока правда не назначена).
                         if (savedRole) {
-                            try {
-                                await universalApiRequest(API_ROUTES.USERS_GRANT_ROLE, {
-                                    method: 'POST',
-                                    body: { role: savedRole === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT' },
-                                    locale: false,
-                                });
-                                setUserRole(savedRole);
-                            } catch (grantErr) {
-                                console.warn('Could not grant pre-selected role, asking again:', grantErr);
-                                setLoading(false);
-                                setShowRoleSelect(true);
-                                return;
-                            }
+                            setUserRole(savedRole);
                         } else {
                             setLoading(false);
                             setShowRoleSelect(true);
@@ -289,12 +330,20 @@ const TelegramCallbackPage = () => {
                         }
                     }
 
-                    setSuccess(true);
                     setLoading(false);
-
-                    // Даём секунду показать галочку "успешно", прежде чем закрыть popup/уйти —
-                    // тот же тайминг, что у Google/Facebook/Instagram (см. OAuthCallbackPage.tsx).
-                    setTimeout(() => finishOrNavigate({ status: 'success' }, ROUTES.HOME), 900);
+                    if (justCreated) {
+                        // Новый аккаунт — короткая пауза с обратным отсчётом и возможностью
+                        // отменить/удалить, вместо мгновенного исчезновения (см. awaitingProceed).
+                        setProceedSecondsLeft(PROCEED_COUNTDOWN_SECONDS);
+                        setAwaitingProceed(true);
+                    } else {
+                        // Существующий пользователь просто вошёл — как и раньше, без паузы и без
+                        // возможности "отменить"/удалить (это не регистрация). Даём секунду показать
+                        // галочку "успешно", прежде чем закрыть popup/уйти — тот же тайминг, что у
+                        // Google/Facebook/Instagram (см. OAuthCallbackPage.tsx).
+                        setSuccess(true);
+                        setTimeout(() => finishOrNavigate({ status: 'success' }, ROUTES.HOME), 900);
+                    }
                 } else {
                     const message = resolveApiError(null, t('oauth.tokenNotReceived'));
                     setError(message);
@@ -319,6 +368,30 @@ const TelegramCallbackPage = () => {
         return <PageLoader text={t('oauth.processingTelegram')} />;
     }
 
+    // Аккаунт только что создан и роль уже назначена — короткая пауза с обратным отсчётом, за
+    // время которой можно передумать и удалить аккаунт (handleCancelClick).
+    if (awaitingProceed) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '20px', padding: '20px' }}>
+                <span style={{ fontSize: '52px', color: 'var(--color-actual-blue)' }}>✓</span>
+                <p style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--color-text-primary)', margin: 0 }}>{t('oauth.success')}</p>
+                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
+                    {t('common:oauth.proceedCountdownMessage', { seconds: proceedSecondsLeft })}
+                </p>
+                {cancelling ? <PageLoader fullPage={false} compact /> : (
+                    <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '400px' }}>
+                        <button type="button" onClick={handleCancelClick} style={{ flex: 1, whiteSpace: 'nowrap', background: 'transparent', border: '1px solid var(--color-stroke, #444)', borderRadius: '10px', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: '14px', padding: '12px 10px' }}>
+                            {t('common:oauth.cancelRegistration')}
+                        </button>
+                        <button type="button" onClick={proceedNow} style={{ flex: 1, background: 'var(--color-actual-blue, #3A54DA)', border: 'none', borderRadius: '10px', color: '#fff', cursor: 'pointer', fontSize: '14px', padding: '12px 10px' }}>
+                            {t('common:app.next')}
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
     if (showRoleSelect) {
         const handleGrantRole = async (role: 'master' | 'client') => {
             setGrantingRole(true);
@@ -329,37 +402,14 @@ const TelegramCallbackPage = () => {
                     locale: false,
                 });
                 setUserRole(role);
-                finishOrNavigate({ status: 'success' }, ROUTES.HOME);
+                setShowRoleSelect(false);
+                setProceedSecondsLeft(PROCEED_COUNTDOWN_SECONDS);
+                setAwaitingProceed(true);
             } catch (err) {
                 setError(resolveApiError(err));
                 setShowRoleSelect(false);
             } finally {
                 setGrantingRole(false);
-            }
-        };
-
-        // См. комментарий у аналогичного места в OAuthCallbackPage.tsx — аккаунт здесь уже
-        // реально создан (status:204), просто без роли; отмена удаляет этот незавершённый
-        // аккаунт и закрывает popup тем же 'popup_closed'-сентинелом, что уже не считается
-        // ошибкой в Auth.tsx.
-        const handleCancel = async () => {
-            if (!window.confirm(t('common:oauth.cancelRegistrationConfirm'))) return;
-            setCancelling(true);
-            // finally, не последовательно после двух await — если DELETE/logout вдруг упадут
-            // с чем-то неожиданным (не пойманным их же внутренними try/catch), popup/страница
-            // всё равно должны закрыться/уйти, а не зависнуть на спиннере навсегда.
-            try {
-                const userId = getUserData()?.id;
-                if (userId) {
-                    try {
-                        await universalApiRequest(`${API_ROUTES.USERS}/${userId}`, { method: 'DELETE', locale: false });
-                    } catch (err) {
-                        console.warn('Could not delete cancelled account:', err);
-                    }
-                }
-                await logout();
-            } finally {
-                finishOrNavigate({ status: 'error', message: 'popup_closed' }, ROUTES.HOME);
             }
         };
 
@@ -382,7 +432,7 @@ const TelegramCallbackPage = () => {
                         />
                         <button
                             type="button"
-                            onClick={handleCancel}
+                            onClick={handleCancelClick}
                             style={{
                                 background: 'transparent',
                                 border: '1px solid var(--color-stroke, #444)',

@@ -182,6 +182,7 @@
     "unlinkBtn": "Ҳудо кунед",
     "unlinkConfirm": "{{provider}}-ро ҷудо кунед? Шумо дигар тавассути он ворид шуда наметавонед.",
     "lastAuthMethod": "Танҳо як усули ворид шаван — ҳудо кардан шаван нест",
+    "originalProvider": "Ҳисоб бо ин провайдер сохта шудааст — ҷудо кардан мумкин нест",
     "linkTelegramTitle": "Тавассути Telegram ворид шавед",
     "provider": {
       "google": "Google",

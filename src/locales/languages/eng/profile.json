@@ -182,6 +182,7 @@
     "unlinkBtn": "Unlink",
     "unlinkConfirm": "Unlink {{provider}}? You won't be able to use it to sign in.",
     "lastAuthMethod": "Only sign-in method — cannot unlink",
+    "originalProvider": "Account was created with this provider — cannot unlink",
     "linkTelegramTitle": "Sign in via Telegram",
     "provider": {
       "google": "Google",

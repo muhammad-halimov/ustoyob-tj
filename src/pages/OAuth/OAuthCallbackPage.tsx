@@ -52,9 +52,15 @@ const OAuthCallbackPage = () => {
     // так и было задумано пользователем: см. Auth.tsx/SelectRoleModal) пикер здесь, на своей
     // родной full-page территории, а не втиснутый в модалку — там (см. историю правок) он ломался.
     const [showRoleSelect, setShowRoleSelect] = useState(false);
-    const [pendingToken, setPendingToken] = useState<string | null>(null);
     const [grantingRole, setGrantingRole] = useState(false);
     const [cancelling, setCancelling] = useState(false);
+    // Аккаунт только что создан (или роль только что выбрана/подтверждена) — короткая пауза
+    // с обратным отсчётом перед закрытием popup/уходом на главную, вместо мгновенного исчезновения
+    // без единого шанса передумать. Только для НОВЫХ аккаунтов (см. justCreated ниже) — для
+    // существующего пользователя, просто вошедшего в систему, это не показывается (см. success).
+    const PROCEED_COUNTDOWN_SECONDS = 5;
+    const [awaitingProceed, setAwaitingProceed] = useState(false);
+    const [proceedSecondsLeft, setProceedSecondsLeft] = useState(PROCEED_COUNTDOWN_SECONDS);
     const [provider, setProvider] = useState<OAuthProviderName | null>(null);
     const [isLinkMode, setIsLinkMode] = useState(false);
     // Meta закрыла Basic Display API (04.12.2024) — у Personal-аккаунтов нет официального
@@ -104,6 +110,80 @@ const OAuthCallbackPage = () => {
         // залогиненную страницу вместо вечного экрана "успешно".
         window.setTimeout(() => navigate(fallbackRoute, fallbackOptions), 1500);
     }, [navigate]);
+
+    // Аккаунт на экране showRoleSelect уже реально создан на бэкенде (status:204 — см. ниже),
+    // просто без роли. Отмена удаляет этот незавершённый аккаунт (DELETE /users/{id}, ещё
+    // валидным токеном-владельцем), разлогинивает и закрывает popup тем же путём, что
+    // "пользователь сам закрыл popup" (сообщение 'popup_closed' — тот же сентинел, что уже
+    // НЕ считается ошибкой в Auth.tsx). Вызывается и явным кликом "Далее", и по истечении
+    // таймера на экране подтверждения (см. useEffect ниже) — поэтому вынесена на верхний
+    // уровень компонента, а не внутрь showRoleSelect-блока.
+    const performCancel = useCallback(async () => {
+        setCancelling(true);
+        // finally, не последовательно после двух await — если DELETE/logout вдруг упадут
+        // с чем-то неожиданным (не пойманным их же внутренними try/catch), popup/страница
+        // всё равно должны закрыться/уйти, а не зависнуть на спиннере навсегда.
+        try {
+            const userId = getUserData()?.id;
+            if (userId) {
+                try {
+                    await universalApiRequest(`${API_ROUTES.USERS}/${userId}`, { method: 'DELETE', locale: false });
+                } catch (err) {
+                    console.warn('Could not delete cancelled account:', err);
+                }
+            }
+            await logout();
+        } finally {
+            finishOrNavigate({ status: 'error', message: 'popup_closed' }, ROUTES.HOME);
+        }
+    }, [finishOrNavigate]);
+
+    // Обычное завершение флоу (закрыть popup / уйти на главную) — тот же код, что раньше был
+    // продублирован в двух местах (общая ветка после processCallback и handleGrantRole). Просто
+    // getAuthToken() — setAuthToken() уже успел записать его в localStorage синхронно, к этому
+    // моменту (в обоих местах, откуда вызывается) он уже точно там. Специально НЕ зависит от
+    // какого-либо state с самим token'ом (раньше был pendingToken) — это сделало бы identity
+    // функции нестабильной между рендерами и вызвало повторный запуск processCallback-эффекта
+    // ниже (он в зависимостях), т.е. двойной вызов /auth/{provider}/callback.
+    const proceedNow = useCallback(() => {
+        const token = getAuthToken();
+        if (token && finishMobileOAuthFlow({ status: 'success', token })) return;
+        if (!finishOAuthPopup(oauthStateRef.current, { status: 'success' })) {
+            navigate(ROUTES.HOME);
+            window.dispatchEvent(new Event('login'));
+            return;
+        }
+        // На случай мобильного app-switch в другую вкладку, которую некому слушать
+        // (см. комментарий в finishOrNavigate) — если за 1.5 секунды эта вкладка
+        // не закрылась, продолжаем сами.
+        window.setTimeout(() => navigate(ROUTES.HOME), 1500);
+    }, [navigate]);
+
+    // Обратный отсчёт на экране "готово, роль назначена" — тикает, только пока он открыт;
+    // по достижении нуля просто завершает флоу как обычно (НЕ удаляет аккаунт — сюда попадают без
+    // явного намерения отменяться, так что бездействие должно означать "всё в порядке, продолжай",
+    // а не "передумал").
+    useEffect(() => {
+        if (!awaitingProceed) return;
+        if (proceedSecondsLeft <= 0) {
+            proceedNow();
+            return;
+        }
+        const timer = window.setTimeout(() => setProceedSecondsLeft(s => s - 1), 1000);
+        return () => window.clearTimeout(timer);
+    }, [awaitingProceed, proceedSecondsLeft, proceedNow]);
+
+    // window.confirm — блокирующий, поэтому уже запланированный тик обратного отсчёта выше
+    // просто подождёт своей очереди и продолжит нормально после закрытия диалога; на отказ
+    // (Cancel) даём свежий отсчёт, а не оставшиеся секунды — иначе экран мог почти сразу же
+    // сам завершить регистрацию сразу после того, как пользователь только что передумал отменять.
+    const handleCancelClick = () => {
+        if (window.confirm(`${t('common:oauth.cancelCountdownTitle')}? ${t('common:oauth.cancelCountdownMessage')}`)) {
+            performCancel();
+        } else {
+            setProceedSecondsLeft(PROCEED_COUNTDOWN_SECONDS);
+        }
+    };
 
     useEffect(() => {
         // Определяем провайдер по URL
@@ -215,24 +295,27 @@ const OAuthCallbackPage = () => {
                     return;
                 }
 
-                // Валидируем CSRF state (sessionStorage доступен только если та же вкладка)
-                const savedCsrfState = getSessionItem(`${detectedProvider}CsrfState`);
+                // Валидируем CSRF state — localStorage, не sessionStorage: popup, открытый через
+                // window.open(), в реальном Chrome не наследует sessionStorage опенера надёжно
+                // (проверено вживую), так что эта проверка молча no-op'илась (savedCsrfState всегда
+                // пуст) и роль из REGISTER-модалки той же дорогой терялась (см. roleKey ниже).
+                const savedCsrfState = getStorageItem(`${detectedProvider}CsrfState`);
                 if (savedCsrfState && state !== savedCsrfState) {
-                    removeSessionItem(`${detectedProvider}CsrfState`);
+                    removeStorageItem(`${detectedProvider}CsrfState`);
                     const message = t('oauth.invalidState', 'Invalid OAuth state. Possible CSRF attack.');
                     setError(message);
                     setLoading(false);
                     setTimeout(() => finishOrNavigate({ status: 'error', message }, ROUTES.HOME), 1500);
                     return;
                 }
-                removeSessionItem(`${detectedProvider}CsrfState`);
+                removeStorageItem(`${detectedProvider}CsrfState`);
 
                 // Роль, выбранную в SelectRoleModal ДО начала этого флоу (см. Auth.tsx: beginOAuth/
-                // handleOAuthStart) — тот же origin (popup или прямой заход), sessionStorage доступен.
+                // handleOAuthStart) — localStorage, по той же причине, что и CSRF-state выше.
                 // Отправляем её вместе с code/state: бэкенд создаёт аккаунт сразу с этой ролью.
                 const roleKey = `pending${detectedProvider.charAt(0).toUpperCase() + detectedProvider.slice(1)}Role`;
-                const savedRole = getSessionItem(roleKey) as 'master' | 'client' | null;
-                removeSessionItem(roleKey);
+                const savedRole = getStorageItem(roleKey) as 'master' | 'client' | null;
+                removeStorageItem(roleKey);
 
                 const callbackData: BackendAuthCallbackResponse = await universalApiRequest(API_ROUTES.AUTH_PROVIDER_CALLBACK(detectedProvider), {
                     method: 'POST',
@@ -259,33 +342,24 @@ const OAuthCallbackPage = () => {
                     setUserData(data.user);
                     if (data.user.email) setUserEmail(data.user.email);
 
-                    if ((data as any).status === 204) {
+                    const justCreated = (data as any).status === 204;
+                    if (justCreated) {
                         // Новый пользователь. Если роль уже была выбрана ДО этого флоу (savedRole,
-                        // экран REGISTER, см. Auth.tsx: beginOAuth/SelectRoleModal) — она отправлена
-                        // вместе с code/state выше, но бэкенд всё равно создаёт аккаунт без роли
-                        // (`status: 204`) и ждёт отдельного grant-role, так что назначаем её сейчас
-                        // же, автоматически, без второго вопроса. Если savedRole пуст — экран LOGIN
-                        // (там роль заранее не спрашивают, см. handleOAuthStart) неожиданно оказался
-                        // новым аккаунтом, либо мобильное приложение (спрашивает всегда так), либо
-                        // cross-tab случай (выбор из REGISTER потерялся) — в любом из этих случаев
-                        // спрашиваем роль здесь же, полноэкранным пикером, и НЕ финишируем сразу.
+                        // экран REGISTER, см. Auth.tsx: beginOAuth/SelectRoleModal) — она была отправлена
+                        // вместе с code/state выше, и бэкенд УЖЕ назначил её при создании аккаунта
+                        // (TelegramOAuthService/GoogleOAuthService и т.д. — match($role) на самом
+                        // создании User). Отдельный POST /users/grant-role здесь не нужен и даже вреден:
+                        // роль уже есть, и повторный грант той же ролью падает 403
+                        // (ROLE_ALREADY_CLIENT/ROLE_ALREADY_MASTER — см. ApiPostGrantRoleController).
+                        // Просто отражаем в локальном стейте то, что бэкенд уже сделал. Если savedRole
+                        // пуст — экран LOGIN (там роль заранее не спрашивают, см. handleOAuthStart)
+                        // неожиданно оказался новым аккаунтом, либо мобильное приложение (спрашивает
+                        // всегда так), либо cross-tab случай (выбор из REGISTER потерялся) — тогда роли
+                        // ДЕЙСТВИТЕЛЬНО нет, спрашиваем здесь же, полноэкранным пикером (который сам
+                        // вызовет grant-role — там она пока правда не назначена).
                         if (savedRole) {
-                            try {
-                                await universalApiRequest(API_ROUTES.USERS_GRANT_ROLE, {
-                                    method: 'POST',
-                                    body: { role: savedRole === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT' },
-                                    locale: false,
-                                });
-                                setUserRole(savedRole);
-                            } catch (grantErr) {
-                                console.warn('Could not grant pre-selected role, asking again:', grantErr);
-                                setPendingToken(token);
-                                setLoading(false);
-                                setShowRoleSelect(true);
-                                return;
-                            }
+                            setUserRole(savedRole);
                         } else {
-                            setPendingToken(token);
                             setLoading(false);
                             setShowRoleSelect(true);
                             return;
@@ -303,23 +377,17 @@ const OAuthCallbackPage = () => {
                         if (data.user.occupation) setUserOccupation(data.user.occupation);
                     }
 
-                    setSuccess(true);
-                    setTimeout(() => {
-                        if (finishMobileOAuthFlow({ status: 'success', token })) return;
-                        // dispatchEvent('login') нужен только когда мы реально живём на
-                        // этой же вкладке (fallback-ветка) — в popup'е это событие никто
-                        // не услышит, опенер сам разберётся по своему собственному
-                        // getAuthToken() после finishOAuthPopup.
-                        if (!finishOAuthPopup(oauthStateRef.current, { status: 'success' })) {
-                            navigate(ROUTES.HOME);
-                            window.dispatchEvent(new Event('login'));
-                            return;
-                        }
-                        // На случай мобильного app-switch в другую вкладку, которую
-                        // некому слушать (см. комментарий в finishOrNavigate) — если
-                        // за 1.5 секунды эта вкладка не закрылась, продолжаем сами.
-                        window.setTimeout(() => navigate(ROUTES.HOME), 1500);
-                    }, 900);
+                    if (justCreated) {
+                        // Новый аккаунт — короткая пауза с обратным отсчётом и возможностью
+                        // отменить/удалить, вместо мгновенного исчезновения (см. awaitingProceed).
+                        setProceedSecondsLeft(PROCEED_COUNTDOWN_SECONDS);
+                        setAwaitingProceed(true);
+                    } else {
+                        // Существующий пользователь просто вошёл — как и раньше, без паузы
+                        // и без возможности "отменить"/удалить (это не регистрация).
+                        setSuccess(true);
+                        setTimeout(() => proceedNow(), 900);
+                    }
                 } else {
                     const message = resolveApiError(null, t('oauth.tokenNotReceived'));
                     setError(message);
@@ -348,10 +416,39 @@ const OAuthCallbackPage = () => {
         };
 
         processCallback();
-    }, [searchParams, navigate, t, finishOrNavigate]);
+    }, [searchParams, navigate, t, finishOrNavigate, proceedNow]);
 
     if (loading) {
         return <PageLoader text={t('oauth.processingVia', { provider: provider === 'google' ? 'Google' : provider === 'instagram' ? 'Instagram' : 'Facebook' })} />;
+    }
+
+    // Аккаунт только что создан и роль уже назначена (пришла готовой из REGISTER-модалки, или
+    // только что выбрана в showRoleSelect ниже) — короткая пауза с обратным отсчётом, за время
+    // которой можно передумать и удалить аккаунт (handleCancelClick), вместо мгновенного перехода
+    // без единого шанса отменить.
+    if (awaitingProceed) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '20px', padding: '20px' }}>
+                <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="26" cy="26" r="25" stroke="#4caf50" strokeWidth="2" />
+                    <path d="M14 27l8 8 16-16" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>{t('oauth.success')}</p>
+                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
+                    {t('common:oauth.proceedCountdownMessage', { seconds: proceedSecondsLeft })}
+                </p>
+                {cancelling ? <PageLoader fullPage={false} compact /> : (
+                    <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '400px' }}>
+                        <button type="button" onClick={handleCancelClick} style={{ flex: 1, whiteSpace: 'nowrap', background: 'transparent', border: '1px solid var(--color-stroke, #444)', borderRadius: '10px', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: '14px', padding: '12px 10px' }}>
+                            {t('common:oauth.cancelRegistration')}
+                        </button>
+                        <button type="button" onClick={proceedNow} style={{ flex: 1, background: 'var(--color-actual-blue, #3A54DA)', border: 'none', borderRadius: '10px', color: '#fff', cursor: 'pointer', fontSize: '14px', padding: '12px 10px' }}>
+                            {t('common:app.next')}
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
     }
 
     if (showRoleSelect) {
@@ -364,48 +461,14 @@ const OAuthCallbackPage = () => {
                     locale: false,
                 });
                 setUserRole(role);
-                const token = pendingToken ?? getAuthToken();
-                if (token && finishMobileOAuthFlow({ status: 'success', token })) return;
-                if (!finishOAuthPopup(oauthStateRef.current, { status: 'success' })) {
-                    navigate(ROUTES.HOME);
-                    window.dispatchEvent(new Event('login'));
-                } else {
-                    // На случай мобильного app-switch в другую вкладку, которую некому
-                    // слушать (см. комментарий в finishOrNavigate) — если за 1.5 секунды
-                    // эта вкладка не закрылась, продолжаем сами.
-                    window.setTimeout(() => navigate(ROUTES.HOME), 1500);
-                }
+                setShowRoleSelect(false);
+                setProceedSecondsLeft(PROCEED_COUNTDOWN_SECONDS);
+                setAwaitingProceed(true);
             } catch (err) {
                 setError(resolveApiError(err));
                 setShowRoleSelect(false);
             } finally {
                 setGrantingRole(false);
-            }
-        };
-
-        // Аккаунт на этом экране уже реально создан на бэкенде (status:204 — см. выше), просто
-        // без роли. Раньше отсюда некуда было деться, кроме выбора роли — теперь можно отменить:
-        // удаляем этот незавершённый аккаунт (DELETE /users/{id}, ещё валидным токеном-владельцем),
-        // разлогиниваемся и закрываем popup тем же путём, что "пользователь сам закрыл popup"
-        // (сообщение 'popup_closed' — тот же сентинел, что уже НЕ считается ошибкой в Auth.tsx).
-        const handleCancel = async () => {
-            if (!window.confirm(t('common:oauth.cancelRegistrationConfirm'))) return;
-            setCancelling(true);
-            // finally, не последовательно после двух await — если DELETE/logout вдруг упадут
-            // с чем-то неожиданным (не пойманным их же внутренними try/catch), popup/страница
-            // всё равно должны закрыться/уйти, а не зависнуть на спиннере навсегда.
-            try {
-                const userId = getUserData()?.id;
-                if (userId) {
-                    try {
-                        await universalApiRequest(`${API_ROUTES.USERS}/${userId}`, { method: 'DELETE', locale: false });
-                    } catch (err) {
-                        console.warn('Could not delete cancelled account:', err);
-                    }
-                }
-                await logout();
-            } finally {
-                finishOrNavigate({ status: 'error', message: 'popup_closed' }, ROUTES.HOME);
             }
         };
 
@@ -431,7 +494,7 @@ const OAuthCallbackPage = () => {
                         />
                         <button
                             type="button"
-                            onClick={handleCancel}
+                            onClick={handleCancelClick}
                             style={{
                                 background: 'transparent',
                                 border: '1px solid var(--color-stroke, #444)',

@@ -182,6 +182,7 @@
     "unlinkBtn": "Отвязать",
     "unlinkConfirm": "Отвязать {{provider}}? Вы не сможете использовать его для входа.",
     "lastAuthMethod": "Единственный способ входа — отвязать нельзя",
+    "originalProvider": "Провайдер, с которого создан аккаунт — отвязать нельзя",
     "linkTelegramTitle": "Войдите через Telegram",
     "provider": {
       "google": "Google",
