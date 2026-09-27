@@ -7,9 +7,12 @@ framework:
         # The data in this cache should persist between deploys.
         # Other options include:
 
-        # Redis
-        #app: cache.adapter.redis
-        #default_redis_provider: redis://localhost
+        # Redis — уже установлен (predis/predis, см. composer.json) и REDIS_URL уже объявлен
+        # в .env (переопределяется в .env.local на конкретном сервере), просто раньше не был
+        # подключён сюда: "app"-пул (в т.ч. StateStorageService — OAuth anti-CSRF state) молча
+        # использовал дефолтный файловый адаптер вместо Redis.
+        app: cache.adapter.redis
+        default_redis_provider: '%env(REDIS_URL)%'
 
         # APCu (not recommended with heavy random-write workloads as memory fragmentation can cause perf issues)
         #app: cache.adapter.apcu
