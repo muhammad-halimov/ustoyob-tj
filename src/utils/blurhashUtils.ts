@@ -1,4 +1,4 @@
-import { decode } from 'blurhash';
+import { decode, encode } from 'blurhash';
 
 /**
  * BlurHash → data-URL для `background-image` (мгновенная размытая заглушка, пока грузится фото).
@@ -31,4 +31,56 @@ export const blurhashToDataUrl = (hash: string | null | undefined): string | und
         // Невалидный хэш (например, обрезанная строка) — просто без заглушки.
         return undefined;
     }
+};
+
+/**
+ * BlurHash для внешних фото (`ResolvedImage.external` — OAuth-аватар Google/Facebook и т.п.),
+ * которых нет и не может быть с бэка: бэк их вообще не обрабатывает, только отдаёт прямую ссылку
+ * (см. resolveImage() в imageUtils.ts). Считаем сами: грузим картинку в скрытый Image, уменьшаем
+ * через canvas и кодируем той же библиотекой. Кэш по URL — избавляет от повторного счёта при
+ * каждом новом показе того же аватара (шапка/чаты/отзывы/профиль и т.д. — один и тот же URL), но
+ * НЕ спасает самый первый показ конкретного URL за всё время жизни вкладки — до его первой полной
+ * загрузки считать попросту не из чего, secret sauce тут нет.
+ *
+ * CORS: если сторонний сервис не шлёт Access-Control-Allow-Origin, canvas будет tainted и чтение
+ * пикселей упадёт — тихо возвращаем undefined (аватар всё равно покажется, просто без заглушки).
+ */
+const SIZE_EXTERNAL = 32;
+const externalCache = new Map<string, string | undefined>();
+const externalPending = new Map<string, Promise<string | undefined>>();
+
+export const computeExternalBlurhash = (url: string | null | undefined): Promise<string | undefined> => {
+    if (!url) return Promise.resolve(undefined);
+    if (externalCache.has(url)) return Promise.resolve(externalCache.get(url));
+
+    const pending = externalPending.get(url);
+    if (pending) return pending;
+
+    const promise = new Promise<string | undefined>((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = SIZE_EXTERNAL;
+                canvas.height = SIZE_EXTERNAL;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) { resolve(undefined); return; }
+                ctx.drawImage(img, 0, 0, SIZE_EXTERNAL, SIZE_EXTERNAL);
+                const { data } = ctx.getImageData(0, 0, SIZE_EXTERNAL, SIZE_EXTERNAL);
+                resolve(encode(data, SIZE_EXTERNAL, SIZE_EXTERNAL, 4, 3));
+            } catch {
+                resolve(undefined);
+            }
+        };
+        img.onerror = () => resolve(undefined);
+        img.src = url;
+    }).then(hash => {
+        externalCache.set(url, hash);
+        externalPending.delete(url);
+        return hash;
+    });
+
+    externalPending.set(url, promise);
+    return promise;
 };

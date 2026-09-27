@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type * as React from 'react';
 import type { ResolvedImage } from '../../../../entities';
-import { blurhashToDataUrl } from '../../../../utils/blurhashUtils';
+import { blurhashToDataUrl, computeExternalBlurhash } from '../../../../utils/blurhashUtils';
 import { isImageVariantFailed, markImageVariantFailed } from '../../../../utils/imageFailureCache';
 import { peekCachedImage, getCachedImage, evictCachedImage } from '../../../../utils/imageCacheUtils';
 
@@ -56,7 +56,20 @@ export function Img({ image, src, fallbacks, blurhash, placeholder, placeholderC
 
     const exhausted = idx >= chain.length;
     const current = exhausted ? placeholder : chain[idx];
-    const hash = image?.blurhash ?? blurhash ?? undefined;
+    const ownHash = image?.blurhash ?? blurhash ?? undefined;
+
+    // Внешние фото (OAuth-аватар) не приходят с готовым BlurHash — считаем на клиенте и кэшируем
+    // по URL (см. computeExternalBlurhash), чтобы хотя бы повторные показы того же аватара уже не
+    // мелькали пустотой. Сам первый показ конкретного URL всё равно не покрыть — до его загрузки
+    // считать не из чего.
+    const [externalHash, setExternalHash] = useState<string | undefined>(undefined);
+    useEffect(() => {
+        if (!image?.external || ownHash || !current) return;
+        let cancelled = false;
+        computeExternalBlurhash(current).then(h => { if (!cancelled) setExternalHash(h); });
+        return () => { cancelled = true; };
+    }, [image?.external, ownHash, current]);
+    const hash = ownHash ?? (image?.external ? externalHash : undefined);
 
     // BlurHash-фон нужен только пока файл в пути: после загрузки снимаем, иначе он просвечивал бы
     // через прозрачные PNG/WebP и поля object-fit: contain.
