@@ -34,7 +34,7 @@ import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { App, type URLOpenListenerEvent } from '@capacitor/app';
 import { ROUTES } from '../app/routers/routes';
-import { setAuthToken, setUserRole, setUserOccupation, fetchCurrentUser, isAdmin, getUserRole } from './authUtils';
+import { setAuthToken, getAuthToken, setUserEmail, setUserRole, setUserOccupation, fetchCurrentUser, isAdmin, getUserRole } from './authUtils';
 import type { Occupation } from '../entities';
 
 /**
@@ -96,6 +96,38 @@ export function finishMobileOAuthFlow(result: { status: 'success'; token: string
     return true;
 }
 
+/**
+ * Same idea as `finishMobileOAuthFlow`, but for LINKING a provider to an already
+ * logged-in account (Profile page) instead of logging in.
+ *
+ * This page (the real public website, loaded in the in-app browser) has no session of
+ * its own by default — the user is logged into the APP, not into the website. So
+ * `startNativeOAuthLink` seeds THIS tab's own storage with the app's current JWT before
+ * doing anything else (via the `token` query param OAuthMobileStartPage/
+ * TelegramMobileStartPage read on load), and from that point on this is just the
+ * existing, already-working web link flow (`oauthMode==='link'` branch in
+ * OAuthCallbackPage/TelegramCallbackPage) — same `POST /api/profile/oauth/link` call,
+ * same code, just running inside the in-app browser instead of a desktop tab.
+ * We only need to hand the (possibly updated) token/email back to the app afterwards.
+ */
+export function finishMobileOAuthLinkFlow(
+    result: { status: 'success'; token?: string; email?: string } | { status: 'error'; message?: string }
+): boolean {
+    if (!isMobileOAuthFlow()) return false;
+    try { sessionStorage.removeItem(MOBILE_FLOW_STORAGE_KEY); } catch { /* ignore */ }
+
+    const params = new URLSearchParams({ status: result.status, mode: 'link' });
+    if (result.status === 'success') {
+        if (result.token) params.set('token', result.token);
+        if (result.email) params.set('email', result.email);
+    } else if (result.message) {
+        params.set('message', result.message);
+    }
+
+    window.location.href = `${OAUTH_APP_SCHEME}://${OAUTH_CALLBACK_HOST}?${params.toString()}`;
+    return true;
+}
+
 export interface NativeOAuthResult {
     token: string;
 }
@@ -107,6 +139,14 @@ interface PendingFlow {
 
 /** The auth modal's in-flight `startNativeOAuth` call, if any (only one at a time). */
 let pendingFlow: PendingFlow | null = null;
+
+interface PendingLinkFlow {
+    resolve: () => void;
+    reject: (err: Error) => void;
+}
+
+/** Profile page's in-flight `startNativeOAuthLink` call, if any (only one at a time). */
+let pendingLinkFlow: PendingLinkFlow | null = null;
 
 /**
  * Signs the user in from a bare JWT (no auth modal involved): stores the token, hydrates the
@@ -140,12 +180,41 @@ function rememberHandledToken(token: string): void {
     try { localStorage.setItem(HANDLED_TOKEN_STORAGE_KEY, token); } catch { /* ignore */ }
 }
 
+/**
+ * Provider-linking counterpart of `handleOAuthDeepLink` below. The actual
+ * `POST /api/profile/oauth/link` call already happened on the website (see
+ * `finishMobileOAuthLinkFlow`) — this just applies whatever it hands back (a refreshed
+ * token/email, if the link caused one) to the app's own storage and resolves the pending
+ * `startNativeOAuthLink` promise so Profile.tsx can refresh its provider list.
+ */
+function handleOAuthLinkDeepLink(url: URL): void {
+    const flow = pendingLinkFlow;
+    pendingLinkFlow = null;
+
+    if (url.searchParams.get('status') !== 'success') {
+        flow?.reject(new Error(url.searchParams.get('message') || 'oauth_failed'));
+        return;
+    }
+
+    const token = url.searchParams.get('token');
+    if (token) setAuthToken(token);
+    const email = url.searchParams.get('email');
+    if (email) setUserEmail(email);
+
+    flow?.resolve();
+}
+
 function handleOAuthDeepLink(rawUrl: string): void {
     let url: URL;
     try { url = new URL(rawUrl); } catch { return; }
     if (url.host !== OAUTH_CALLBACK_HOST && !url.pathname.includes(OAUTH_CALLBACK_HOST)) return;
 
     Browser.close().catch(() => { /* already closing itself */ });
+
+    if (url.searchParams.get('mode') === 'link') {
+        handleOAuthLinkDeepLink(url);
+        return;
+    }
 
     const token = url.searchParams.get('token');
     if (url.searchParams.get('status') === 'success' && token) {
@@ -219,6 +288,47 @@ export function startNativeOAuth(path: string): Promise<NativeOAuthResult> {
         Browser.open({ url: `${APP_WEB_ORIGIN}${path}${separator}mobile=1` }).catch((err) => {
             finishedListener?.remove();
             if (pendingFlow === flow) pendingFlow = null;
+            reject(err instanceof Error ? err : new Error('browser_open_failed'));
+        });
+    });
+}
+
+/**
+ * Native-app counterpart of Profile.tsx's `startProviderOAuthLink` (which uses the
+ * web-only `openOAuthPopup` popup flow). Same in-app-browser + deep-link mechanics as
+ * `startNativeOAuth` above, but for LINKING: the in-app browser tab has no session of its
+ * own, so we pass the app's own current JWT in the URL — OAuthMobileStartPage /
+ * TelegramMobileStartPage seed it into that tab's storage on load (and immediately strip
+ * it from the visible URL/history) — after that it's the existing, already-working web
+ * link flow end to end, just running inside the in-app browser (see
+ * `finishMobileOAuthLinkFlow`).
+ */
+export function startNativeOAuthLink(path: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const token = getAuthToken();
+        if (!token) { reject(new Error('not_authenticated')); return; }
+
+        pendingLinkFlow?.reject(new Error('popup_closed'));
+
+        const flow: PendingLinkFlow = { resolve, reject };
+        pendingLinkFlow = flow;
+
+        const cancelIfStillPending = () => {
+            if (pendingLinkFlow !== flow) return;
+            pendingLinkFlow = null;
+            reject(new Error('popup_closed'));
+        };
+
+        let finishedListener: { remove: () => void } | null = null;
+        Browser.addListener('browserFinished', () => {
+            finishedListener?.remove();
+            setTimeout(cancelIfStillPending, BROWSER_FINISHED_GRACE_MS);
+        }).then((listener) => { finishedListener = listener; });
+
+        const separator = path.includes('?') ? '&' : '?';
+        Browser.open({ url: `${APP_WEB_ORIGIN}${path}${separator}mobile=1&mode=link&token=${encodeURIComponent(token)}` }).catch((err) => {
+            finishedListener?.remove();
+            if (pendingLinkFlow === flow) pendingLinkFlow = null;
             reject(err instanceof Error ? err : new Error('browser_open_failed'));
         });
     });

@@ -8,6 +8,7 @@ import { ProfileSection } from '../ProfileSection';
 import { EditActions } from '../EditActions/EditActions';
 import { ConsentBanner } from '../../../../../widgets/Banners/ConsentBanner/ConsentBanner';
 import { SelectSearch } from '../../../../../shared/ui/SelectSearch';
+import { openExternalLink } from '../../../../../utils/linkUtils';
 import styles from './SocialNetworksSection.module.scss';
 import type { AvailableSocialNetwork, SocialNetworkConfig, UISocialNetwork } from '../../../../../entities';
 
@@ -164,11 +165,19 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                         <div className={styles.social_network_display}>
                             <div className={`${styles.social_network_handle} ${!network.handle ? styles.empty_handle : ''}`}>
                                 {network.handle ? (
+                                    // Не настоящий <a href target="_blank"> — в WKWebView такой анкор
+                                    // сам инициирует нативный переход (createWebViewWith) по жесту тапа
+                                    // ещё до того, как отработает preventDefault() в onClick, и ссылка
+                                    // всё равно улетает в системный Safari. Поэтому здесь нет href
+                                    // на внешний URL вовсе — открываем сами через openExternalLink
+                                    // (Capacitor Browser), как в OAuth.
                                     <a
-                                        href={SOCIAL_NETWORK_CONFIG[network.network]?.generateUrl(network.handle) || '#'}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                                        href="#"
                                         className={styles.handle_value_link}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            openExternalLink(SOCIAL_NETWORK_CONFIG[network.network]?.generateUrl(network.handle) || '');
+                                        }}
                                     >
                                         <Marquee
                                             text={(['telegram', 'instagram'].includes(network.network) && !network.handle.startsWith('@'))

@@ -6,7 +6,8 @@ import { API_ROUTES } from '../../app/routers/routes';
 import { universalApiRequest } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
 import { setSessionItem } from '../../utils/storageUtils';
-import { markMobileOAuthFlowFromUrl, finishMobileOAuthFlow } from '../../utils/mobileOAuth';
+import { setAuthToken } from '../../utils/authUtils';
+import { markMobileOAuthFlowFromUrl, finishMobileOAuthFlow, finishMobileOAuthLinkFlow } from '../../utils/mobileOAuth';
 import type { OAuthProviderName } from '../../entities';
 
 interface OAuthUrlResponse {
@@ -47,12 +48,29 @@ const OAuthMobileStartPage = () => {
         markMobileOAuthFlowFromUrl();
 
         const params = new URLSearchParams(window.location.search);
-        const role = params.get('role') || 'client';
-        const specialty = params.get('specialty');
         const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
-        setSessionItem(`pending${providerLabel}Role`, role);
-        if (role === 'master' && specialty) {
-            setSessionItem(`pending${providerLabel}Specialty`, specialty);
+        // Привязка провайдера к уже существующему аккаунту (Profile.tsx), а не вход. Эта
+        // вкладка (реальный сайт в in-app browser) по умолчанию не авторизована — сессия
+        // приложения живёт в его собственном localStorage, другой origin. Поэтому
+        // Profile.tsx передаёт токен приложения прямо в URL (см. startNativeOAuthLink) —
+        // сохраняем его здесь и СРАЗУ стираем из адресной строки/истории (replaceState),
+        // чтобы он не осел в истории браузера/Referer при переходе к провайдеру. Дальше
+        // это уже in-app browser, но токен есть — и весь дальнейший путь (oauthMode='link'
+        // в OAuthCallbackPage) отрабатывает ровно как на десктопе, без изменений.
+        const isLinkMode = params.get('mode') === 'link';
+        if (isLinkMode) {
+            const token = params.get('token');
+            if (token) setAuthToken(token);
+            params.delete('token');
+            window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+            setSessionItem('oauthMode', 'link');
+        } else {
+            const role = params.get('role') || 'client';
+            const specialty = params.get('specialty');
+            setSessionItem(`pending${providerLabel}Role`, role);
+            if (role === 'master' && specialty) {
+                setSessionItem(`pending${providerLabel}Specialty`, specialty);
+            }
         }
 
         universalApiRequest(API_ROUTES.AUTH_PROVIDER_URL(provider), { requiresAuth: false, locale: false })
@@ -77,7 +95,8 @@ const OAuthMobileStartPage = () => {
                 setError(message);
                 // Возвращаемся в приложение сразу с ошибкой, а не оставляем пользователя
                 // висеть на пустом экране in-app browser'а без возможности вернуться сами.
-                finishMobileOAuthFlow({ status: 'error', message });
+                if (isLinkMode) finishMobileOAuthLinkFlow({ status: 'error', message });
+                else finishMobileOAuthFlow({ status: 'error', message });
             });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

@@ -21,7 +21,7 @@ import { universalApiRequest } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
 import { getStorageItem, removeStorageItem, getSessionItem, removeSessionItem, removeSessionItems } from '../../utils/storageUtils';
 import { finishOAuthPopup } from '../../utils/oauthPopup';
-import { finishMobileOAuthFlow } from '../../utils/mobileOAuth';
+import { finishMobileOAuthFlow, finishMobileOAuthLinkFlow } from '../../utils/mobileOAuth';
 
 // Определяем провайдер по URL
 const getProviderFromUrl = (pathname: string): OAuthProviderName | null => {
@@ -144,10 +144,26 @@ const OAuthCallbackPage = () => {
                     removeSessionItem('oauthMode');
                     if (state) removeStorageItem(`oauth_mode_${state}`);
                     setIsLinkMode(true);
+
+                    // Мобильное приложение сажает свой JWT в эту вкладку заранее (см.
+                    // utils/mobileOAuth.ts startNativeOAuthLink), так что дальше это
+                    // ровно тот же вызов, что и на десктопе — getAuthToken() здесь уже
+                    // не пуст. finishOrNavigate тут не подходит — она бы отправила
+                    // приложению «успешный логин» (mode не указан) и заставила его
+                    // перезайти заново, вместо того чтобы просто обновить список
+                    // привязанных провайдеров.
+                    const finishLinkOrNavigate = (result: { status: 'success'; token?: string; email?: string } | { status: 'error'; message?: string }) => {
+                        if (finishMobileOAuthLinkFlow(result)) return;
+                        if (result.status === 'error') setError(result.message || t('oauth.tryLater'));
+                        else navigate(ROUTES.PROFILE, { replace: true });
+                    };
+
                     const jwtToken = getAuthToken();
                     if (!jwtToken) {
-                        setError(t('oauth.notAuthenticated', 'Not authenticated'));
+                        const message = t('oauth.notAuthenticated', 'Not authenticated');
+                        setError(message);
                         setLoading(false);
+                        finishLinkOrNavigate({ status: 'error', message });
                         return;
                     }
                     const linkData = await universalApiRequest(API_ROUTES.PROFILE_OAUTH_LINK, {
@@ -156,18 +172,24 @@ const OAuthCallbackPage = () => {
                         locale: false,
                     });
                     if (linkData.error === 'provider_taken' || linkData.error === 'oauth_provider_taken') {
-                        setError(linkData.message || t('oauth.providerTaken', 'This account is already linked to another user'));
+                        const message = linkData.message || t('oauth.providerTaken', 'This account is already linked to another user');
+                        setError(message);
                         setLoading(false);
+                        finishLinkOrNavigate({ status: 'error', message });
                         return;
                     }
                     if (linkData.error === 'already_linked') {
-                        setError(linkData.message || t('oauth.alreadyLinked', 'This provider is already linked to your account'));
+                        const message = linkData.message || t('oauth.alreadyLinked', 'This provider is already linked to your account');
+                        setError(message);
                         setLoading(false);
+                        finishLinkOrNavigate({ status: 'error', message });
                         return;
                     }
                     if (linkData.error) {
-                        setError(linkData.message || t('oauth.tryLater'));
+                        const message = linkData.message || t('oauth.tryLater');
+                        setError(message);
                         setLoading(false);
+                        finishLinkOrNavigate({ status: 'error', message });
                         return;
                     }
                     if (linkData.new_token) {
@@ -180,7 +202,7 @@ const OAuthCallbackPage = () => {
                         setUserEmail(linkData.new_email);
                     }
                     setSuccess(true);
-                    setTimeout(() => finishOrNavigate({ status: 'success' }, ROUTES.PROFILE, { replace: true }), 900);
+                    setTimeout(() => finishLinkOrNavigate({ status: 'success', token: linkData.new_token || jwtToken, email: linkData.new_email }), 900);
                     return;
                 }
 

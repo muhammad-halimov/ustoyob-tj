@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setSessionItem } from '../../utils/storageUtils';
+import { setAuthToken } from '../../utils/authUtils';
 import { markMobileOAuthFlowFromUrl } from '../../utils/mobileOAuth';
 
 /**
@@ -23,7 +24,20 @@ const TelegramMobileStartPage = () => {
 
     useEffect(() => {
         markMobileOAuthFlowFromUrl();
-        setSessionItem('pendingTelegramRole', 'client');
+        // Привязка к уже существующему аккаунту (Profile.tsx), а не вход — токен
+        // приложения приходит прямо в URL и сразу стирается из адресной строки/истории,
+        // см. подробный комментарий в OAuthMobileStartPage.tsx (тот же приём для
+        // Google/Facebook/Instagram).
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('mode') === 'link') {
+            const token = params.get('token');
+            if (token) setAuthToken(token);
+            params.delete('token');
+            window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+            setSessionItem('oauthMode', 'link');
+        } else {
+            setSessionItem('pendingTelegramRole', 'client');
+        }
 
         const script = document.createElement('script');
         script.src = 'https://telegram.org/js/telegram-widget.js?22';

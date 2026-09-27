@@ -3,6 +3,7 @@ import type * as React from 'react';
 import {Navigate, useNavigate, useParams} from 'react-router-dom';
 import {getAuthToken, getUserData, getUserRole, logout} from '../../utils/authUtils';
 import {openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult, markOAuthPopupFlow} from '../../utils/oauthPopup';
+import {isNativePlatform, startNativeOAuthLink} from '../../utils/mobileOAuth';
 import {API_ROUTES, ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 import {useTranslation} from 'react-i18next';
@@ -238,6 +239,25 @@ function Profile() {
     // синхронно, до await, иначе блокировщик всплывающих окон зарубит его —
     // жест пользователя (клик) к моменту ответа сервера уже "остыл".
     const startProviderOAuthLink = (provider: string) => {
+        // Приложение: window.open() тут не даёт настоящий popup (уводит во внешний,
+        // никак не связанный с нами Chrome/Safari — см. utils/mobileOAuth.ts), поэтому
+        // вся popup-механика ниже для него бессмысленна ровно как и в Auth.tsx.
+        if (isNativePlatform()) {
+            const startPath = provider === 'google' ? ROUTES.AUTH_GOOGLE_MOBILE_START
+                : provider === 'facebook' ? ROUTES.AUTH_FACEBOOK_MOBILE_START
+                : ROUTES.AUTH_INSTAGRAM_MOBILE_START;
+
+            startNativeOAuthLink(startPath)
+                .then(() => loadProviders())
+                .catch((err: Error) => {
+                    // Пользователь сам закрыл in-app browser, не дойдя до конца — не ошибка.
+                    if (err.message === 'popup_closed') { loadProviders(); return; }
+                    setModalMessage(resolveApiError(err, t('common:oauth.tryLater')));
+                    setShowErrorModal(true);
+                });
+            return;
+        }
+
         const popup = openOAuthPopup(`oauth_link_${provider}`);
         if (!popup) {
             setModalMessage(t('common:oauth.popupBlocked', { provider }));
@@ -297,6 +317,21 @@ function Profile() {
             return;
         }
         if (provider === 'telegram') {
+            // Приложение: виджет ниже проверяет data-auth-url против домена из BotFather —
+            // внутри пакетного приложения это https://localhost ("Bot domain invalid"),
+            // поэтому запускаем его на реальном сайте через in-app browser, как login
+            // в Auth.tsx (handleNativeTelegramAuthClick).
+            if (isNativePlatform()) {
+                startNativeOAuthLink(ROUTES.AUTH_TELEGRAM_MOBILE_START)
+                    .then(() => loadProviders())
+                    .catch((err: Error) => {
+                        if (err.message === 'popup_closed') { loadProviders(); return; }
+                        setModalMessage(resolveApiError(err, t('common:oauth.tryLater')));
+                        setShowErrorModal(true);
+                    });
+                return;
+            }
+
             // Показываем всплывающий виджет Telegram (как в Auth)
             // data-auth-url, не data-onauth — у telegram-widget.js data-onauth
             // разбирает атрибут через eval() (window.__parseFunction), а наш CSP
