@@ -184,11 +184,13 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         new Delete(
             uriTemplate: '/users/{id}',
             requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
+            // Owner can always delete their own account, regardless of role — unlike Patch
+            // above, which intentionally requires ROLE_MASTER/ROLE_CLIENT. A freshly-created
+            // OAuth account (findOrCreateUser, isNew=true) has no role yet until the frontend's
+            // grant-role step; without this, self-deleting that not-yet-completed registration
+            // (frontend "cancel" button) was rejected 403 before ever reaching Doctrine.
             security:
-                "is_granted('ROLE_ADMIN') or
-                 ((is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')) and
-                 object == user)",
+                "is_granted('ROLE_ADMIN') or object == user",
         ),
         new Post(
             uriTemplate: '/users/ping',
