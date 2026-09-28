@@ -5,6 +5,7 @@ namespace App\Controller\Admin\TechSupport\TechSupport;
 use App\Controller\Admin\TechSupport\TechSupportMessage\TechSupportMessageCrudController;
 use App\Controller\Admin\Extra\MultipleImageCrudController;
 use App\Entity\TechSupport\TechSupport;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
@@ -16,6 +17,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use App\Controller\Admin\Traits\AdminActionsTrait;
 use App\Controller\Admin\Traits\TimestampFieldsTrait;
 use App\Controller\Admin\Traits\NonAdminUserQueryTrait;
+use Firebase\JWT\JWT;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\Routing\Attribute\Route;
 
 class TechSupportCrudController extends AbstractCrudController
 {
@@ -24,6 +28,12 @@ class TechSupportCrudController extends AbstractCrudController
     use TimestampFieldsTrait;
 
     use AdminActionsTrait;
+
+    public function __construct(
+        // bind из services.yaml, тот же секрет, что и у API-подписных токенов —
+        // см. mercureToken() ниже и аналогичный приём в TicketApprovalCrudController.
+        private readonly string $mercureJwtSecret,
+    ) {}
 
     public static function getEntityFqcn(): string
     {
@@ -40,6 +50,13 @@ class TechSupportCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение талона')
             ->setPageTitle(Crud::PAGE_DETAIL, "Информация о талоне")
             ->setDefaultSort(['createdAt' => 'DESC']);
+    }
+
+    // [MERCURE] JS слушает топик "tech-supports-queue" и показывает баннер
+    // "Есть обновления" на списке — см. mercureToken()/TechSupportListMercureListener.
+    public function configureAssets(Assets $assets): Assets
+    {
+        return parent::configureAssets($assets)->addJsFile('assets/js/techSupportCrud.js');
     }
 
 
@@ -99,5 +116,35 @@ class TechSupportCrudController extends AbstractCrudController
             ->setRequired(false);
 
         yield from $this->timestampFields();
+    }
+
+    /**
+     * GET /admin/tech-supports/mercure-token
+     *
+     * Аналог TicketApprovalCrudController::mercureToken() — токен для
+     * admin-сессии (см. её докблок за полное обоснование), топик
+     * "tech-supports-queue".
+     *
+     * Путь НЕ "/tech-support/mercure-token" по той же причине, по которой
+     * там выбран "/admin/ticket-approvals/..." — совпал бы с уже
+     * зарегистрированным "/tech-support/{entityId}".
+     */
+    #[Route('/admin/tech-supports/mercure-token', name: 'admin_tech_support_mercure_token')]
+    public function mercureToken(): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_SUPER_ADMIN');
+
+        $topic = 'tech-supports-queue';
+
+        $token = JWT::encode(
+            payload: [
+                'mercure' => ['subscribe' => [$topic]],
+                'exp'     => time() + 3600,
+            ],
+            key: $this->mercureJwtSecret,
+            alg: 'HS256',
+        );
+
+        return new JsonResponse(['token' => $token, 'topic' => $topic]);
     }
 }
