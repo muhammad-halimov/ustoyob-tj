@@ -109,6 +109,26 @@
 
     button {
       cursor: pointer;
+      // Кнопки прямоугольные (обычный <button>, background:none), а иконки внутри —
+      // круглые PNG. Без этого при тапе/скролле WebKit/Chrome рисует свой дефолтный
+      // тач-хайлайт — серый ПРЯМОУГОЛЬНИК по границам кнопки, не совпадающий с формой
+      // иконки внутри (см. скриншот — квадрат вокруг круглого лого). Явный прозрачный
+      // цвет вместо дефолтного убирает его целиком; свою обратную связь на тап даёт
+      // :active ниже — круглый glow вместо квадрата.
+      -webkit-tap-highlight-color: transparent;
+      border-radius: 50%;
+      position: relative;
+
+      // Тот же акцентный синий, что у фокус-подсветки полей формы (SelectSearch/DateWidget) —
+      // белый здесь на светлой теме был бы попросту не виден, этот цвет читается в обеих.
+      &:active:not(:disabled)::after {
+        content: '';
+        position: absolute;
+        inset: -6px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(58, 84, 218, 0.25), transparent 70%);
+        pointer-events: none;
+      }
     }
 
     img {
