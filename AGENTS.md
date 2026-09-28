@@ -158,6 +158,15 @@ Organized by feature:
 - `src/shared/ui/`: Reusable components (Header, Footer, Modal, Auth, etc.)
 - `src/widgets/`: Feature-specific composed widgets (ActionsDropdown, Banners, DateWidget, Sorting, ThemeToggle, etc.)
 - Component README files exist in some directories (e.g., `src/shared/ui/Photo/Preview/README.md`).
+- **`src/widgets/DateWidget/` is intentionally different on `mobile` vs `front`** (same file path,
+  deliberately divergent content — see `README.md` on the `mobile` branch → "Мобильная сборка" →
+  "Виджет даты рождения" for why). `mobile` wraps the native `<input type="date">` in an opaque
+  overlay + a Clear button to work around native-control bugs (ghost "today" value on empty, iOS
+  width/height quirks, focused-segment highlight bleeding through any overlay) that a universal
+  CSS fix couldn't solve; `front` deliberately kept the plain native input, only aligned to match
+  sibling fields (background/border/height). Never blindly `git merge`/copy this file between
+  branches — check it explicitly on every "pull front into mobile" (or vice versa) and keep each
+  side's own version.
 
 ### Theme System (`src/contexts/ThemeContext.tsx`)
 - Theme (dark/light) persisted to localStorage and restored on boot.
