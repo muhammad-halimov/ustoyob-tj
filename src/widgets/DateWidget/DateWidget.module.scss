@@ -23,19 +23,22 @@
 .input {
   width: 100%;
   padding: 12px 16px;
-  background-color: var(--color-background-btn2, #f5f5f5);
+  // Тот же фон/рамка/радиус, что у соседних полей формы (SelectSearch altMode: .altWrap) —
+  // раньше здесь был другой токен (--color-background-btn2, сплошная заливка без рамки),
+  // из-за которого поле визуально выделялось среди остальных.
+  background-color: var(--color-background-primary, #fff);
   color: var(--color-text-black, #333);
-  border: none;
-  border-radius: 8px;
+  border: 1px solid var(--color-stroke);
+  border-radius: 12px;
   font-size: 16px;
   box-sizing: border-box;
-  transition: all 0.2s ease;
+  transition: border-color 0.18s, box-shadow 0.18s;
   cursor: pointer;
 
   &:focus {
     outline: none;
-    background-color: var(--color-background-primary, #fff);
-    box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
+    border-color: var(--color-actual-blue, #3A54DA);
+    box-shadow: 0 0 0 2px rgba(58, 84, 218, 0.12);
   }
 
   &:disabled {
@@ -143,14 +146,10 @@
     min-height: 44px;
     margin: 0;
     font-family: inherit;
-    border: 1px solid var(--color-stroke);
     text-align: left;
+    // Рамка уже задана в базовом .input — здесь только то, что специфично для iOS.
     color: transparent;
     -webkit-text-fill-color: transparent;
-
-    &:focus {
-      border-color: var(--color-actual-blue, #3A54DA);
-    }
   }
 
   .display {
