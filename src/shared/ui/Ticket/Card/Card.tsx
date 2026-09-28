@@ -5,9 +5,11 @@ import React, {useEffect, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {useFavorites} from '../../../../hooks/useFavorites.ts';
 import {useRespondToTicket} from '../../../../hooks/useRespondToTicket';
-import {ROUTES} from '../../../../app/routers/routes';
+import {ROUTES, API_ROUTES} from '../../../../app/routers/routes';
 import {truncateText} from '../../../../utils/textUtils';
 import {getUserData} from '../../../../utils/authUtils';
+import {universalApiRequest} from '../../../../utils/apiUtils';
+import {openMercureSource} from '../../../../utils/mercureUtils';
 
 import {Marquee} from '../../Text/Marquee';
 import {Carousel} from '../../Photo/Carousel';
@@ -185,6 +187,49 @@ export function Card({
   const currentUserId = getUserData()?.id;
   const isOwnTicket = authorId != null && currentUserId != null && String(authorId) === String(currentUserId);
 
+  // Живое обновление статуса одобрения — пока тикет ждёт модерации, подписываемся на его
+  // Mercure-топик (подписаться может только владелец, см. /tickets/{id}/subscribe) и обновляем
+  // бейдж без перезагрузки страницы/списка. Событие одноразовое (сервер публикует его ровно
+  // один раз, в момент одобрения) — получили → сразу закрываем соединение.
+  const [isApproved, setIsApproved] = useState(approved);
+  useEffect(() => {
+    setIsApproved(approved);
+  }, [approved]);
+
+  useEffect(() => {
+    if (!isOwnTicket || !ticketId || isApproved !== false) return;
+    let cancelled = false;
+    let source: EventSource | null = null;
+
+    (async () => {
+      try {
+        const { token } = await universalApiRequest(API_ROUTES.TICKET_SUBSCRIBE(ticketId), { locale: false }) as { token: string | null };
+        if (cancelled || !token) return;
+
+        source = openMercureSource([`ticket:${ticketId}`], token);
+        source.onmessage = (event) => {
+          try {
+            const { type, data } = JSON.parse(event.data) as { type: string; data: { approved: boolean } };
+            if (type === 'approved' && data.approved) {
+              setIsApproved(true);
+              source?.close();
+            }
+          } catch {
+            // ignore malformed events
+          }
+        };
+      } catch {
+        // Real-time is a progressive enhancement — the card just won't self-update until
+        // whatever list it lives in gets refetched normally.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      source?.close();
+    };
+  }, [isOwnTicket, ticketId, isApproved]);
+
   const isResponded = shouldUseManagedRespond ? managedRespond.isResponded : externalIsResponded;
   const isRespondLoading = shouldUseManagedRespond ? managedRespond.isResponding : externalIsRespondLoading;
 
@@ -264,7 +309,7 @@ export function Card({
               {displayTicketType}
             </div>
           )}
-          <TicketStatusBadge approved={approved} banned={banned} />
+          <TicketStatusBadge approved={isApproved} banned={banned} />
         </div>
         <div className={styles.card_top_actions}>
           {showActiveToggle && (

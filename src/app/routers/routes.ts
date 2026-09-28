@@ -90,6 +90,7 @@ export const API_ROUTES = {
     TICKETS: '/api/tickets',
     TICKETS_ME: '/api/tickets/me',
     TICKET_BY_ID: (id: number | string) => `/api/tickets/${id}`,
+    TICKET_SUBSCRIBE: (id: number | string) => `/api/tickets/${id}/subscribe`,
 
     // Categories / occupations (mostly cached via dataCacheUtils — see there for collection GETs)
     PROVINCES: '/api/provinces',
