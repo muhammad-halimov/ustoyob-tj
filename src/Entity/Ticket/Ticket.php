@@ -16,6 +16,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\GET\Ticket\Ticket\ApiGetMyTicketsController;
+use App\Controller\Api\CRUD\GET\Ticket\Ticket\ApiGetTicketSubscribeTokenController;
 use App\Controller\Api\CRUD\PATCH\Ticket\Ticket\ApiPatchTicketController;
 use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
 use App\Controller\Api\CRUD\POST\Ticket\Ticket\ApiPostTicketController;
@@ -90,6 +91,16 @@ use Symfony\Component\Validator\Constraints as Assert;
             controller: ApiPatchTicketController::class,
             normalizationContext: ['groups' => G::OPS_TICKETS_FULL],
             input: TicketPatchInput::class,
+        ),
+        // [MERCURE] Эндпоинт для получения подписного JWT-токена — аналог
+        // /chats/{id}/subscribe (см. Chat). Фронтенд вызывает его на карточке
+        // ещё не одобренного тикета и слушает топик "ticket:{id}" — событие
+        // "approved" приходит, когда админ подтверждает объявление/услугу
+        // (см. TicketApprovalMercureListener).
+        new Get(
+            uriTemplate: '/tickets/{id}/subscribe',
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
+            controller: ApiGetTicketSubscribeTokenController::class,
         ),
     ],
     paginationClientItemsPerPage: true,
