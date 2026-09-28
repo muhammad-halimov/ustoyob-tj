@@ -10,6 +10,7 @@ use App\Entity\TechSupport\TicketApproval;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Option\EA;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
@@ -22,8 +23,11 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Doctrine\ORM\QueryBuilder;
+use Firebase\JWT\JWT;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\Routing\Attribute\Route;
 
 class TicketApprovalCrudController extends AbstractCrudController
 {
@@ -38,7 +42,12 @@ class TicketApprovalCrudController extends AbstractCrudController
         configureActions as private baseConfigureActions;
     }
 
-    public function __construct(private readonly AdminUrlGenerator $adminUrlGenerator) {}
+    public function __construct(
+        private readonly AdminUrlGenerator $adminUrlGenerator,
+        // bind из services.yaml, тот же секрет, что и у API-подписных токенов
+        // (ApiGetChatSubscribeTokenController и т.д.) — см. mercureToken() ниже.
+        private readonly string            $mercureJwtSecret,
+    ) {}
 
     public static function getEntityFqcn(): string
     {
@@ -55,6 +64,13 @@ class TicketApprovalCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение подтверждения')
             ->setPageTitle(Crud::PAGE_DETAIL, "Информация о подтверждении")
             ->setDefaultSort(['createdAt' => 'DESC']);
+    }
+
+    // [MERCURE] JS слушает топик "ticket-approvals" и показывает баннер
+    // "Есть обновления" на списке — см. mercureToken()/TicketApprovalListMercureListener.
+    public function configureAssets(Assets $assets): Assets
+    {
+        return parent::configureAssets($assets)->addJsFile('assets/js/ticketApprovalCrud.js');
     }
 
     public function configureActions(Actions $actions): Actions
@@ -200,5 +216,40 @@ class TicketApprovalCrudController extends AbstractCrudController
         return $this->redirect(
             $this->adminUrlGenerator->setAction(Crud::PAGE_INDEX)->set(EA::PAGE, 1)->generateUrl()
         );
+    }
+
+    /**
+     * GET /ticket-approval/mercure-token
+     *
+     * Аналог ApiGetChatSubscribeTokenController (см. API), но для admin-
+     * сессии (firewall 'admin', form_login), а не JWT-Bearer — обычный
+     * Symfony-маршрут внутри этого же CRUD-контроллера, доступ проверяется
+     * стандартным IsGranted по сессионной куке, отдельный Bearer не нужен.
+     *
+     * Топик общий "ticket-approvals" (не по конкретной заявке) — вся очередь
+     * видна любому ROLE_SUPER_ADMIN, см. configureCrud()/TicketApprovalListMercureListener.
+     */
+    // Путь НЕ "/ticket-approval/mercure-token" — он бы совпал с уже
+    // зарегистрированным EasyAdmin-маршрутом "/ticket-approval/{entityId}"
+    // (тот стоит раньше в таблице маршрутов и не ограничивает entityId
+    // форматом UUID), из-за чего "mercure-token" ловился бы как entityId и
+    // падал с ошибкой преобразования в uuid. Проверено живьём.
+    #[Route('/admin/ticket-approvals/mercure-token', name: 'admin_ticket_approval_mercure_token')]
+    public function mercureToken(): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_SUPER_ADMIN');
+
+        $topic = 'ticket-approvals';
+
+        $token = JWT::encode(
+            payload: [
+                'mercure' => ['subscribe' => [$topic]],
+                'exp'     => time() + 3600,
+            ],
+            key: $this->mercureJwtSecret,
+            alg: 'HS256',
+        );
+
+        return new JsonResponse(['token' => $token, 'topic' => $topic]);
     }
 }
