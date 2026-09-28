@@ -235,7 +235,7 @@ export default function Category() {
                 alt={item.title}
             />
             <p>
-                <Marquee text={item.title} alwaysScroll duration={20}/>
+                <Marquee text={item.title} alwaysScroll/>
             </p>
         </div>
     );
