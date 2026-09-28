@@ -30,15 +30,22 @@
   // (align-items: center) разная метрика строки при одинаковом padding/font-size,
   // расчётная высота расходилась на пару пикселей.
   height: 42px;
-  padding: 10px 14px;
+  padding: 10px 52px 10px 14px;
   background-color: var(--color-background-primary, #fff);
-  color: var(--color-text-black, #333);
   border: 1px solid var(--color-stroke);
   border-radius: 12px;
   font-size: 14px;
   box-sizing: border-box;
   transition: border-color 0.18s, box-shadow 0.18s;
   cursor: pointer;
+
+  // Пустое значение ("" — см. Auth.tsx: dateOfBirth изначально пустая строка) рисуется как
+  // СЕГОДНЯШНЯЯ дата блёклым шрифтом — универсальное поведение нативного <input type="date">
+  // (Chromium И WebKit, десктоп и мобильные), а не только iOS/Android, как считалось раньше:
+  // выглядит как уже выбранное значение. Прячем нативный текст везде — плейсхолдер/
+  // отформатированную дату рисует .display поверх, тем же стилем, что у соседних полей.
+  color: transparent;
+  -webkit-text-fill-color: transparent;
 
   &:focus {
     outline: none;
@@ -53,25 +60,40 @@
 
   // Compact variant used inside ProfileHeader
   .compact & {
-    padding: 6px 10px;
+    padding: 6px 40px 6px 10px;
     font-size: 14px;
     border-radius: 6px;
   }
 }
 
-// Оверлей с текстом — по умолчанию не нужен (нативный рендер даты нормальный на вебе/Android).
+// Текст поверх нативного (см. комментарий у .input выше) — плейсхолдер, когда value пуст,
+// иначе отформатированная дата. Тапы/клики проходят сквозь (pointer-events: none) в сам
+// инпут — он остаётся единственной кликабельной зоной, открывающей нативный пикер.
 .display {
-  display: none;
-}
+  display: block;
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: calc(100% - 60px);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  font-size: 14px;
+  color: var(--color-text-black, #333);
 
-.inputBox .clear {
-  display: none;
+  &.placeholder {
+    color: var(--color-text-placeholder, #999);
+  }
 }
 
 // Кнопка Clear (shared/ui/Button/Clear) в геометрии крестиков остальных полей формы
-// (SelectSearch: .trigger/.altWrap .clearBtn — кнопка 36×36, иконка 24×24, центр на 28px
-// от правого края рамки). Показывается только на iOS и Android (см. ниже).
-@mixin visible-clear {
+// (SelectSearch: .trigger/.altWrap .clearBtn — кнопка 36×36, иконка 24×24). У нативного
+// date-input нет способа полностью очистить значение со страницы (Reset в самом пикере
+// на iOS откатывает к текущей дате, а не очищает; на десктопе/Android его вообще нет
+// в самом поле) — своя кнопка нужна везде одинаково.
+.inputBox .clear {
   display: inline-flex;
   position: absolute;
   right: 10px;
@@ -89,58 +111,11 @@
   }
 }
 
-// Оверлей с плейсхолдером/отформатированной датой (.display) поверх нативного текста —
-// см. подробный комментарий у @supports ниже (изначально только для iOS). На Android
-// пустое поле само по себе не показывает вообще никакого текста ("Дата рождения" нигде
-// не написано), так что тот же оверлей нужен и здесь.
-@mixin visible-display {
-  display: block;
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  max-width: calc(100% - 60px);
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  pointer-events: none;
-  // Тот же font-size, что у базового .input (14px, см. выше) — раньше оверлей был 16px,
-  // что дополнительно увеличивало кажущуюся высоту поля относительно соседних.
-  font-size: 14px;
-  color: var(--color-text-black, #333);
-
-  &.placeholder {
-    color: var(--color-text-placeholder, #999);
-  }
-}
-
-// Android (WebView приложения и Chrome): нативный date-input не подписывает пустое поле
-// ("Дата рождения" нигде не видно) и в самом поле нет способа сбросить выбранную дату —
-// нужны те же оверлей и Clear, что и на iOS. Класс .android ставит DateWidget.tsx по
-// userAgent; справа освобождаем место под кнопку, чтобы текст даты не уходил под неё.
-.android {
-  .input {
-    padding-right: 52px;
-    // Нативный текст на Android рисуется нормально (не "призрачной" датой, как на iOS),
-    // но раз поверх теперь наш .display — прячем и его, иначе дата продублируется.
-    color: transparent;
-  }
-
-  .display {
-    @include visible-display;
-  }
-
-  .inputBox .clear {
-    @include visible-clear;
-  }
-}
-
 // -webkit-touch-callout поддерживает только WebKit на iOS (Safari и WKWebView/Capacitor) —
-// так правка не задевает ни десктоп, ни Android. Два дефекта нативного date-input там:
-//  1) пустое значение рисуется как сегодняшняя дата блёклым шрифтом по центру (как будто
-//     уже выбрана) — прячем нативный текст и рисуем свой (.display);
-//  2) у него своя минимальная ширина по содержимому — поле вылезает за правый край
-//     формы (см. скриншот регистрации) — жёстко ограничиваем шириной контейнера.
+// у нативного date-input там ЕЩЁ и своя минимальная ширина по содержимому, из-за которой
+// поле вылезает за правый край формы (см. скриншот регистрации) — жёстко ограничиваем
+// шириной контейнера. Прятать текст/показывать .display и Clear уже не нужно — это теперь
+// базовое поведение выше, действующее на всех платформах.
 @supports (-webkit-touch-callout: none) {
   .input {
     display: block;
@@ -155,17 +130,5 @@
     margin: 0;
     font-family: inherit;
     text-align: left;
-    // Рамка уже задана в базовом .input — здесь только то, что специфично для iOS.
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-  }
-
-  .display {
-    @include visible-display;
-  }
-
-  // Двойной селектор, чтобы перебить собственные стили Clear.
-  .inputBox .clear {
-    @include visible-clear;
   }
 }
