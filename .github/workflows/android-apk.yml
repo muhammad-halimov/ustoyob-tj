@@ -1,0 +1,62 @@
+# Debug-APK для Android через GitHub Actions (см. README → «Сборка APK»).
+# Готовый файл — во вкладке Actions → нужный запуск → Artifacts → ustoyob-debug-apk.
+#
+# VITE_* читаются на этапе сборки. Значения берутся из переменных репозитория
+# (Settings → Secrets and variables → Actions → Variables) — те же, что в .env.local.
+name: Android APK
+
+on:
+  push:
+    branches:
+      - mobile
+      - ccr-b20bbd31-th4pkd
+  workflow_dispatch:
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web bundle
+        env:
+          # Пустой VITE_API_BASE_URL в приложении не работает (относительные URL уходят в
+          # https://localhost), поэтому без переменной репозитория — публичный сайт.
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://ustoyob.tj' }}
+          VITE_MERCURE_HUB_URL: ${{ vars.VITE_MERCURE_HUB_URL }}
+          VITE_TELEGRAM_BOT_NAME: ${{ vars.VITE_TELEGRAM_BOT_NAME }}
+          VITE_APP_ORIGIN: ${{ vars.VITE_APP_ORIGIN }}
+        run: npm run build
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Assemble debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ustoyob-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
