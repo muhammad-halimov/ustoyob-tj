@@ -81,12 +81,43 @@
   }
 }
 
-// Android (WebView приложения и Chrome): нативный date-input рисует дату нормально, но
-// в самом поле нет способа сбросить выбранную дату — нужен тот же Clear, что и на iOS. Класс .android ставит DateWidget.tsx по userAgent; справа
-// освобождаем место под кнопку, чтобы текст даты не уходил под неё.
+// Оверлей с плейсхолдером/отформатированной датой (.display) поверх нативного текста —
+// см. подробный комментарий у @supports ниже (изначально только для iOS). На Android
+// пустое поле само по себе не показывает вообще никакого текста ("Дата рождения" нигде
+// не написано), так что тот же оверлей нужен и здесь.
+@mixin visible-display {
+  display: block;
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: calc(100% - 64px);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  font-size: 16px;
+  color: var(--color-text-black, #333);
+
+  &.placeholder {
+    color: var(--color-text-placeholder, #999);
+  }
+}
+
+// Android (WebView приложения и Chrome): нативный date-input не подписывает пустое поле
+// ("Дата рождения" нигде не видно) и в самом поле нет способа сбросить выбранную дату —
+// нужны те же оверлей и Clear, что и на iOS. Класс .android ставит DateWidget.tsx по
+// userAgent; справа освобождаем место под кнопку, чтобы текст даты не уходил под неё.
 .android {
   .input {
     padding-right: 52px;
+    // Нативный текст на Android рисуется нормально (не "призрачной" датой, как на iOS),
+    // но раз поверх теперь наш .display — прячем и его, иначе дата продублируется.
+    color: transparent;
+  }
+
+  .display {
+    @include visible-display;
   }
 
   .inputBox .clear {
@@ -123,22 +154,7 @@
   }
 
   .display {
-    display: block;
-    position: absolute;
-    left: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    max-width: calc(100% - 64px);
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    pointer-events: none;
-    font-size: 16px;
-    color: var(--color-text-black, #333);
-
-    &.placeholder {
-      color: var(--color-text-placeholder, #999);
-    }
+    @include visible-display;
   }
 
   // Двойной селектор, чтобы перебить собственные стили Clear.
