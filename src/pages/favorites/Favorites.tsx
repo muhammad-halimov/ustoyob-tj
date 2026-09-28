@@ -16,6 +16,7 @@ import type {Chat} from '../../entities';
 import {textHelper} from '../../utils/textUtils';
 import {useTranslation} from 'react-i18next';
 import {useLanguageChange, useShowMore} from '../../hooks';
+import {invalidateFavoritesCache} from '../../hooks/useFavorites.ts';
 import {Card} from '../../shared/ui/Ticket/Card/Card';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import {ServiceTypeFilter} from '../../widgets/Sorting/TypeFilter';
@@ -609,6 +610,7 @@ function Favorites() {
         try {
             await universalApiRequest(API_ROUTES.FAVORITE_BY_ID(entry.entryId), { method: 'DELETE', locale: false });
             setFavoriteUserViews(prev => prev.filter(u => u.id !== userId));
+            invalidateFavoritesCache();
             window.dispatchEvent(new Event('favoritesUpdated'));
         } catch (err) {
             console.error('Error removing user from favorites:', err);
@@ -634,6 +636,7 @@ function Favorites() {
             await universalApiRequest(API_ROUTES.FAVORITE_BY_ID(entry.entryId), { method: 'DELETE', locale: false });
             setLikedTickets(prev => prev.filter(id => id !== ticketId));
             setFavoriteTicketViews(prev => prev.filter(t => t.id !== ticketId));
+            invalidateFavoritesCache();
             window.dispatchEvent(new Event('favoritesUpdated'));
         } catch {
             setRespondModal({ open: true, type: 'error', message: 'Ошибка при удалении из избранного' });
@@ -664,10 +667,13 @@ function Favorites() {
             setLikedTickets(prev => [...prev, ticketId]);
             const ticketDetails = await fetchTicketDetails(ticketId);
             if (ticketDetails) setFavoriteTicketViews(prev => [...prev, ticketDetails]);
+            invalidateFavoritesCache();
             window.dispatchEvent(new Event('favoritesUpdated'));
         } catch (e: any) {
             if (e?.message?.includes('409')) {
                 setLikedTickets(prev => [...prev, ticketId]);
+                invalidateFavoritesCache();
+                window.dispatchEvent(new Event('favoritesUpdated'));
             } else {
                 setRespondModal({ open: true, type: 'error', message: 'Ошибка при добавлении в избранное' });
             }
