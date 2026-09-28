@@ -305,6 +305,7 @@ function Recommendations({
                                 onClear={() => setVisibleCount(initialLimit)}
                                 showMoreText={t('common:app.showMore')}
                                 showLessText={t('common:app.showLess')}
+                                persistKey="recommendations"
                                 horizontal
                             />
                         </div>
@@ -320,6 +321,7 @@ function Recommendations({
                                 onClear={() => setVisibleCount(RECS_INITIAL_SIZE)}
                                 showMoreText={t('common:app.showMore')}
                                 showLessText={t('common:app.showLess')}
+                                persistKey="recommendations"
                                 horizontal
                             />
                         </div>
