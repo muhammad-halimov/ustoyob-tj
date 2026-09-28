@@ -272,6 +272,10 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                         clearBtn={false}
                         hideShowMoreWhenExpanded
                         loading={false}
+                        // Раскрытие текста одного отзыва — состояние конкретного элемента списка, не
+                        // страницы: у каждого отзыва одинаковый текст кнопки, персистентность по
+                        // умолчанию перепутала бы их между собой (одна запись в sessionStorage на всех).
+                        stateful={false}
                         horizontal
                     />
                 )}

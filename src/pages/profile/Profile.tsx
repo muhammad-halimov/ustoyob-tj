@@ -3312,6 +3312,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                                 showMoreText={t('common:app.showMore')}
                                 showLessText={t('common:app.showLess')}
                                 loading={servicesLoading}
+                                persistKey="profile:services"
                                 horizontal
                             />
                         }
@@ -3365,6 +3366,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                             showMoreText={t('common:app.showMore')}
                             showLessText={t('common:app.showLess')}
                             loading={reviewsLoading}
+                            persistKey="profile:reviews"
                             horizontal
                         />
                     }

@@ -3,6 +3,7 @@ import styles from './ShowMore.module.scss';
 import { Clear } from '../Clear/Clear';
 import { PageLoader } from '../../../../widgets/PageLoader';
 import { Marquee } from '../../Text/Marquee';
+import { usePersistedState } from '../../../../hooks';
 
 /**
  * Компонент ShowMore отображает компактный блок для разворачивания или
@@ -40,15 +41,43 @@ interface ShowMoreProps {
     horizontal?: boolean;
     /** Стрелки влево/вправо вместо вверх/вниз */
     horizontalArrows?: boolean;
+    /** Запоминать развёрнутое состояние между переходами (sessionStorage) и само восстанавливать
+     * его при возврате на страницу — без участия родителя. Включено по умолчанию. */
+    stateful?: boolean;
+    /** Ключ для персистентного состояния при stateful (комбинируется с путём страницы автоматически,
+     * задавать его свой — не нужно). По умолчанию вместо него используется текст кнопок — задайте
+     * свой, если на одной странице несколько ShowMore с одинаковым текстом (иначе они начнут делить
+     * одну и ту же запись в sessionStorage). */
+    persistKey?: string;
 }
 
-export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLess, onClear, showMoreText, showLessText, clearBtn = true, hideShowMoreWhenExpanded = false, loading = false, column = false, horizontal = false, horizontalArrows = false }: ShowMoreProps) => {
+export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLess, onClear, showMoreText, showLessText, clearBtn = true, hideShowMoreWhenExpanded = false, loading = false, column = false, horizontal = false, horizontalArrows = false, stateful = true, persistKey }: ShowMoreProps) => {
     const [clicked, setClicked] = useState<'more' | 'less' | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
 
     const resolvedCanLoadMore = canLoadMore !== undefined
         ? canLoadMore
         : (hasMore ?? false);
+
+    // Восстановление — только один шаг "показать ещё" (не точное число прошлых кликов): этого
+    // достаточно, чтобы после возврата на страницу список не схлопывался обратно к initialCount,
+    // и не требует от родителя уметь запрашивать сразу N страниц разом.
+    const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+    const storageKey = `showmore:${pathname}:${persistKey ?? `${showMoreText}:${showLessText}`}`;
+    const [wasExpanded, setWasExpanded] = usePersistedState<boolean>(storageKey, false);
+    const triedRestoreRef = useRef(false);
+
+    useEffect(() => {
+        if (stateful) setWasExpanded(expanded);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [expanded, stateful]);
+
+    useEffect(() => {
+        if (!stateful || triedRestoreRef.current) return;
+        triedRestoreRef.current = true;
+        if (wasExpanded && !expanded && resolvedCanLoadMore) onShowMore();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         if (!loading) setClicked(null);

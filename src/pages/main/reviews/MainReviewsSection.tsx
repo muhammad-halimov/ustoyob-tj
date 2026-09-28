@@ -204,6 +204,9 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                         clearBtn={false}
                         hideShowMoreWhenExpanded
                         loading={false}
+                        // Раскрытие текста одного отзыва — состояние элемента списка, не страницы;
+                        // см. тот же комментарий в profile/shared/ui/ReviewsSection.
+                        stateful={false}
                         horizontal
                         horizontalArrows
                     />
@@ -445,6 +448,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                     showMoreText={t('common:app.showMore')}
                     showLessText={t('common:app.showLess')}
                     loading={loading}
+                    persistKey="main:reviews"
                     horizontal
                     horizontalArrows
                 />
