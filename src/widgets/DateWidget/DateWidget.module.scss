@@ -60,6 +60,40 @@
   display: none;
 }
 
+// Кнопка Clear (shared/ui/Button/Clear) в геометрии крестиков остальных полей формы
+// (SelectSearch: .trigger/.altWrap .clearBtn — кнопка 36×36, иконка 24×24, центр на 28px
+// от правого края рамки). Показывается только на iOS и Android (см. ниже).
+@mixin visible-clear {
+  display: inline-flex;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--color-icons);
+
+  svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+// Android (WebView приложения и Chrome): нативный date-input рисует дату нормально, но
+// в самом поле нет способа сбросить выбранную дату — нужен тот же Clear, что и на iOS. Класс .android ставит DateWidget.tsx по userAgent; справа
+// освобождаем место под кнопку, чтобы текст даты не уходил под неё.
+.android {
+  .input {
+    padding-right: 52px;
+  }
+
+  .inputBox .clear {
+    @include visible-clear;
+  }
+}
+
 // -webkit-touch-callout поддерживает только WebKit на iOS (Safari и WKWebView/Capacitor) —
 // так правка не задевает ни десктоп, ни Android. Два дефекта нативного date-input там:
 //  1) пустое значение рисуется как сегодняшняя дата блёклым шрифтом по центру (как будто
@@ -107,24 +141,8 @@
     }
   }
 
-  // Общий Clear (shared/ui/Button/Clear) — геометрия как у крестиков остальных полей формы
-  // (SelectSearch: .trigger/.altWrap .clearBtn — кнопка 36×36, иконка 24×24, центр на 28px
-  // от правого края рамки); двойной селектор, чтобы перебить собственные стили Clear.
+  // Двойной селектор, чтобы перебить собственные стили Clear.
   .inputBox .clear {
-    display: inline-flex;
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 2;
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    color: var(--color-icons);
-
-    svg {
-      width: 24px;
-      height: 24px;
-    }
+    @include visible-clear;
   }
 }

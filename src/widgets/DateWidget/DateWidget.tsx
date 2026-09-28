@@ -25,6 +25,10 @@ const defaultMax = () =>
         .toISOString()
         .split('T')[0];
 
+// Android (WebView приложения и мобильный Chrome) — там, как и на iOS, нужна своя кнопка
+// очистки даты (см. .android в scss). У iOS свой CSS-детект через @supports.
+const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+
 export const DateWidget: React.FC<DateInputProps> = ({
     value,
     onChange,
@@ -63,7 +67,7 @@ export const DateWidget: React.FC<DateInputProps> = ({
     }, []);
 
     return (
-        <div className={`${styles.wrapper}${className ? ` ${className}` : ''}`}>
+        <div className={`${styles.wrapper}${isAndroid ? ` ${styles.android}` : ''}${className ? ` ${className}` : ''}`}>
             {label && <span className={styles.label}>{label}</span>}
             <div className={styles.inputBox}>
                 <input
@@ -94,9 +98,10 @@ export const DateWidget: React.FC<DateInputProps> = ({
                     {value ? formattedValue : emptyPlaceholder}
                 </span>
                 {/*
-                    Только iOS (скрыта в scss на остальных платформах). Кнопка «Сбросить» в самом
-                    нативном пикере iOS не очищает поле — откатывает к исходной/сегодняшней дате, а
-                    повлиять на системный контрол из веба нельзя, поэтому очистка — своей кнопкой.
+                    Только iOS и Android (скрыта в scss на остальных платформах). Кнопка «Сбросить»
+                    в самом нативном пикере iOS не очищает поле — откатывает к исходной/сегодняшней
+                    дате, а на Android в самом поле нет способа сбросить дату; повлиять на системный
+                    контрол из веба нельзя, поэтому очистка — своей кнопкой.
                 */}
                 {value && !disabled && (
                     <Clear className={styles.clear} onClick={() => onChange('')} />
