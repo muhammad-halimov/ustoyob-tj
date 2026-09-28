@@ -4471,8 +4471,6 @@
   display: flex;
   gap: 12px;
   justify-content: center;
-  margin-top: 32px;
-  margin-bottom: 32px;
   flex-wrap: wrap;
 }
 
@@ -4543,7 +4541,20 @@
   border: none;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  // Тексты кнопок разной длины ("Оставить отзыв" vs "Пожаловаться") — без общей ширины они
+  // размером под собственное содержимое и выглядят парой разных кнопок, а не единым действием.
+  min-width: 180px;
+
+  // Тот же паддинг/шрифт, что и у кнопки "Обновить" в EmptyState выше по странице (см.
+  // EmptyState.module.scss, ≤480px) — на узких экранах 12px 24px делали кнопки заметно крупнее
+  // соседних блоков.
+  @media (max-width: 400px) {
+    padding: 10px 16px;
+    font-size: 13px;
+    min-width: 150px;
+  }
 }
 
 .review_button {
