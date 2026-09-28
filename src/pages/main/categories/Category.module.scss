@@ -196,16 +196,71 @@
         min-width: 0 !important;
         flex: unset !important;
         box-sizing: border-box;
+        // Сверху/снизу как на десктопе, по бокам меньше (14px там): в узкой 3-колоночной сетке
+        // 14px с каждой стороны съедали столько ширины, что даже короткие однословные названия
+        // ("Электрика", "Сантехника") не помещались в строку и Marquee гонял их бегущей строкой
+        // без необходимости — с 6px они помещаются статично, скролл остаётся только у реально
+        // длинных составных названий.
+        padding: 16px 6px 8px;
 
         img {
-          max-width: 75px;
-          max-height: 75px;
+          max-width: 72px;
+          max-height: 72px;
+          // Меньше, чем на десктопе (120px иконка, 12/28 blur) — та же тень на 75px иконке даёт
+          // непропорционально широкий квадратный ореол, упирающийся в край плитки. 8/18 всё ещё
+          // упирался — те же значения, что и на совсем узких экранах ниже (4/10), край тени
+          // гораздо ближе к иконке.
+          filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
+        }
+
+        &:hover img {
+          filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.8));
         }
       }
     }
 
+    // Иконки категорий на совсем узких экранах — 75px в 3-колоночной сетке им уже тесно, уменьшаем.
+    // Радиус тени тот же, что и в общем мобильном блоке выше (4/10 - 8/16) — она уже урезана там.
+    // @media screen and (max-width: 380px) {
+    //   .category_item .category_item_step {
+    //     img {
+    //       max-width: 72px;
+    //       max-height: 72px;
+    //     }
+    //   }
+    // }
+
+    // Свайпер (см. Category.tsx) — та же порция категорий, что и в обычной сетке выше, просто
+    // порезанная на страницы по initialCount штук; внутри каждого слайда — целый .category_item
+    // (та же 3-колоночная вёрстка), листается целиком одним свайпом, а не по одной плитке.
+    .category_swiper {
+      width: 100%;
+      // overflow: hidden — тут не отдельные плитки выглядывают из-за края (как было бы у
+      // continuous-скролла), а целые страницы сменяют друг друга, соседняя страница не должна
+      // быть видна.
+      overflow: hidden;
+    }
+
+    // Точки пагинации — отдельный элемент ПОСЛЕ свайпера (см. pagination.el в Category.tsx), не
+    // дефолтный оверлей поверх/внутри .category_swiper: тот, даже с padding-bottom под него,
+    // лежал вне границ .swiper-slide — свайп/клик по нему не подхватывался (мёртвая зона).
+    .category_pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 20px;
+      margin-top: 8px;
+
+      :global(.swiper-pagination-bullet) {
+        margin: 0 4px;
+      }
+    }
+
+    // Меньше отступа, чем на десктопе (там 20px, см. .category_btn_center выше) — здесь над
+    // кнопкой уже есть точки пагинации (.category_pagination), и 20px поверх выглядели как
+    // двойной отступ — слишком большой зазор между точками и кнопкой "Показать ещё/Меньше".
     .category_btn_center {
-      margin-top: 20px;
+      margin-top: 4px;
     }
 
     .no_results {
@@ -229,6 +284,30 @@
 
       &:hover img {
         filter: drop-shadow(0 22px 44px rgba(255, 255, 255, 0.22));
+      }
+
+      // Тот же урезанный радиус тени, что и в светлой теме выше.
+      @media screen and (max-width: 768px) {
+        img {
+          filter: drop-shadow(0 4px 10px rgba(255, 255, 255, 0.12));
+        }
+
+        &:hover img {
+          filter: drop-shadow(0 8px 16px rgba(255, 255, 255, 0.22));
+        }
+      }
+    }
+
+    // Те же цвета точек пагинации, что и у свайпера Performers (Performers.module.scss) —
+    // дефолтный тёмно-синий Swiper-цвет плохо виден на тёмном фоне.
+    .category_pagination {
+      :global(.swiper-pagination-bullet) {
+        background: rgba(255, 255, 255, 0.5);
+        opacity: 1;
+      }
+
+      :global(.swiper-pagination-bullet-active) {
+        background: #ffffff;
       }
     }
   }

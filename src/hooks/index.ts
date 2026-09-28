@@ -7,3 +7,4 @@ export { useShowMore } from './useShowMore';
 export type { ShowMoreBindings } from './useShowMore';
 export { useUnreadChatsCount } from './useUnreadChatsCount';
 export { useMediaQuery } from './useMediaQuery';
+export { usePersistedState } from './usePersistedState';

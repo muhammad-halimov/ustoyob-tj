@@ -25,7 +25,7 @@
   gap: 8px;
   min-width: 0;
 
-  @media screen and (max-width: 540px) {
+  @media screen and (max-width: 380px) {
     flex-direction: column-reverse;
   }
 }
@@ -35,7 +35,7 @@
 }
 
 .rowHorizontal {
-  @media screen and (max-width: 540px) {
+  @media screen and (max-width: 380px) {
     flex-direction: row-reverse;
   }
 }
