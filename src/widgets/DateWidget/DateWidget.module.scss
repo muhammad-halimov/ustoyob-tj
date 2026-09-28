@@ -56,6 +56,10 @@
   display: none;
 }
 
+.inputBox .clear {
+  display: none;
+}
+
 // -webkit-touch-callout поддерживает только WebKit на iOS (Safari и WKWebView/Capacitor) —
 // так правка не задевает ни десктоп, ни Android. Два дефекта нативного date-input там:
 //  1) пустое значение рисуется как сегодняшняя дата блёклым шрифтом по центру (как будто
@@ -90,7 +94,7 @@
     left: 16px;
     top: 50%;
     transform: translateY(-50%);
-    max-width: calc(100% - 32px);
+    max-width: calc(100% - 64px);
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -100,6 +104,27 @@
 
     &.placeholder {
       color: var(--color-text-placeholder, #999);
+    }
+  }
+
+  // Общий Clear (shared/ui/Button/Clear) — геометрия как у крестиков остальных полей формы
+  // (SelectSearch: .trigger/.altWrap .clearBtn — кнопка 36×36, иконка 24×24, центр на 28px
+  // от правого края рамки); двойной селектор, чтобы перебить собственные стили Clear.
+  .inputBox .clear {
+    display: inline-flex;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    color: var(--color-icons);
+
+    svg {
+      width: 24px;
+      height: 24px;
     }
   }
 }

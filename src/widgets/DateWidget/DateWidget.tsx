@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFormattedDate } from '../../hooks';
+import { Clear } from '../../shared/ui/Button/Clear/Clear';
 import styles from './DateWidget.module.scss';
 
 interface DateInputProps {
@@ -39,13 +40,34 @@ export const DateWidget: React.FC<DateInputProps> = ({
     // formatLocalizedDate('') возвращает "дата не указана" — для пустого поля нужен свой
     // плейсхолдер, поэтому форматированное значение используем только при непустом value.
     const formattedValue = useFormattedDate(value);
-    const emptyPlaceholder = placeholder ?? t('dateOfBirth');
+    const emptyPlaceholder = placeholder ?? t('auth.dateOfBirth');
+    const inputRef = useRef<HTMLInputElement>(null);
+    const valueRef = useRef(value);
+    valueRef.current = value;
+    const onChangeRef = useRef(onChange);
+    onChangeRef.current = onChange;
+
+    // Кнопка «Сбросить/Reset» в нативном пикере iOS очищает значение, но React-овский onChange
+    // на очистку date-input в WebKit не вызывается — состояние остаётся со старой датой, а наш
+    // оверлей рисуется из состояния (нативный текст скрыт), поэтому «сброс ничего не делает».
+    // Слушаем нативные input/change/blur напрямую и синхронизируем, если значение разошлось.
+    useEffect(() => {
+        const el = inputRef.current;
+        if (!el) return;
+        const sync = () => {
+            if (el.value !== valueRef.current) onChangeRef.current(el.value);
+        };
+        const events = ['input', 'change', 'blur'] as const;
+        events.forEach((ev) => el.addEventListener(ev, sync));
+        return () => events.forEach((ev) => el.removeEventListener(ev, sync));
+    }, []);
 
     return (
         <div className={`${styles.wrapper}${className ? ` ${className}` : ''}`}>
             {label && <span className={styles.label}>{label}</span>}
             <div className={styles.inputBox}>
                 <input
+                    ref={inputRef}
                     type="date"
                     name={name}
                     value={value}
@@ -71,6 +93,14 @@ export const DateWidget: React.FC<DateInputProps> = ({
                 >
                     {value ? formattedValue : emptyPlaceholder}
                 </span>
+                {/*
+                    Только iOS (скрыта в scss на остальных платформах). Кнопка «Сбросить» в самом
+                    нативном пикере iOS не очищает поле — откатывает к исходной/сегодняшней дате, а
+                    повлиять на системный контрол из веба нельзя, поэтому очистка — своей кнопкой.
+                */}
+                {value && !disabled && (
+                    <Clear className={styles.clear} onClick={() => onChange('')} />
+                )}
             </div>
         </div>
     );
