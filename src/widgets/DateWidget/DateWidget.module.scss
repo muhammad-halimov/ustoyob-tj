@@ -22,15 +22,20 @@
 
 .input {
   width: 100%;
-  padding: 12px 16px;
-  // Тот же фон/рамка/радиус, что у соседних полей формы (SelectSearch altMode: .altWrap) —
-  // раньше здесь был другой токен (--color-background-btn2, сплошная заливка без рамки),
-  // из-за которого поле визуально выделялось среди остальных.
+  // Тот же padding/font/фон/рамка/радиус, что у соседних полей формы (SelectSearch altMode:
+  // .altWrap/.altInput — измерено 42px высотой) — раньше здесь были и другой токен фона
+  // (--color-background-btn2, сплошная заливка без рамки), и другой padding/font-size
+  // (12px 16px / 16px), из-за которых поле было выше соседних (47px) и выделялось.
+  // height явно, а не через padding+line-height — у <input> и flex-обёртки .altWrap
+  // (align-items: center) разная метрика строки при одинаковом padding/font-size,
+  // расчётная высота расходилась на пару пикселей.
+  height: 42px;
+  padding: 10px 14px;
   background-color: var(--color-background-primary, #fff);
   color: var(--color-text-black, #333);
   border: 1px solid var(--color-stroke);
   border-radius: 12px;
-  font-size: 16px;
+  font-size: 14px;
   box-sizing: border-box;
   transition: border-color 0.18s, box-shadow 0.18s;
   cursor: pointer;
@@ -91,15 +96,17 @@
 @mixin visible-display {
   display: block;
   position: absolute;
-  left: 16px;
+  left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  max-width: calc(100% - 64px);
+  max-width: calc(100% - 60px);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   pointer-events: none;
-  font-size: 16px;
+  // Тот же font-size, что у базового .input (14px, см. выше) — раньше оверлей был 16px,
+  // что дополнительно увеличивало кажущуюся высоту поля относительно соседних.
+  font-size: 14px;
   color: var(--color-text-black, #333);
 
   &.placeholder {
@@ -142,8 +149,9 @@
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    // appearance:none у пустого date-input в iOS схлопывает высоту в ноль.
-    min-height: 44px;
+    // appearance:none у пустого date-input в iOS схлопывает высоту в ноль — 42px, чтобы
+    // совпадало с высотой соседних полей формы (SelectSearch altMode, измерено).
+    min-height: 42px;
     margin: 0;
     font-family: inherit;
     text-align: left;

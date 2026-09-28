@@ -399,6 +399,7 @@
 
   // Override DateWidget styles for compact inline use
   :global(.input), input {
+    height: auto !important;
     padding: 6px 10px !important;
     font-size: 14px !important;
     border-radius: 6px !important;
