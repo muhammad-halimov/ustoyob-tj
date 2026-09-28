@@ -10,6 +10,8 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Кастомный плагин — до super.onCreate(), так требует Capacitor.
+        registerPlugin(NavigationBarPlugin.class);
         super.onCreate(savedInstanceState);
         requestHighestRefreshRate();
     }

@@ -14,11 +14,23 @@
  *    без `viewport-fit=cover` `env(safe-area-inset-*)` равен 0. Сами отступы — в
  *    app/styles/native.scss (активны под `html.native-ios`).
  */
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 
 const platform = Capacitor.getPlatform();
 const isNative = Capacitor.isNativePlatform();
+
+/**
+ * @capacitor/status-bar красит только верхний статус-бар — нижнюю системную навигационную
+ * панель Android (жест-пилюля/кнопки back-home-recents) им покрасить нельзя, там свой нативный
+ * API (см. android/.../NavigationBarPlugin.java). Без этого панель оставалась светлой при любой
+ * теме приложения — переключатель темы вообще её не касался.
+ */
+interface NavigationBarPlugin {
+    setColor(options: { color: string; lightIcons?: boolean }): Promise<void>;
+}
+
+const NavigationBar = registerPlugin<NavigationBarPlugin>('NavigationBar');
 
 /** Adds `directive` (e.g. `maximum-scale=1`) to the viewport meta unless its key is already there. */
 function addViewportDirective(directive: string): void {
@@ -52,8 +64,15 @@ export function syncStatusBar(theme: 'light' | 'dark'): void {
     if (!isNative) return;
 
     StatusBar.setStyle({ style: theme === 'dark' ? Style.Dark : Style.Light }).catch(() => { /* не критично */ });
-    // Фон статус-бара задаётся только на Android; на iOS под ним и так рисуется страница.
+    // Android 15+ (targetSdk 35+) принудительно включает edge-to-edge — StatusBar.setBackgroundColor
+    // (и Window#setNavigationBarColor) стали no-op, полосы больше так не покрасить. Сам
+    // edge-to-edge уже реализован в ядре Capacitor (com.getcapacitor.plugin.SystemBars), но фон
+    // под прозрачными барами оно красит статическим android:windowBackground из styles.xml —
+    // системной темой, не нашей; NavigationBar.setColor красит именно то, что видно под барами,
+    // нашим текущим цветом (см. android/.../NavigationBarPlugin.java). На iOS под ними и так
+    // рисуется страница (безопасные зоны — app/styles/native.scss), там ничего красить не нужно.
     if (platform === 'android') {
-        StatusBar.setBackgroundColor({ color: theme === 'dark' ? '#1a1a1a' : '#ffffff' }).catch(() => { /* не критично */ });
+        const color = theme === 'dark' ? '#1a1a1a' : '#ffffff';
+        NavigationBar.setColor({ color, lightIcons: theme === 'dark' }).catch(() => { /* не критично */ });
     }
 }
