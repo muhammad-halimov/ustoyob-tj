@@ -397,13 +397,37 @@
   flex: 1;
   min-width: 0;
 
-  // Override DateWidget styles for compact inline use — три select'а (день/месяц/год, см.
-  // DateWidget.tsx), а не текстовый input.
-  select {
+  // Override DateWidget styles for compact inline use
+  :global(.input), input {
     height: auto !important;
-    padding: 6px 8px !important;
+    // Правый отступ — под кнопку Clear (см. ниже), она теперь показывается всегда, а не
+    // только на iOS/Android.
+    padding: 6px 34px 6px 10px !important;
     font-size: 14px !important;
     border-radius: 6px !important;
+    min-height: 0 !important;
+  }
+
+  // Оверлей с текстом даты (см. DateWidget.tsx) не задет селектором выше — подгоняем
+  // отдельно, иначе текст съедет относительно сжатого инпута.
+  [data-date-display] {
+    left: 10px !important;
+    font-size: 14px !important;
+  }
+
+  // Кнопка Clear в масштабе компактного поля — базовые 36×36 (см. DateWidget.module.scss)
+  // выше самого поля в этом режиме (~32px) и вылезали бы за его границы. Хэшированный класс
+  // DateWidget.module.scss (.clear) недоступен отсюда напрямую — ловим по substring, как и
+  // остальные кросс-модульные привязки в проекте (см. AGENTS.md).
+  [class*="_clear_"] {
+    right: 2px !important;
+    width: 28px !important;
+    height: 28px !important;
+
+    svg {
+      width: 18px !important;
+      height: 18px !important;
+    }
   }
 }
 
