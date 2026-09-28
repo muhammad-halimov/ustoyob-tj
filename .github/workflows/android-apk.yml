@@ -9,7 +9,6 @@ on:
   push:
     branches:
       - mobile
-      - ccr-b20bbd31-th4pkd
   workflow_dispatch:
 
 concurrency:
