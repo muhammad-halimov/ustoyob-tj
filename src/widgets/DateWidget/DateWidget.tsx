@@ -25,10 +25,6 @@ const defaultMax = () =>
         .toISOString()
         .split('T')[0];
 
-// Android (WebView приложения и мобильный Chrome) — там, как и на iOS, нужна своя кнопка
-// очистки даты (см. .android в scss). У iOS свой CSS-детект через @supports.
-const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
-
 export const DateWidget: React.FC<DateInputProps> = ({
     value,
     onChange,
@@ -67,7 +63,7 @@ export const DateWidget: React.FC<DateInputProps> = ({
     }, []);
 
     return (
-        <div className={`${styles.wrapper}${isAndroid ? ` ${styles.android}` : ''}${className ? ` ${className}` : ''}`}>
+        <div className={`${styles.wrapper}${className ? ` ${className}` : ''}`}>
             {label && <span className={styles.label}>{label}</span>}
             <div className={styles.inputBox}>
                 <input
@@ -83,12 +79,12 @@ export const DateWidget: React.FC<DateInputProps> = ({
                     aria-label={emptyPlaceholder}
                 />
                 {/*
-                    Только для iOS (см. @supports в scss, на остальных платформах скрыт): нативный
-                    <input type="date"> в WebKit рисует пустое значение как сегодняшнюю дату
-                    блёклым системным шрифтом по центру — выглядит как уже выбранная дата и не
-                    похоже на остальные поля формы. Его собственный текст там прозрачный, а
-                    реальный (плейсхолдер или отформатированная дата) рисует этот оверлей;
-                    тапы проходят сквозь него (pointer-events: none) в сам инпут → нативный пикер.
+                    Нативный <input type="date"> с пустым value рисует сегодняшнюю дату блёклым
+                    системным шрифтом (и десктопный Chrome, и мобильные WebKit/Chromium) — выглядит
+                    как уже выбранная дата и не похоже на остальные поля формы. Его собственный
+                    текст прозрачный (см. scss), а реальный (плейсхолдер или отформатированная
+                    дата) рисует этот оверлей; тапы проходят сквозь него (pointer-events: none)
+                    в сам инпут → нативный пикер.
                 */}
                 <span
                     className={`${styles.display}${!value ? ` ${styles.placeholder}` : ''}`}
@@ -98,10 +94,9 @@ export const DateWidget: React.FC<DateInputProps> = ({
                     {value ? formattedValue : emptyPlaceholder}
                 </span>
                 {/*
-                    Только iOS и Android (скрыта в scss на остальных платформах). Кнопка «Сбросить»
-                    в самом нативном пикере iOS не очищает поле — откатывает к исходной/сегодняшней
-                    дате, а на Android в самом поле нет способа сбросить дату; повлиять на системный
-                    контрол из веба нельзя, поэтому очистка — своей кнопкой.
+                    У нативного пикера нет надёжного способа полностью очистить дату со страницы:
+                    Reset на iOS откатывает к текущей/исходной дате, а не очищает; на десктопе/
+                    Android его в самом поле вообще нет. Поэтому своя кнопка — везде одинаково.
                 */}
                 {value && !disabled && (
                     <Clear className={styles.clear} onClick={() => onChange('')} />
