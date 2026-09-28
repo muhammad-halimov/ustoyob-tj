@@ -21,7 +21,7 @@ import type { TelegramUserData, BackendAuthCallbackResponse } from '../../entiti
 import { universalApiRequest } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
 import { getStorageItem, setStorageItem, removeStorageItem, getSessionItem, removeSessionItem } from '../../utils/storageUtils';
-import { finishMobileOAuthFlow } from '../../utils/mobileOAuth';
+import { finishMobileOAuthFlow, finishMobileOAuthLinkFlow } from '../../utils/mobileOAuth';
 import { finishOAuthPopup } from '../../utils/oauthPopup';
 
 /**
@@ -183,10 +183,15 @@ const TelegramCallbackPage = () => {
                 const localMode = getStorageItem('oauth_mode_telegram');
                 const oauthMode = sessionMode || localMode;
                 if (oauthMode === 'link') {
-                    const jwtToken = getAuthToken();
                     removeSessionItem('oauthMode');
                     removeStorageItem('oauth_mode_telegram');
+
+                    // Мобильное приложение сажает свой JWT в эту вкладку заранее (см.
+                    // utils/mobileOAuth.ts startNativeOAuthLink / TelegramMobileStartPage),
+                    // так что дальше это ровно тот же вызов, что и на десктопе.
+                    const jwtToken = getAuthToken();
                     if (!jwtToken) {
+                        if (finishMobileOAuthLinkFlow({ status: 'error', message: t('oauth.notAuthenticated', 'Not authenticated') })) return;
                         navigate(ROUTES.HOME, { replace: true });
                         return;
                     }
@@ -204,7 +209,14 @@ const TelegramCallbackPage = () => {
                         method: 'POST',
                         body: linkBody,
                         locale: false,
-                    }) as { new_token?: string };
+                    }) as { error?: string; message?: string; new_token?: string };
+                    if (linkData.error) {
+                        const message = linkData.message || t('oauth.tryLater');
+                        if (finishMobileOAuthLinkFlow({ status: 'error', message })) return;
+                        setError(message);
+                        setLoading(false);
+                        return;
+                    }
                     if (linkData.new_token) {
                         setAuthToken(linkData.new_token);
                         const expiryTime = new Date();
@@ -213,7 +225,8 @@ const TelegramCallbackPage = () => {
                     }
                     setSuccess(true);
                     setLoading(false);
-                    // Сигналим оригинальной вкладке и закрываем эту (новая вкладка на мобильном)
+                    if (finishMobileOAuthLinkFlow({ status: 'success', token: linkData.new_token || jwtToken })) return;
+                    // Сигналим оригинальной вкладке и закрываем эту (новая вкладка на мобильном вебе)
                     setStorageItem('telegram_link_success', Date.now().toString());
                     setTimeout(() => {
                         window.close();

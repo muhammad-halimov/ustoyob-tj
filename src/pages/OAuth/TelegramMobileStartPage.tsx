@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setSessionItem } from '../../utils/storageUtils';
+import { setAuthToken } from '../../utils/authUtils';
 import { markMobileOAuthFlowFromUrl } from '../../utils/mobileOAuth';
 import { markOAuthPopupFlow } from '../../utils/oauthPopup';
 
@@ -36,8 +37,21 @@ const TelegramMobileStartPage = () => {
         markMobileOAuthFlowFromUrl();
 
         const params = new URLSearchParams(window.location.search);
-        const role = params.get('role');
-        if (role) setSessionItem('pendingTelegramRole', role);
+
+        // Привязка к уже существующему аккаунту (Profile.tsx), а не вход — токен
+        // приложения приходит прямо в URL и сразу стирается из адресной строки/истории,
+        // см. подробный комментарий в OAuthMobileStartPage.tsx (тот же приём для
+        // Google/Facebook/Instagram).
+        if (params.get('mode') === 'link') {
+            const token = params.get('token');
+            if (token) setAuthToken(token);
+            params.delete('token');
+            window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+            setSessionItem('oauthMode', 'link');
+        } else {
+            const role = params.get('role');
+            if (role) setSessionItem('pendingTelegramRole', role);
+        }
 
         // Desktop popup flow (see file header) — mark it so TelegramCallbackPage's
         // finishOAuthPopup recognizes this state and closes the popup instead of

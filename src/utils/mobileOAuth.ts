@@ -85,6 +85,39 @@ export function finishMobileOAuthFlow(result: { status: 'success'; token: string
     return true;
 }
 
+/**
+ * Same idea as `finishMobileOAuthFlow`, but for LINKING a provider to an already
+ * logged-in account (Profile page) instead of logging in.
+ *
+ * This page (the real public website, loaded in the in-app browser) has no session of
+ * its own by default — the user is logged into the APP, not into the website. So the
+ * app's `startNativeOAuthLink` (src/utils/mobileOAuth.ts on the `mobile` branch) seeds
+ * THIS tab's own storage with the app's current JWT before doing anything else (via the
+ * `token` query param OAuthMobileStartPage/TelegramMobileStartPage read on load), and
+ * from that point on this is just the existing, already-working web link flow
+ * (`oauthMode==='link'` branch in OAuthCallbackPage/TelegramCallbackPage) — same
+ * `POST /api/profile/oauth/link` call, same code, just running inside the in-app browser
+ * instead of a desktop tab. We only need to hand the (possibly updated) token/email back
+ * to the app afterwards.
+ */
+export function finishMobileOAuthLinkFlow(
+    result: { status: 'success'; token?: string; email?: string } | { status: 'error'; message?: string }
+): boolean {
+    if (!isMobileOAuthFlow()) return false;
+    try { sessionStorage.removeItem(MOBILE_FLOW_STORAGE_KEY); } catch { /* ignore */ }
+
+    const params = new URLSearchParams({ status: result.status, mode: 'link' });
+    if (result.status === 'success') {
+        if (result.token) params.set('token', result.token);
+        if (result.email) params.set('email', result.email);
+    } else if (result.message) {
+        params.set('message', result.message);
+    }
+
+    window.location.href = `${OAUTH_APP_SCHEME}://${OAUTH_CALLBACK_HOST}?${params.toString()}`;
+    return true;
+}
+
 export interface NativeOAuthResult {
     token: string;
 }
