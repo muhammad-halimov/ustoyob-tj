@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { getAuthToken } from '../utils/authUtils';
 import { getStorageJSON, setStorageJSON } from '../utils/storageUtils';
 import type { LocalStorageFavorites } from '../entities';
@@ -30,8 +30,16 @@ let _favoritesPromise: Promise<FavoriteEntry[]> | null = null;
 let _favoritesCache: { data: FavoriteEntry[]; timestamp: number } | null = null;
 const FAVORITES_CACHE_TTL = 30 * 1000; // 30 seconds
 
-/** Clears both the in-memory cache and the in-flight promise. Call after a favorite is added or removed. */
-const invalidateFavoritesCache = () => {
+/**
+ * Clears both the in-memory cache and the in-flight promise. Call after a favorite is
+ * added or removed — including from places that mutate `/api/favorites` directly instead
+ * of going through this hook's own `handleLikeClick` (see Favorites.tsx: it manages its
+ * own list state and calls the API itself, so without this export nothing invalidated the
+ * cache when unliking there — every OTHER card reading through `useFavorites` (main page,
+ * category listings, ticket page) kept serving the stale list for up to
+ * FAVORITES_CACHE_TTL, showing a ticket as still liked right after it was removed).
+ */
+export const invalidateFavoritesCache = () => {
     _favoritesCache = null;
     _favoritesPromise = null;
 };
@@ -106,6 +114,18 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
             setEntryId(null);
         }
     }, [itemId, itemType, getCurrentFavorites]);
+
+    // Другая карточка того же тикета/пользователя на этой же странице (например, один и тот
+    // же тикет одновременно в "рекомендациях" и в "недавно просмотренных" на главной) или
+    // страница «Избранное» (которая ведёт свой собственный список и мутирует API напрямую,
+    // см. Favorites.tsx) могли изменить статус лайка, пока эта карточка уже смонтирована —
+    // у нас нет общего состояния между инстансами хука, только событие. Перепроверяем статус
+    // при каждом 'favoritesUpdated', а не только один раз при монтировании.
+    useEffect(() => {
+        const onFavoritesUpdated = () => { checkFavoriteStatus(); };
+        window.addEventListener('favoritesUpdated', onFavoritesUpdated);
+        return () => window.removeEventListener('favoritesUpdated', onFavoritesUpdated);
+    }, [checkFavoriteStatus]);
 
     const handleLikeClick = async () => {
         const token = getAuthToken();
