@@ -124,3 +124,18 @@ i18n
             lookupLocalStorage: 'i18nextLng',
         },
     });
+
+// <html lang> захардкожен в index.html ("en") и никогда не обновлялся — из-за этого нативные
+// браузерные контролы (в первую очередь формат <input type="date"> при фокусе/в открытом
+// пикере — DateWidget.tsx) всегда рендерились под английскую/американскую локаль, даже когда
+// весь остальной интерфейс на русском или таджикском (пример: поле даты показывало "09/09/2010"
+// вместо "9 сентября 2010"). 'tj' — внутренний код приложения, не валидный BCP47-тег;
+// правильный ISO 639-1 для таджикского — 'tg'.
+const HTML_LANG: Record<Language, string> = { ru: 'ru', tj: 'tg', eng: 'en' };
+
+const syncHtmlLang = (lng: string) => {
+    document.documentElement.lang = HTML_LANG[lng as Language] ?? lng;
+};
+
+syncHtmlLang(i18n.language);
+i18n.on('languageChanged', syncHtmlLang);
