@@ -3,6 +3,9 @@
   flex-direction: column;
   gap: 4px;
   width: 100%;
+  // Без этого — как flex-item в узких раскладках — обёртка не сжимается меньше
+  // собственной минимальной ширины нативного date-input (актуально для iOS).
+  min-width: 0;
 }
 
 .label {
@@ -11,16 +14,24 @@
   font-weight: 500;
 }
 
+.inputBox {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
 .input {
   width: 100%;
-  // Тот же padding/font/фон/рамка/радиус/высота, что у соседних полей формы (SelectSearch
-  // altMode: .altWrap/.altInput, измерено 42px) — раньше здесь были другой токен фона
-  // (--color-background-btn2, сплошная заливка без рамки) и другой padding/font-size
-  // (12px 16px / 16px), из-за которых поле было выше соседних и выделялось среди них.
+  // Тот же padding/font/фон/рамка/радиус, что у соседних полей формы (SelectSearch altMode:
+  // .altWrap/.altInput — измерено 42px высотой) — раньше здесь были и другой токен фона
+  // (--color-background-btn2, сплошная заливка без рамки), и другой padding/font-size
+  // (12px 16px / 16px), из-за которых поле было выше соседних (47px) и выделялось.
+  // height явно, а не через padding+line-height — у <input> и flex-обёртки .altWrap
+  // (align-items: center) разная метрика строки при одинаковом padding/font-size,
+  // расчётная высота расходилась на пару пикселей.
   height: 42px;
-  padding: 10px 14px;
+  padding: 10px 52px 10px 14px;
   background-color: var(--color-background-primary, #fff);
-  color: var(--color-text-black, #333);
   border: 1px solid var(--color-stroke);
   border-radius: 12px;
   font-size: 14px;
@@ -28,10 +39,22 @@
   transition: border-color 0.18s, box-shadow 0.18s;
   cursor: pointer;
 
+  // Пустое значение ("" — см. Auth.tsx: dateOfBirth изначально пустая строка) рисуется как
+  // СЕГОДНЯШНЯЯ дата блёклым шрифтом — универсальное поведение нативного <input type="date">
+  // (Chromium И WebKit, десктоп и мобильные), а не только iOS/Android, как считалось раньше:
+  // выглядит как уже выбранное значение. Прячем нативный текст везде — плейсхолдер/
+  // отформатированную дату рисует .display поверх, тем же стилем, что у соседних полей.
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+
   &:focus {
     outline: none;
     border-color: var(--color-actual-blue, #3A54DA);
     box-shadow: 0 0 0 2px rgba(58, 84, 218, 0.12);
+    // Текст остаётся прозрачным и на фокусе — раньше на это время возвращали видимость
+    // настоящему тексту инпута, и он показывал дату в системном формате устройства/языка
+    // (например "09/01/2010" вместо "17 сентября 2010"), а не в едином формате приложения.
+    // .display рисует дату сам, всегда, вне зависимости от фокуса — см. ниже.
   }
 
   &:disabled {
@@ -41,8 +64,77 @@
 
   // Compact variant used inside ProfileHeader
   .compact & {
-    padding: 6px 10px;
+    padding: 6px 40px 6px 10px;
     font-size: 14px;
     border-radius: 6px;
+  }
+}
+
+// Текст поверх нативного (см. комментарий у .input выше) — плейсхолдер, когда value пуст,
+// иначе отформатированная дата, ВСЕГДА, включая фокус/открытый пикер (см. .input:focus) —
+// формат приложения не должен на время редактирования сменяться на системный. Тапы/клики
+// проходят сквозь (pointer-events: none) в сам инпут — он остаётся единственной кликабельной
+// зоной, открывающей нативный пикер.
+.display {
+  display: block;
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: calc(100% - 60px);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  font-size: 14px;
+  color: var(--color-text-black, #333);
+
+  &.placeholder {
+    color: var(--color-text-placeholder, #999);
+  }
+}
+
+// Кнопка Clear (shared/ui/Button/Clear) в геометрии крестиков остальных полей формы
+// (SelectSearch: .trigger/.altWrap .clearBtn — кнопка 36×36, иконка 24×24). У нативного
+// date-input нет способа полностью очистить значение со страницы (Reset в самом пикере
+// на iOS откатывает к текущей дате, а не очищает; на десктопе/Android его вообще нет
+// в самом поле) — своя кнопка нужна везде одинаково.
+.inputBox .clear {
+  display: inline-flex;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--color-icons);
+
+  svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+// -webkit-touch-callout поддерживает только WebKit на iOS (Safari и WKWebView/Capacitor) —
+// у нативного date-input там ЕЩЁ и своя минимальная ширина по содержимому, из-за которой
+// поле вылезает за правый край формы (см. скриншот регистрации) — жёстко ограничиваем
+// шириной контейнера. Прятать текст/показывать .display и Clear уже не нужно — это теперь
+// базовое поведение выше, действующее на всех платформах.
+@supports (-webkit-touch-callout: none) {
+  .input {
+    display: block;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    // appearance:none у пустого date-input в iOS схлопывает высоту в ноль — 42px, чтобы
+    // совпадало с высотой соседних полей формы (SelectSearch altMode, измерено).
+    min-height: 42px;
+    margin: 0;
+    font-family: inherit;
+    text-align: left;
   }
 }
