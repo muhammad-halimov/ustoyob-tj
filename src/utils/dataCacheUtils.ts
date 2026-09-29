@@ -11,7 +11,7 @@ import type { LegalDocument } from '../entities';
 import { universalApiRequest } from './apiUtils';
 import { fetchAllPages } from './paginationUtils';
 import type { LocaleType } from './apiUtils';
-import { getStorageItem, getDefaultLocale } from './storageUtils';
+import { getStorageItem, getDefaultLocale, getStorageJSON, setStorageJSON } from './storageUtils';
 import { API_ROUTES } from '../app/routers/routes';
 
 // ─── Типы ────────────────────────────────────────────────────────────────────
@@ -52,14 +52,28 @@ const getCurrentLocale = (): LocaleType =>
  * @param endpoint    API-путь, напр. '/api/cities'
  * @param opts        Дополнительные опции universalApiRequest (кроме locale)
  * @param cacheDuration  TTL кеша в мс; по умолчанию CACHE_DURATION (5 мин)
+ * @param persistKey  Если задан — кеш дублируется в localStorage под этим ключом (+ locale/params).
+ *                     Только in-memory Map не переживает сброс JS-контекста в мобильном Capacitor-
+ *                     WebView (Android иногда пересоздаёт WebView при переключении вкладок нижней
+ *                     навигации — не полная перезагрузка страницы, но модульное состояние теряется
+ *                     так же, как при hard reload); localStorage тому не подвержен.
  */
 function createCachedFetcher<T>(
     endpoint: string,
     opts: FetcherOpts = {},
     cacheDuration = CACHE_DURATION,
+    persistKey?: string,
 ) {
     const cache    = new Map<string, CacheEntry<T>>();
     const inFlight = new Map<string, Promise<T[]>>();
+
+    const readEntry = (cacheKey: string): CacheEntry<T> | undefined =>
+        cache.get(cacheKey) ?? (persistKey ? getStorageJSON<CacheEntry<T>>(`${persistKey}:${cacheKey}`) ?? undefined : undefined);
+
+    const writeEntry = (cacheKey: string, entry: CacheEntry<T>): void => {
+        cache.set(cacheKey, entry);
+        if (persistKey) setStorageJSON(`${persistKey}:${cacheKey}`, entry);
+    };
 
     async function fetcher(locale?: string, params?: string): Promise<T[]> {
         const targetLocale = opts.locale !== undefined
@@ -71,8 +85,9 @@ function createCachedFetcher<T>(
             ? `${endpoint}${endpoint.includes('?') ? '&' : '?'}${params}`
             : endpoint;
 
-        const cached = cache.get(cacheKey);
+        const cached = readEntry(cacheKey);
         if (cached && cached.locale === targetLocale && Date.now() - cached.timestamp < cacheDuration) {
+            cache.set(cacheKey, cached); // прогреть in-memory, если пришло из localStorage
             return cached.data;
         }
 
@@ -85,7 +100,7 @@ function createCachedFetcher<T>(
                 // Справочник — это ВСЕ записи, а не первая страница (бэкенд: 25 по умолчанию, максимум 50) —
                 // см. fetchAllPages. Раньше `/api/categories` отдавал 25 из 32, районы 25 из 30, подкатегории 50 из 124.
                 const items = await fetchAllPages<T>(fullEndpoint, { locale: apiLocale, requiresAuth: opts.requiresAuth });
-                cache.set(cacheKey, { data: items, locale: targetLocale, timestamp: Date.now() });
+                writeEntry(cacheKey, { data: items, locale: targetLocale, timestamp: Date.now() });
                 return items;
             } catch (error) {
                 console.error(`[dataCache] Error fetching ${fullEndpoint}:`, error);
@@ -108,8 +123,9 @@ function createCachedFetcher<T>(
             ? (opts.locale === false ? 'fixed' : opts.locale)
             : normalizeLocale(locale || getCurrentLocale());
         const cacheKey = params ? `${targetLocale}:${params}` : targetLocale;
-        const cached = cache.get(cacheKey);
+        const cached = readEntry(cacheKey);
         if (cached && cached.locale === targetLocale && Date.now() - cached.timestamp < cacheDuration) {
+            cache.set(cacheKey, cached); // прогреть in-memory, если пришло из localStorage
             return cached.data;
         }
         return undefined;
@@ -157,7 +173,7 @@ function createMeCache<T>(endpoint: string, cacheDuration = CACHE_DURATION, page
 export const getProvinces      = createCachedFetcher<Province>(API_ROUTES.PROVINCES);
 export const getCities         = createCachedFetcher<City>(API_ROUTES.CITIES);
 export const getOccupations    = createCachedFetcher<Occupation>(API_ROUTES.OCCUPATIONS);
-export const getCategories     = createCachedFetcher<Category>(API_ROUTES.CATEGORIES,       { requiresAuth: false }, STATIC_CACHE_DURATION);
+export const getCategories     = createCachedFetcher<Category>(API_ROUTES.CATEGORIES,       { requiresAuth: false }, STATIC_CACHE_DURATION, 'dataCache:categories');
 export const getDistricts      = createCachedFetcher<District>(API_ROUTES.DISTRICTS,        {}, STATIC_CACHE_DURATION);
 export const getUnits          = createCachedFetcher<Unit>(API_ROUTES.UNITS,                {}, STATIC_CACHE_DURATION);
 export const getAppealReasons  = createCachedFetcher<AppealReason>(API_ROUTES.APPEAL_REASONS);
