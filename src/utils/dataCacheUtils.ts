@@ -100,6 +100,20 @@ function createCachedFetcher<T>(
     }
 
     fetcher.clearCache = (): void => { cache.clear(); inFlight.clear(); };
+    // Синхронный аналог peekCachedImage (imageCacheUtils) — отдаёт уже закэшированные данные без
+    // await, если они есть и не протухли. Нужен там, где начальный `loading:true` иначе на каждый
+    // маунт мелькает спиннером на один кадр, даже когда данные уже лежат в памяти (см. Category.tsx).
+    fetcher.peek = (locale?: string, params?: string): T[] | undefined => {
+        const targetLocale = opts.locale !== undefined
+            ? (opts.locale === false ? 'fixed' : opts.locale)
+            : normalizeLocale(locale || getCurrentLocale());
+        const cacheKey = params ? `${targetLocale}:${params}` : targetLocale;
+        const cached = cache.get(cacheKey);
+        if (cached && cached.locale === targetLocale && Date.now() - cached.timestamp < cacheDuration) {
+            return cached.data;
+        }
+        return undefined;
+    };
     return fetcher;
 }
 

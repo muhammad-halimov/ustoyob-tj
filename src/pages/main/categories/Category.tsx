@@ -18,8 +18,28 @@ import { getCategories } from '../../../utils/dataCacheUtils';
 import { setSessionJSON } from '../../../utils/storageUtils';
 import { Img } from '../../../shared/ui/Photo/Img';
 import { resolveImage, pickImageFields } from '../../../utils/imageUtils';
-import { preloadImages } from '../../../utils/imageCacheUtils';
+import { preloadImages, peekCachedImage } from '../../../utils/imageCacheUtils';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
+
+// Общая для начального состояния (синхронный peek кэша, см. ниже) и самого fetchCategories —
+// чтобы при попадании в кэш категории сразу приходили в правильном формате, без отдельного
+// прохода после первого рендера.
+const formatCategories = (data: Category[]): Category[] => {
+    const formatted = Array.isArray(data) ? data.map(item => ({
+        id: item.id || 0,
+        title: item.title || 'Без названия',
+        description: item.description || '',
+        image: item.image || '',
+        ...pickImageFields(item),
+        priority: item.priority ?? undefined
+    })) : [];
+    formatted.sort((a, b) => {
+        const pa = a.priority ?? Infinity;
+        const pb = b.priority ?? Infinity;
+        return pa - pb;
+    });
+    return formatted;
+};
 
 /**
  * Home page category strip.
@@ -28,8 +48,13 @@ import { Marquee } from '../../../shared/ui/Text/Marquee';
  * and stores the category session for filter restoration on back-navigation.
  */
 export default function Category() {
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [loading, setLoading] = useState(true);
+    // Синхронный peek кэша данных (dataCacheUtils.createCachedFetcher.peek) — если категории уже
+    // загружались в этой сессии, отдаём их сразу при монтировании вместо пустого [] + спиннера на
+    // кадр-другой, пока переотрабатывает fetchCategories ниже (тот всё равно перезапускается, но
+    // на кэше резолвится мгновенно и без видимой разницы).
+    const cachedCategories = getCategories.peek();
+    const [categories, setCategories] = useState<Category[]>(() => cachedCategories ? formatCategories(cachedCategories) : []);
+    const [loading, setLoading] = useState(() => cachedCategories === undefined);
     const [isMobile, setIsMobile] = useState(false);
     // usePersistedState (sessionStorage), не голый useState — иначе "Показать ещё" сбрасывался
     // при любом переходе туда-сюда по страницам (компонент размонтируется при уходе со страницы
@@ -57,23 +82,7 @@ export default function Category() {
     const fetchCategories = async () => {
         try {
             const data: Category[] = await getCategories();
-
-            // Проверяем и форматируем данные
-            const formattedData = Array.isArray(data) ? data.map(item => ({
-                id: item.id || 0,
-                title: item.title || 'Без названия',
-                description: item.description || '',
-                image: item.image || '',
-                ...pickImageFields(item),
-                priority: item.priority ?? undefined
-            })) : [];
-
-            // Сортируем по priority (по возрастанию), элементы без priority — в конец
-            formattedData.sort((a, b) => {
-                const pa = a.priority ?? Infinity;
-                const pb = b.priority ?? Infinity;
-                return pa - pb;
-            });
+            const formattedData = formatCategories(data);
 
             // Сначала иконки, потом список: ждём (до 3 с) иконки первой видимой порции — они грузятся
             // через кэш картинок, и `<Img cache>` берёт их из памяти мгновенно, поэтому категории
@@ -192,13 +201,18 @@ export default function Category() {
     const handleShowMore = async () => {
         if (isLoadingMore) return;
         const next = Math.min(visibleCount + initialCount, filteredCategories.length);
+        const iconUrls = filteredCategories.slice(visibleCount, next)
+            .map(c => resolveImage(c, 'full', 'uploads/categories')?.src ?? '')
+            .filter(Boolean);
+        // Обычная "Показать ещё" порция уже прогрета в фоне (см. fetchCategories) — не мелькаем
+        // спиннером кнопки, если для неё и так нечего ждать.
+        if (iconUrls.every(url => peekCachedImage(url))) {
+            setVisibleCount(next);
+            return;
+        }
         setIsLoadingMore(true);
         try {
-            await preloadImages(
-                filteredCategories.slice(visibleCount, next)
-                    .map(c => resolveImage(c, 'full', 'uploads/categories')?.src ?? '')
-                    .filter(Boolean),
-            );
+            await preloadImages(iconUrls);
         } finally {
             setVisibleCount(next);
             setIsLoadingMore(false);
