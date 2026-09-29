@@ -55,7 +55,15 @@ export default function Category() {
     const cachedCategories = getCategories.peek();
     const [categories, setCategories] = useState<Category[]>(() => cachedCategories ? formatCategories(cachedCategories) : []);
     const [loading, setLoading] = useState(() => cachedCategories === undefined);
-    const [isMobile, setIsMobile] = useState(false);
+    // Синхронно правильное значение с первого рендера (как у visibleCount ниже), а не false с
+    // последующей коррекцией в checkMobile() — та коррекция на мобильных экранах ВСЕГДА меняет
+    // isMobile false→true при монтировании (это не "юзер изменил размер окна", а просто узнали
+    // реальное значение), и это принималось за настоящую смену шириной — эффект ниже на 137-й
+    // строке видел "изменение" isMobile и сбрасывал только что восстановленные из localStorage
+    // visibleCount/mobilePageExpand обратно к дефолту, причём именно на мобильных: на десктопе
+    // false совпадает с реальным значением, никакого лишнего срабатывания не было, поэтому баг
+    // ни разу не поймался при тестах на desktop-ширине.
+    const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
     // usePersistedState (sessionStorage), не голый useState — иначе "Показать ещё" сбрасывался
     // при любом переходе туда-сюда по страницам (компонент размонтируется при уходе со страницы
     // и теряет обычный useState, а sessionStorage переживает это в пределах вкладки/сессии).
