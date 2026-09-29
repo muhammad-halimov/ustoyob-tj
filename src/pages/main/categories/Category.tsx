@@ -21,15 +21,6 @@ import { resolveImage, pickImageFields } from '../../../utils/imageUtils';
 import { preloadImages, peekCachedImage } from '../../../utils/imageCacheUtils';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
 
-// ВРЕМЕННЫЙ диагностический счётчик — на уровне модуля, а не компонента: увеличивается при каждом
-// монтировании Category. Если он продолжает расти (2, 3, 4...) при переходах туда-обратно —
-// значит, компонент просто размонтируется/монтируется заново в РАМКАХ ОДНОГО И ТОГО ЖЕ JS-контекста
-// (обычный React Router переход), и сброс JS-модулей тут ни при чём. Если же он каждый раз
-// возвращается к 1 — значит, JS-контекст действительно пересоздаётся (тогда и in-memory, и то, что
-// я считал "переживающим" в localStorage/IndexedDB, тоже стоит перепроверить на месте).
-// Убрать после диагностики.
-let debugMountCount = 0;
-
 // Общая для начального состояния (синхронный peek кэша, см. ниже) и самого fetchCategories —
 // чтобы при попадании в кэш категории сразу приходили в правильном формате, без отдельного
 // прохода после первого рендера.
@@ -96,32 +87,6 @@ export default function Category() {
     const navigate = useNavigate();
     const { t } = useTranslation(['common', 'category']); // Добавьте перевод
 
-    // ВРЕМЕННО: собираем диагностику на экран (см. debugMountCount выше) — уберём после того как
-    // найдём, почему фиксы (localStorage/IndexedDB/isMobile) не дают эффекта на реальном устройстве.
-    const [debugInfo, setDebugInfo] = useState<Record<string, string>>({});
-    useEffect(() => {
-        debugMountCount += 1;
-        const thisMount = debugMountCount;
-        const lsKeys = Object.keys(localStorage).filter(k => k.startsWith('dataCache:categories') || k.startsWith('category:'));
-        const lsDump = lsKeys.map(k => `${k}=${(localStorage.getItem(k) || '').slice(0, 40)}`).join(' | ');
-        setDebugInfo(prev => ({ ...prev, mount: String(thisMount), ls: lsDump || '(none)', peekHit: String(cachedCategories !== undefined), peekLen: String(cachedCategories?.length ?? '-') }));
-
-        new Promise<number>((resolve) => {
-            try {
-                const req = indexedDB.open('imageCache', 1);
-                req.onsuccess = () => {
-                    const db = req.result;
-                    const tx = db.transaction('blobs', 'readonly');
-                    const countReq = tx.objectStore('blobs').count();
-                    countReq.onsuccess = () => resolve(countReq.result);
-                    countReq.onerror = () => resolve(-1);
-                };
-                req.onerror = () => resolve(-2);
-            } catch { resolve(-3); }
-        }).then(idbCount => setDebugInfo(prev => ({ ...prev, idb: String(idbCount) })));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
     const fetchCategories = async () => {
         try {
             const data: Category[] = await getCategories();
@@ -133,7 +98,11 @@ export default function Category() {
             // ещё») прогреваем в фоне. На повторном заходе всё уже в кэше — ожидания нет.
             const iconUrl = (c: typeof formattedData[number]) => resolveImage(c, 'full', 'uploads/categories')?.src ?? '';
             const initialCount = window.innerWidth <= 768 ? 6 : 8;
-            await preloadImages(formattedData.slice(0, initialCount).map(iconUrl).filter(Boolean));
+            // 8с, не дефолтные 3 — на реальной мобильной сети (не тестовой wifi-заглушке) 3с иногда
+            // не хватало докачать все initialCount иконок; те, что не успели, оставались
+            // незакэшированными и мигали BlurHash при каждом следующем монтировании страницы, даже
+            // когда сам JS-контекст никуда не девался (подтверждено диагностикой на реальном устройстве).
+            await preloadImages(formattedData.slice(0, initialCount).map(iconUrl).filter(Boolean), 8000);
             void preloadImages(formattedData.slice(initialCount).map(iconUrl).filter(Boolean), 15000);
 
             setCategories(formattedData);
@@ -208,18 +177,10 @@ export default function Category() {
         );
     };
 
-    // ВРЕМЕННО: см. комментарий у debugMountCount выше.
-    const debugOverlay = (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99999, background: 'rgba(255,0,0,0.85)', color: '#fff', fontSize: 10, padding: '4px 6px', fontFamily: 'monospace', wordBreak: 'break-all' }}>
-            mount={debugInfo.mount ?? '?'} isMobile={String(isMobile)} loading={String(loading)} catLen={categories.length} visibleCount={visibleCount} mobilePageExpand={mobilePageExpand} peekHit={debugInfo.peekHit ?? '?'} peekLen={debugInfo.peekLen ?? '?'} idb={debugInfo.idb ?? '?'} | ls: {debugInfo.ls ?? '?'}
-        </div>
-    );
-
     // Состояние загрузки
     if (loading) {
         return (
             <div className={styles.category}>
-                {debugOverlay}
                 <h3 className={styles.category_title}>{t('category:title', 'Категории')}</h3>
                 <PageLoader text={t('category:loading', 'Загрузка категорий...')} fullPage={false} />
             </div>
@@ -230,7 +191,6 @@ export default function Category() {
     if (!loading && categories.length === 0) {
         return (
             <div className={styles.category}>
-                {debugOverlay}
                 <h3 className={styles.category_title}>{t('category:title', 'Категории')}</h3>
                 <EmptyState
                     title={t('category:noCategories', 'Нет доступных категорий')}
@@ -308,7 +268,6 @@ export default function Category() {
 
     return (
         <div className={styles.category}>
-            {debugOverlay}
             <h3 className={styles.category_title}>{t('category:title', 'Категории')}</h3>
 
             {/* Поле поиска */}

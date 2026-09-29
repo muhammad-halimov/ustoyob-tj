@@ -60,8 +60,12 @@ const openDb = (): Promise<IDBDatabase | null> => {
                 }
             };
             req.onsuccess = () => resolve(req.result);
-            req.onerror = () => resolve(null);
-        } catch {
+            // Тихий fallback на сеть — не хотим ронять картинки из-за недоступности IndexedDB — но
+            // причину стоит видеть в консоли, а не гадать (WebView с ограниченным storage и т.п.).
+            req.onerror = () => { console.error('[imageCache] indexedDB.open failed:', req.error); resolve(null); };
+            req.onblocked = () => console.error('[imageCache] indexedDB.open blocked (another tab holds an older version open?)');
+        } catch (err) {
+            console.error('[imageCache] indexedDB.open threw:', err);
             resolve(null);
         }
     });
@@ -91,8 +95,9 @@ const idbPut = async (entry: IdbEntry): Promise<void> => {
             const tx = db.transaction(IDB_STORE, 'readwrite');
             tx.objectStore(IDB_STORE).put(entry);
             tx.oncomplete = () => resolve();
-            tx.onerror = () => resolve();
-        } catch {
+            tx.onerror = () => { console.error('[imageCache] idbPut failed:', tx.error); resolve(); };
+        } catch (err) {
+            console.error('[imageCache] idbPut threw:', err);
             resolve();
         }
     });
