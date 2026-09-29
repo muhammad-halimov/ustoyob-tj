@@ -81,17 +81,35 @@ export function Img({ image, src, fallbacks, blurhash, placeholder, placeholderC
     const [badCached, setBadCached] = useState<string | null>(null);
     const cachedSrc = cache && current && !exhausted && badCached !== current ? peekCachedImage(current) : undefined;
 
-    // Картинка уже в кэше (blob:) — файл локальный, ждать нечего: BlurHash-фон не показываем вообще (иначе он
-    // мелькает пару кадров, пока браузер декодирует blob). Фон — только пока реально идёт загрузка по сети.
+    // Асинхронный догон синхронного cachedSrc выше: тот бьёт только по in-memory Map, а она не
+    // переживает сброс JS-модулей (мобильная сборка, см. imageCacheUtils). getCachedImage() ниже
+    // этого сама сначала проверяет IndexedDB (Blob на диске) и только потом идёт в сеть — если там
+    // есть, подменяем src на blob: до/сразу после того, как браузер запустит собственный сетевой
+    // запрос по «сырому» src, а не только в onLoad (тогда было бы уже поздно — сеть уже отработала).
+    const [asyncCached, setAsyncCached] = useState<{ forSrc: string; url: string } | null>(null);
+    const asyncCachedSrc = asyncCached && asyncCached.forSrc === current ? asyncCached.url : undefined;
+    useEffect(() => {
+        if (!cache || !current || exhausted || cachedSrc || badCached === current) return;
+        let cancelled = false;
+        getCachedImage(current).then(url => {
+            if (!cancelled && url) setAsyncCached({ forSrc: current, url });
+        });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [cache, current, exhausted, badCached]);
+
+    // Картинка уже в кэше (blob:, синхронно или подъехавший из IndexedDB) — файл локальный, ждать
+    // нечего: BlurHash-фон не показываем вообще (иначе он мелькает пару кадров, пока браузер
+    // декодирует blob). Фон — только пока реально идёт загрузка по сети.
     const placeholderBg = useMemo(
-        () => (exhausted || loaded || cachedSrc ? undefined : blurhashToDataUrl(hash)),
-        [hash, exhausted, loaded, cachedSrc],
+        () => (exhausted || loaded || cachedSrc || asyncCachedSrc ? undefined : blurhashToDataUrl(hash)),
+        [hash, exhausted, loaded, cachedSrc, asyncCachedSrc],
     );
 
     if (!current) return null;
 
     const handleError: React.ReactEventHandler<HTMLImageElement> = (e) => {
-        if (cachedSrc && current) {
+        if ((cachedSrc || asyncCachedSrc) && current) {
             evictCachedImage(current);
             setBadCached(current);
             return;
@@ -111,10 +129,10 @@ export function Img({ image, src, fallbacks, blurhash, placeholder, placeholderC
                 if (cache && !cachedSrc && !exhausted) void getCachedImage(current);
                 onLoad?.(e);
             }}
-            src={cachedSrc ?? current}
+            src={cachedSrc ?? asyncCachedSrc ?? current}
             className={exhausted && placeholderClassName ? [className, placeholderClassName].filter(Boolean).join(' ') : className}
             // Из кэша — сразу, без ленивой отсрочки: lazy держал бы уже готовый blob: до срабатывания observer'а.
-            loading={cachedSrc ? 'eager' : loading}
+            loading={cachedSrc || asyncCachedSrc ? 'eager' : loading}
             decoding="async"
             // Внешние аватары (Google/Facebook) иногда режут по Referer — не отправляем его.
             referrerPolicy={image?.external ? 'no-referrer' : rest.referrerPolicy}
