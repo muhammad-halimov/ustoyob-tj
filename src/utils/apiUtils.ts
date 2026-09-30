@@ -1,4 +1,4 @@
-import { getAuthToken, handleUnauthorized } from './authUtils';
+import { getAuthToken, handleUnauthorized, waitForTokenRefresh } from './authUtils';
 import { ApiError } from './appMessagesUtils';
 import { getDefaultLocale } from './storageUtils';
 import i18n from 'i18next';
@@ -8,6 +8,7 @@ import { formatTicketImageUrl, toPhotoSource, resolveAvatar } from './imageUtils
 import { API_BASE_URL } from './configUtils';
 import { apiCacheKey, peekByKey, sameResponse, seedMemoryByKey, storeByKey } from './apiCache';
 import { API_ROUTES } from '../app/routers/routes';
+import { NATIVE_HTTP, nativeFetch } from './nativeHttp';
 
 export type LocaleType = 'tj' | 'ru' | 'eng';
 
@@ -63,6 +64,10 @@ const NOT_CACHED = [
     new RegExp(`^(${[API_ROUTES.PROVINCES, API_ROUTES.CITIES, API_ROUTES.DISTRICTS, API_ROUTES.OCCUPATIONS, API_ROUTES.CATEGORIES, API_ROUTES.UNITS].join('|')})(\\?|$)`),
 ];
 const isCacheableEndpoint = (endpoint: string): boolean => !NOT_CACHED.some(re => re.test(endpoint));
+
+// Мобильная сборка: в ответ на эти запросы бэкенд ставит refresh-cookie — они уходят нативно, иначе
+// WebView её не сохранит (см. utils/nativeHttp.ts).
+const SETS_REFRESH_COOKIE = new RegExp(`^(${API_ROUTES.AUTHENTICATION_TOKEN}|/api/auth/[^/?]+/callback)(\\?|$)`);
 
 /**
  * Тикет в списке (лента, категория, мои, избранное, недавно просмотренные) отдаётся в том же виде,
@@ -160,6 +165,9 @@ export const rememberApi = (endpoint: string, options: ApiRequestOptions, data: 
 export const universalApiRequest = async (endpoint: string, options: ApiRequestOptions = {}): Promise<any> => {
 
     const executeRequest = async (): Promise<Response> => {
+        // Мобильная сборка: пока обновляется токен (например, сразу после запуска с истёкшим JWT),
+        // не отправляем запрос со старым — он всё равно вернулся бы 401.
+        if (NATIVE_HTTP && options.requiresAuth !== false) await waitForTokenRefresh();
         const token = getAuthToken();
         const headers: Record<string, string> = {
             'Accept': 'application/json',
@@ -175,8 +183,11 @@ export const universalApiRequest = async (endpoint: string, options: ApiRequestO
         }
 
         const url = buildRequestUrl(endpoint, options);
+        const transport = NATIVE_HTTP && SETS_REFRESH_COOKIE.test(endpoint) && !(options.body instanceof FormData)
+            ? nativeFetch
+            : fetch;
 
-        return fetch(url, {
+        return transport(url, {
             method: options.method || 'GET',
             headers,
             body: options.body instanceof FormData

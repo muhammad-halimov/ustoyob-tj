@@ -25,3 +25,13 @@
 - [~] 4. Полировка: сделано — без выделения на кнопках/ссылках/картинках, без overscroll, повторное нажатие на вкладку нижней панели прокручивает наверх; впереди — haptics, переходы страниц, pull-to-refresh
 - [ ] 5. Навигация
 - [ ] 6. Офлайн
+- [~] Сессия не слетает через час: вход по паролю, обновление токена и выход идут нативно (`utils/nativeHttp.ts`, CapacitorHttp), refresh-cookie живёт в нативном хранилище; `utils/nativeSession.ts` обновляет токен при запуске, при возврате из фона и за 5 минут до истечения, выход — только по отказу сервера. Вход через Google/Facebook/Instagram/Telegram пока без refresh-cookie: обмен кода идёт на сайте в Custom Tabs, cookie остаётся в Chrome — нужна правка сайта (передавать приложению `code`/`state` вместо токена)
+
+## Сессия и refresh-cookie
+
+Бэкенд отдаёт refresh-токен только в cookie `refresh_token` (HttpOnly, Secure, SameSite=Strict, 15 дней, одноразовый — `single_use`), JWT живёт час. WebView на `https://localhost` для API на `https://ustoyob.tj` — межсайтовый контекст: такую cookie он не сохраняет и не отправляет даже с `credentials: 'include'` (проверено на эмуляторе). Нативный запрос (`CapacitorHttp` → HttpURLConnection, cookie через `CapacitorCookieManager` в `android.webkit.CookieManager`) сохраняет её, отправляет и переживает перезапуск.
+
+- Через натив идут только запросы, которые ставят, читают или стирают cookie: `/api/authentication_token`, `/api/auth/{provider}/callback`, `/api/refresh_token`, `/api/invalidate_token`, `/api/logout`.
+- Обновление токена — одно на всех (`refreshTokenOutcome`): второй параллельный запрос со старой одноразовой cookie получил бы 401 и выход.
+- `universalApiRequest` и `fetchCurrentUser` ждут идущего обновления (`waitForTokenRefresh`) — после запуска с истёкшим JWT запросы уходят уже с новым токеном.
+- Debug-сборка Capacitor пишет в logcat данные нативных вызовов, в том числе тело запроса входа; в release-сборке это логирование выключено.

@@ -28,7 +28,12 @@ import { isNativePlatform, initNativeOAuthDeepLinks } from '../utils/mobileOAuth
 import { initNativeChrome } from '../utils/nativeChrome';
 import { initNativeSplash } from '../utils/nativeSplash';
 import { initNativePrefetch } from '../utils/nativePrefetch';
+import { initNativeSession } from '../utils/nativeSession';
 import './styles/native.scss';
+
+// Мобильное приложение: истёкший за время перерыва JWT обновляем до первых запросов — они
+// дождутся нового токена (см. utils/nativeSession.ts). Поэтому раньше preloadData.
+initNativeSession();
 
 // Инициализируем кеш данных при старте приложения
 clearCache('occupations');

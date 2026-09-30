@@ -11,6 +11,7 @@ import {
     isClientSide,
     removeSessionItem,
 } from './storageUtils';
+import { NATIVE_HTTP, authFetch, clearNativeRefreshCookie } from './nativeHttp';
 
 // Константы для хранения ключей в localStorage
 const STORAGE_KEYS = {
@@ -62,13 +63,13 @@ const performLogout = async (token: string, wait: boolean = true): Promise<void>
 
     try {
         // Сначала инвалидируем токен
-        await fetch(`${API_BASE_URL}${API_ROUTES.INVALIDATE_TOKEN}`, {
+        await authFetch(`${API_BASE_URL}${API_ROUTES.INVALIDATE_TOKEN}`, {
             method: 'POST',
             credentials: 'include'
         });
         
         // Затем выполняем logout
-        await fetch(`${API_BASE_URL}${API_ROUTES.LOGOUT}`, {
+        await authFetch(`${API_BASE_URL}${API_ROUTES.LOGOUT}`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
             credentials: 'include',
@@ -77,6 +78,8 @@ const performLogout = async (token: string, wait: boolean = true): Promise<void>
     } catch (error) {
         console.warn('Server logout error (non-critical):', error);
     }
+    // Мобильная сборка: refresh-cookie живёт в нативном хранилище (см. utils/nativeHttp.ts).
+    await clearNativeRefreshCookie(API_BASE_URL);
 };
 
 /**
@@ -218,12 +221,19 @@ export const setUserOccupation = (occupation: Occupation[]): void => {
 };
 
 /**
- * Attempts to obtain a new JWT via the httpOnly refresh-token cookie.
- * Returns true on success (new token stored), false otherwise.
+ * Result of a refresh attempt: 'ok' — new token stored; 'rejected' — the server refused (no
+ * refresh cookie, or it expired / was revoked — the user has to sign in again); 'unavailable' —
+ * network or server error, worth retrying later.
  */
-export const refreshToken = async (): Promise<boolean> => {
+export type RefreshOutcome = 'ok' | 'rejected' | 'unavailable';
+
+// Одно обновление на всех: refresh-токены одноразовые (single_use в gesdinet), и второй
+// параллельный запрос со старой cookie получил бы 401 — а за ним выход из аккаунта.
+let refreshInFlight: Promise<RefreshOutcome> | null = null;
+
+const requestTokenRefresh = async (): Promise<RefreshOutcome> => {
     try {
-        const response = await fetch(`${API_BASE_URL}${API_ROUTES.REFRESH_TOKEN}`, {
+        const response = await authFetch(`${API_BASE_URL}${API_ROUTES.REFRESH_TOKEN}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -234,7 +244,7 @@ export const refreshToken = async (): Promise<boolean> => {
 
         if (!response.ok) {
             console.error('Token refresh failed:', response.status);
-            return false;
+            return response.status >= 500 || response.status === 429 ? 'unavailable' : 'rejected';
         }
 
         const data = await response.json();
@@ -242,15 +252,34 @@ export const refreshToken = async (): Promise<boolean> => {
         if (data.token) {
             setAuthToken(data.token);
             console.log('Token refreshed successfully');
-            return true;
+            return 'ok';
         }
 
-        return false;
+        return 'rejected';
     } catch (error) {
         console.error('Token refresh error:', error);
-        return false;
+        return 'unavailable';
     }
 };
+
+/** Obtains a new JWT via the httpOnly refresh-token cookie; concurrent callers share one request. */
+export const refreshTokenOutcome = (): Promise<RefreshOutcome> => {
+    if (!refreshInFlight) {
+        refreshInFlight = requestTokenRefresh().finally(() => { refreshInFlight = null; });
+    }
+    return refreshInFlight;
+};
+
+/** Resolves once the in-flight refresh (if any) settles — so a request isn't sent with the old JWT. */
+export const waitForTokenRefresh = async (): Promise<void> => {
+    await refreshInFlight;
+};
+
+/**
+ * Attempts to obtain a new JWT via the httpOnly refresh-token cookie.
+ * Returns true on success (new token stored), false otherwise.
+ */
+export const refreshToken = async (): Promise<boolean> => (await refreshTokenOutcome()) === 'ok';
 
 /**
  * Called automatically by `universalApiRequest` on HTTP 401.
@@ -261,12 +290,16 @@ export const refreshToken = async (): Promise<boolean> => {
 export const handleUnauthorized = async (): Promise<boolean> => {
     console.log('Handling 401 Unauthorized - attempting token refresh...');
     
-    const refreshSuccess = await refreshToken();
+    const outcome = await refreshTokenOutcome();
     
-    if (refreshSuccess) {
+    if (outcome === 'ok') {
         console.log('Token refresh successful, can retry request');
         return true;
     }
+
+    // Мобильная сборка: без сети из аккаунта не выходим — токен обновится, когда сеть вернётся
+    // (см. utils/nativeSession.ts).
+    if (NATIVE_HTTP && outcome === 'unavailable') return false;
     
     console.log('Token refresh failed, logging out...');
     await logout();
@@ -285,6 +318,9 @@ export const setupTokenRefresh = async (
     onTokenExpired?: () => void
 ): Promise<void> => {
     if (!isClientSide()) return;
+    // Мобильная сборка: токеном заведует utils/nativeSession.ts — обновляет его и при запуске, и при
+    // возврате из фона, а выходит только по отказу сервера и без перезагрузки страницы.
+    if (NATIVE_HTTP) return;
 
     const checkInterval = setInterval(async () => {
         if (isTokenExpired()) {
@@ -343,9 +379,14 @@ export const fetchCurrentUser = async (): Promise<User | null> => {
 
     _mePromise = (async () => {
         try {
+            // Мобильная сборка: если токен как раз обновляется (запуск с истёкшим JWT, см.
+            // utils/nativeSession.ts), идём уже с новым, а не за заведомым 401.
+            if (NATIVE_HTTP) await waitForTokenRefresh();
+            const currentToken = getAuthToken();
+            if (!currentToken) return null;
             const response = await fetch(`${API_BASE_URL}${API_ROUTES.USERS_ME}`, {
                 headers: {
-                    Authorization: `Bearer ${token}`,
+                    Authorization: `Bearer ${currentToken}`,
                     Accept: 'application/json',
                 },
             });
