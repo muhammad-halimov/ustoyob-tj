@@ -8,14 +8,22 @@
  * Кэшируем только свой origin/API — внешние (OAuth-аватары Google и т.п.) fetch'ем не достать (CORS).
  * Ответ не-2xx или не `image/*` никогда не кладём в кэш.
  *
- * Подложка в IndexedDB (сами байты Blob, не только blob: URL) — на мобильной (Capacitor) сборке
- * переключение вкладок нижней навигации сбрасывает JS-модули так же, как hard reload (см.
- * getCategories.persistKey в dataCacheUtils и usePersistedState — тот же эффект), а сам in-memory
- * Map, конечно, этого не переживает в принципе. IndexedDB — единственное клиентское хранилище,
- * которое умеет держать Blob напрямую (localStorage — только строки, раздувать в base64 слишком
- * дорого для повторяющихся иконок). Полностью «без мигания» после такого сброса не получится —
- * IndexedDB читается асинхронно, а не синхронно, как in-memory `peekCachedImage` — но замена BlurHash
- * на реальную иконку теперь занимает миллисекунды чтения с диска вместо целого сетевого запроса.
+ * Подложка в IndexedDB (сами байты Blob, не только blob: URL) — переживает перезагрузку/новый визит,
+ * в отличие от in-memory Map. Полностью «без мигания» не получится — IndexedDB читается асинхронно,
+ * а не синхронно, как in-memory `peekCachedImage` — но замена BlurHash на реальную иконку занимает
+ * миллисекунды чтения с диска вместо целого сетевого запроса.
+ *
+ * ВАЖНО (мобильная Capacitor-сборка): приложение там живёт на origin `https://localhost`, а картинки —
+ * на origin API (`ustoyob.tj`). Это настоящий cross-origin запрос, и бэкенд не шлёт для статики
+ * `Access-Control-Allow-Origin` — обычный `fetch()` падает CORS'ом на КАЖДОЙ иконке, каждый раз (см.
+ * `isCacheable` — origin уже проверен доверенным, значит проблема именно в отсутствии заголовка на
+ * ответе, а не в наших правах его запрашивать). Из-за этого весь этот кэш на мобилке молча не работает
+ * вообще — `getCachedImage` всегда падает в `catch` и отдаёт `null`, а иконки показываются только через
+ * обычный `<img src>` (без blob:, без мгновенного повтора). `mode: 'no-cors'` НЕ спасает: WebView отдаёт
+ * `opaque`-ответ с телом, обнулённым до 0 байт (проверено на реальном устройстве/эмуляторе) — Blob из
+ * него не восстановить. Единственный настоящий фикс — добавить `Access-Control-Allow-Origin` на ответы
+ * статики (`/uploads/…` и т.п.) на уровне веб-сервера/CDN перед бэкендом: это публичные, некреденциальные
+ * файлы, `*` там безопасен. NelmioCorsBundle тут не поможет — статика отдаётся до ядра Symfony.
  */
 import { API_BASE_URL } from './configUtils';
 
@@ -136,7 +144,7 @@ const drop = (url: string): void => {
     totalBytes -= entry.size;
     setTimeout(() => URL.revokeObjectURL(entry.objectUrl), REVOKE_DELAY);
     // Не просто in-memory промах — сама картинка оказалась битой/не загрузилась, не даём IndexedDB
-    // подсовывать её снова после следующего сброса JS-модулей.
+    // подсовывать её снова на следующей перезагрузке/визите.
     void idbDelete(url);
 };
 
@@ -182,8 +190,8 @@ export const getCachedImage = (url: string): Promise<string | null> => {
 
     const promise = (async (): Promise<string | null> => {
         try {
-            // IndexedDB — раньше сети: если Blob уже лежал на диске с прошлой сессии/до сброса
-            // JS-модулей (мобильная вкладка), не тратим сетевой запрос заново.
+            // IndexedDB — раньше сети: если Blob уже лежал на диске с прошлой сессии/визита,
+            // не тратим сетевой запрос заново.
             const idbHit = await idbGet(url);
             if (idbHit && Date.now() - idbHit.timestamp < CACHE_DURATION) {
                 return registerBlob(url, idbHit.blob, idbHit.timestamp);
