@@ -33,9 +33,11 @@
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { App, type URLOpenListenerEvent } from '@capacitor/app';
-import { ROUTES } from '../app/routers/routes';
+import i18n from 'i18next';
+import { API_ROUTES, ROUTES } from '../app/routers/routes';
+import { universalApiRequest } from './apiUtils';
 import { setAuthToken, getAuthToken, setUserEmail, setUserRole, setUserOccupation, fetchCurrentUser, isAdmin, getUserRole } from './authUtils';
-import type { Occupation } from '../entities';
+import type { BackendAuthCallbackResponse, Occupation } from '../entities';
 
 /**
  * Public website origin. The in-app browser is pointed here — never at the packaged app's
@@ -204,6 +206,50 @@ function handleOAuthLinkDeepLink(url: URL): void {
     flow?.resolve();
 }
 
+const HANDOFF_PROVIDERS = ['google', 'facebook', 'instagram', 'telegram'];
+
+/**
+ * The website page hands over the provider's code (Telegram: the widget data) instead of a ready
+ * JWT — see utils/mobileOAuthHandoff.ts. We make the exchange request here, natively
+ * (universalApiRequest sends it through CapacitorHttp, see utils/nativeHttp.ts), so the refresh
+ * cookie from the response lands in the app's own cookie storage and the session survives the JWT.
+ */
+async function exchangeHandedOffCode(provider: string, body: unknown): Promise<string> {
+    const data = await universalApiRequest(API_ROUTES.AUTH_PROVIDER_CALLBACK(provider), {
+        method: 'POST',
+        body,
+        requiresAuth: false,
+        locale: false,
+    }) as BackendAuthCallbackResponse;
+    if (data.error === 'email_taken') throw new Error(i18n.t('oauth.emailTaken', { ns: 'common' }));
+    if (!data.token) throw new Error(i18n.t('oauth.tokenNotReceived', { ns: 'common' }));
+    return data.token;
+}
+
+function handleOAuthCodeDeepLink(url: URL): void {
+    const provider = url.searchParams.get('provider') ?? '';
+    const rawBody = url.searchParams.get('body');
+    if (!HANDOFF_PROVIDERS.includes(provider) || !rawBody) return;
+    // The one-time code is spent by the first exchange; the OS (or the page) may replay the link.
+    if (wasTokenHandled(rawBody)) return;
+    rememberHandledToken(rawBody);
+
+    // Take the pending flow right away: the exchange below outlives the Custom Tab's
+    // `browserFinished` grace timer, which must not cancel it as "closed by the user".
+    const flow = pendingFlow;
+    pendingFlow = null;
+
+    let body: unknown;
+    try { body = JSON.parse(rawBody); } catch { flow?.reject(new Error('oauth_failed')); return; }
+
+    exchangeHandedOffCode(provider, body)
+        .then((token) => {
+            if (flow) flow.resolve({ token });
+            else completeNativeLogin(token).catch(() => { /* leave the user on the current screen */ });
+        })
+        .catch((err) => { flow?.reject(err instanceof Error ? err : new Error('oauth_failed')); });
+}
+
 function handleOAuthDeepLink(rawUrl: string): void {
     let url: URL;
     try { url = new URL(rawUrl); } catch { return; }
@@ -213,6 +259,11 @@ function handleOAuthDeepLink(rawUrl: string): void {
 
     if (url.searchParams.get('mode') === 'link') {
         handleOAuthLinkDeepLink(url);
+        return;
+    }
+
+    if (url.searchParams.get('status') === 'code') {
+        handleOAuthCodeDeepLink(url);
         return;
     }
 
@@ -285,7 +336,7 @@ export function startNativeOAuth(path: string): Promise<NativeOAuthResult> {
         }).then((listener) => { finishedListener = listener; });
 
         const separator = path.includes('?') ? '&' : '?';
-        Browser.open({ url: `${APP_WEB_ORIGIN}${path}${separator}mobile=1` }).catch((err) => {
+        Browser.open({ url: `${APP_WEB_ORIGIN}${path}${separator}mobile=1&native=2` }).catch((err) => {
             finishedListener?.remove();
             if (pendingFlow === flow) pendingFlow = null;
             reject(err instanceof Error ? err : new Error('browser_open_failed'));
