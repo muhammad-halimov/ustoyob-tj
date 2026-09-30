@@ -24,6 +24,7 @@ import { resolveApiError } from '../../utils/appMessagesUtils';
 import { getStorageItem, removeStorageItem, getSessionItem, removeSessionItem } from '../../utils/storageUtils';
 import { finishOAuthPopup } from '../../utils/oauthPopup';
 import { finishMobileOAuthFlow, finishMobileOAuthLinkFlow } from '../../utils/mobileOAuth';
+import { handOffOAuthCode } from '../../utils/mobileOAuthHandoff';
 
 // Определяем провайдер по URL
 const getProviderFromUrl = (pathname: string): OAuthProviderName | null => {
@@ -316,6 +317,14 @@ const OAuthCallbackPage = () => {
                 const roleKey = `pending${detectedProvider.charAt(0).toUpperCase() + detectedProvider.slice(1)}Role`;
                 const savedRole = getStorageItem(roleKey) as 'master' | 'client' | null;
                 removeStorageItem(roleKey);
+
+                // Приложение (Capacitor): не обмениваем код здесь, а отдаём его приложению — обмен
+                // должен выполнить оно само, иначе refresh-cookie останется в браузере (см.
+                // utils/mobileOAuthHandoff.ts). Старые сборки приложения эту схему не запрашивают.
+                if (handOffOAuthCode(detectedProvider, savedRole ? { code, state, role: savedRole } : { code, state })) {
+                    setSuccess(true);
+                    return;
+                }
 
                 const callbackData: BackendAuthCallbackResponse = await universalApiRequest(API_ROUTES.AUTH_PROVIDER_CALLBACK(detectedProvider), {
                     method: 'POST',
