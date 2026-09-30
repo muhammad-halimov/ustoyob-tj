@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { ROUTES } from '../routers/routes';
 import Header from "../../shared/ui/Header/Header";
@@ -7,7 +7,7 @@ import Auth from "../../shared/ui/Modal/Auth/Auth";
 import { setupTokenRefresh, isAuthenticated } from '../../utils/authUtils';
 import { getSessionItem, setSessionItem } from '../../utils/storageUtils';
 import { TabKeepAlive } from './TabKeepAlive';
-import { isKeepAliveTab } from './keepAliveTabs';
+import { KEEP_ALIVE, isKeepAliveTab } from './keepAliveTabs';
 
 /**
  * Root layout component. Wraps all nested page routes (via <Outlet>).
@@ -44,7 +44,11 @@ export default function Layout() {
     }, [location.key]);
 
     // При смене маршрута: POP → восстановить скролл, PUSH/REPLACE → сброс вверх
+    const prevPage = useRef(location.pathname + location.search);
     useEffect(() => {
+        const page = location.pathname + location.search;
+        const samePage = prevPage.current === page;
+        prevPage.current = page;
         // Нативная сборка: прокруткой вкладок нижней панели заведует TabKeepAlive (у каждой своя)
         if (isKeepAliveTab(location.pathname)) return;
         if (navType === 'POP') {
@@ -63,7 +67,9 @@ export default function Layout() {
                 requestAnimationFrame(tryRestore);
             }
         } else {
-            window.scrollTo({ top: 0, behavior: 'instant' });
+            // Нативная сборка: повторное нажатие на кнопку панели открытой страницы (напр. «Мои
+            // объявления», не keep-alive вкладка) — плавно наверх, как у вкладок в TabKeepAlive
+            window.scrollTo({ top: 0, behavior: KEEP_ALIVE && samePage ? 'smooth' : 'instant' });
         }
     }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
