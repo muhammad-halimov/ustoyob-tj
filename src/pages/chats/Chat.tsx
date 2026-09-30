@@ -16,6 +16,7 @@ import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/Cooki
 import { ActionsDropdown } from '../../widgets/ActionsDropdown';
 import { uploadPhotos, resolveAvatar, toPhotoSource } from '../../utils/imageUtils';
 import { Img } from '../../shared/ui/Photo/Img';
+import { KEEP_ALIVE } from '../../app/layouts/keepAliveTabs';
 import { openMercureSource } from '../../utils/mercureUtils';
 import { Tabs } from '../../shared/ui/Tabs';
 import Grid, { PhotoItem, buildOrderedImagePayload } from '../../shared/ui/Photo/Grid';
@@ -1074,7 +1075,9 @@ function Chat() {
         try {
             if (!silent) {
                 if (appendChatsRef.current) setIsLoadingMoreChats(true);
-                else setIsLoading(true);
+                // Нативная сборка (keep-alive вкладок): при возврате на вкладку список уже на экране —
+                // не подменяем его полноэкранным лоадером, обновляем тихо поверх.
+                else if (!(KEEP_ALIVE && chatsRef.current.length > 0)) setIsLoading(true);
                 setError(null);
             } else {
                 setIsChatListRefreshing(true);

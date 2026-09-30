@@ -6,6 +6,8 @@ import { Footer } from "../../shared/ui/Footer";
 import Auth from "../../shared/ui/Modal/Auth/Auth";
 import { setupTokenRefresh, isAuthenticated } from '../../utils/authUtils';
 import { getSessionItem, setSessionItem } from '../../utils/storageUtils';
+import { TabKeepAlive } from './TabKeepAlive';
+import { isKeepAliveTab } from './keepAliveTabs';
 
 /**
  * Root layout component. Wraps all nested page routes (via <Outlet>).
@@ -43,6 +45,8 @@ export default function Layout() {
 
     // При смене маршрута: POP → восстановить скролл, PUSH/REPLACE → сброс вверх
     useEffect(() => {
+        // Нативная сборка: прокруткой вкладок нижней панели заведует TabKeepAlive (у каждой своя)
+        if (isKeepAliveTab(location.pathname)) return;
         if (navType === 'POP') {
             const saved = (() => { try { return getSessionItem(`scroll:${location.key}`); } catch { return null; } })();
             if (saved !== null) {
@@ -105,6 +109,7 @@ export default function Layout() {
         <div className="app">
             <Header onOpenAuthModal={openAuthModal} />
             <main>
+                <TabKeepAlive />
                 <Outlet />
             </main>
             <Footer />

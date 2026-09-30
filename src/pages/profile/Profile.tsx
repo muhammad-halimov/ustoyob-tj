@@ -1,3 +1,4 @@
+import { KEEP_ALIVE } from '../../app/layouts/keepAliveTabs';
 import {type ChangeEvent, useCallback, useEffect, useRef, useState, Dispatch, SetStateAction} from 'react';
 import type * as React from 'react';
 import {Navigate, useNavigate, useParams} from 'react-router-dom';
@@ -1208,7 +1209,9 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
     const fetchUserData = async (silent = false) => {
         try {
-            if (!silent) setIsLoading(true);
+            // Нативная сборка (keep-alive вкладок): профиль уже на экране — при возврате на вкладку
+            // обновляем тихо, без полноэкранного лоадера поверх.
+            if (!silent && !(KEEP_ALIVE && !readOnly && currentUser)) setIsLoading(true);
             const token = getAuthToken();
             
             // Для приватных профилей требуется токен

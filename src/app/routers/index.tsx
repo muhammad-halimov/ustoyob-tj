@@ -18,6 +18,7 @@ import ConfirmAccountPage from "../../pages/auth/ConfirmAccountPage";
 import NotFound from "../../pages/notFound/NotFound";
 import RouteErrorBoundary from "../../pages/errorBoundary/RouteErrorBoundary";
 import { ROUTE_PATTERNS } from './routes';
+import { tabElement } from '../layouts/keepAliveTabs';
 
 /**
  * Application router.
@@ -37,12 +38,12 @@ const router = createBrowserRouter([
         errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
         children: [
             // Main pages
-            { index: true, element: <MainPage /> },
-            { path: ROUTE_PATTERNS.FAVORITES, element: <Favorites /> },
-            { path: ROUTE_PATTERNS.CHATS, element: <Chat /> },
+            { index: true, element: tabElement(<MainPage />) },
+            { path: ROUTE_PATTERNS.FAVORITES, element: tabElement(<Favorites />) },
+            { path: ROUTE_PATTERNS.CHATS, element: tabElement(<Chat />) },
             
             // Универсальный Profile: /profile - приватный ЛК, /profile/:id - публичный профиль (специалист/закказчик)
-            { path: ROUTE_PATTERNS.PROFILE, element: <Profile /> },
+            { path: ROUTE_PATTERNS.PROFILE, element: tabElement(<Profile />) },
             { path: ROUTE_PATTERNS.PROFILE_BY_ID, element: <Profile /> },
 
             // Ticket pages
