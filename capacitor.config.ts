@@ -9,7 +9,10 @@ const config: CapacitorConfig = {
       // Сплэш держим сами до первых данных на главной (utils/nativeSplash.ts, максимум пару секунд) —
       // иначе приложение открывается пустой оболочкой, а блоки «дорисовываются» на глазах.
       launchAutoHide: false,
-      launchShowDuration: 0,
+      // Не 0: при 0 плагин вообще не показывает launch-сплэш (SplashScreen.showOnLaunch → return).
+      // При launchAutoHide: false длительность ни на что не влияет — снимает сплэш только hide().
+      launchShowDuration: 3000,
+      launchFadeOutDuration: 200,
       backgroundColor: '#3A54DA',
       showSpinner: false,
     },

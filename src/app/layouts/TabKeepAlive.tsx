@@ -13,7 +13,7 @@
  * Остальные маршруты (тикет, категория, создание, legal, чужой профиль) рендерятся через <Outlet/>
  * поверх, как и раньше; сами роуты вкладок в нативной сборке отдают null (см. keepAliveTabs.ts).
  */
-import { Activity, useContext, useLayoutEffect, useRef, useState, type ComponentType } from 'react';
+import { Activity, useContext, useEffect, useLayoutEffect, useRef, useState, type ComponentType } from 'react';
 import { UNSAFE_LocationContext, useLocation } from 'react-router-dom';
 import { MainPage } from '../../pages/main/main/Main';
 import Favorites from '../../pages/favorites/Favorites';
@@ -38,6 +38,23 @@ export function TabKeepAlive() {
 
     const [visited, setVisited] = useState<string[]>(() => (active ? [active] : []));
     if (active && !visited.includes(active)) setVisited(prev => [...prev, active]);
+
+    // Выход без перезагрузки страницы (handleUnauthorized: 401 и не удалось обновить токен) — скрытые
+    // вкладки держали бы чаты/профиль прежнего пользователя. Размонтируем всё и монтируем заново
+    // только текущую вкладку (новый key). Обычный выход и вход и так перезагружают страницу.
+    const [generation, setGeneration] = useState(0);
+    const activeForReset = useRef(active);
+    activeForReset.current = active;
+    useEffect(() => {
+        if (!KEEP_ALIVE) return;
+        const onLogout = () => {
+            const current = activeForReset.current;
+            setVisited(current ? [current] : []);
+            setGeneration(g => g + 1);
+        };
+        window.addEventListener('logout', onLogout);
+        return () => window.removeEventListener('logout', onLogout);
+    }, []);
 
     // Последний location, с которым вкладка была активна — его и видит вкладка, пока скрыта.
     const frozen = useRef(new Map<string, typeof liveLocation>());
@@ -71,7 +88,7 @@ export function TabKeepAlive() {
             {TABS.filter(t => visited.includes(t.path)).map(({ path, Page }) => {
                 const isActive = active === path;
                 return (
-                    <Activity key={path} mode={isActive ? 'visible' : 'hidden'}>
+                    <Activity key={`${path}:${generation}`} mode={isActive ? 'visible' : 'hidden'}>
                         <UNSAFE_LocationContext.Provider value={isActive ? liveLocation : frozen.current.get(path) ?? liveLocation}>
                             <Page />
                         </UNSAFE_LocationContext.Provider>

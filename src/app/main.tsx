@@ -46,8 +46,9 @@ loadAppMessages();
 if (isNativePlatform()) initNativeOAuthDeepLinks();
 
 // Мобильное приложение: безопасные зоны iOS (viewport-fit=cover + html.native-ios), см. utils/nativeChrome.ts.
-initNativeChrome();
+// Сплэш — первым: снимается только из JS, поэтому таймер-страховку ставим раньше всего остального.
 initNativeSplash();
+initNativeChrome();
 
 createRoot(document.getElementById('root')!).render(
     // <React.StrictMode> // Временно отключено для тестирования дубликатов

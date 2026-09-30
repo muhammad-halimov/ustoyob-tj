@@ -18,13 +18,13 @@ export function initNativeSplash(): void {
         if (hidden) return;
         hidden = true;
         window.removeEventListener(APP_READY_EVENT, hide);
-        // Два кадра + запас: React уже отдал разметку, но иконки категорий и шрифт ещё декодируются —
-        // без паузы под сплэшем открывались заглушки-блюрхеши.
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-            setTimeout(() => { void SplashScreen.hide({ fadeOutDuration: 200 }).catch(() => {}); }, 150);
-        }));
+        // Пауза после готовности данных — иконки и шрифт успевают декодироваться под сплэшем. Только
+        // setTimeout, без requestAnimationFrame: пока Android держит сплэш, WebView не рисуется, и rAF
+        // может не наступить вовсе — сплэш так бы и завис.
+        setTimeout(() => { void SplashScreen.hide().catch(() => {}); }, 150);
     };
 
     window.addEventListener(APP_READY_EVENT, hide, { once: true });
-    setTimeout(hide, MAX_WAIT_MS);
+    // `app:ready` шлёт только главная; открылись не на ней (диплинк и т.п.) — ждать некого.
+    setTimeout(hide, window.location.pathname === '/' ? MAX_WAIT_MS : 600);
 }

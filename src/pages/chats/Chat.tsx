@@ -68,6 +68,9 @@ function Chat() {
     const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
     const [newMessage, setNewMessage] = useState("");
     const [isLoading, setIsLoading] = useState(true);
+    // Нативная сборка (keep-alive вкладок): список уже загружался — при возврате на вкладку не
+    // показываем полноэкранный лоадер, даже если чатов ноль.
+    const chatsLoadedOnceRef = useRef(false);
     const [isLoadingMoreChats, setIsLoadingMoreChats] = useState(false);
     const [isChatListRefreshing, setIsChatListRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -1077,7 +1080,7 @@ function Chat() {
                 if (appendChatsRef.current) setIsLoadingMoreChats(true);
                 // Нативная сборка (keep-alive вкладок): при возврате на вкладку список уже на экране —
                 // не подменяем его полноэкранным лоадером, обновляем тихо поверх.
-                else if (!(KEEP_ALIVE && chatsRef.current.length > 0)) setIsLoading(true);
+                else if (!(KEEP_ALIVE && chatsLoadedOnceRef.current)) setIsLoading(true);
                 setError(null);
             } else {
                 setIsChatListRefreshing(true);
@@ -1093,6 +1096,7 @@ function Chat() {
             console.log('Fetching chats with token...');
             const pageSize = getPageSize();
             const responseData: any = await universalApiRequest(`${API_ROUTES.CHATS_ME}?page=${chatPage}&itemsPerPage=${pageSize}`, { locale: false });
+            chatsLoadedOnceRef.current = true;
 
             let chatsData: ApiChat[] = [];
 

@@ -88,6 +88,9 @@ function Profile() {
     const [currentUser, setCurrentUser] = useState<{ id: string | number; email: string; name: string; surname: string } | null>(null);
     const [editingField, setEditingField] = useState<'fullName' | 'specialty' | 'gender' | 'dateOfBirth' | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    // Нативная сборка (keep-alive вкладок): профиль уже загружался — при возврате на вкладку
+    // обновляем тихо, без полноэкранного лоадера.
+    const profileLoadedOnceRef = useRef(false);
     const [userRole, setUserRole] = useState<'master' | 'client' | null>(null);
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [tempValue, setTempValue] = useState('');
@@ -1211,7 +1214,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         try {
             // Нативная сборка (keep-alive вкладок): профиль уже на экране — при возврате на вкладку
             // обновляем тихо, без полноэкранного лоадера поверх.
-            if (!silent && !(KEEP_ALIVE && !readOnly && currentUser)) setIsLoading(true);
+            if (!silent && !(KEEP_ALIVE && !readOnly && profileLoadedOnceRef.current)) setIsLoading(true);
             const token = getAuthToken();
             
             // Для приватных профилей требуется токен
@@ -1244,6 +1247,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             // Обновляем текущего пользователя из ответа (только для приватного профиля)
             if (!readOnly) {
                 setCurrentUser({ id: (userData as any).id, email: (userData as any).email ?? '', name: (userData as any).name ?? '', surname: (userData as any).surname ?? '' });
+                profileLoadedOnceRef.current = true;
             }
 
             // Строим lookup maps из переведённых географических данных
