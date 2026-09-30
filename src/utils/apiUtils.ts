@@ -6,7 +6,7 @@ import type { Ticket, SortByType, FavoriteTicketView, ResolvedImage } from '../e
 import type { TicketView } from '../entities';
 import { formatTicketImageUrl, toPhotoSource, resolveAvatar } from './imageUtils';
 import { API_BASE_URL } from './configUtils';
-import { apiCacheKey, peekByKey, seedMemoryByKey, storeByKey } from './apiCache';
+import { apiCacheKey, peekByKey, sameResponse, seedMemoryByKey, storeByKey } from './apiCache';
 import { API_ROUTES } from '../app/routers/routes';
 
 export type LocaleType = 'tj' | 'ru' | 'eng';
@@ -72,11 +72,16 @@ const isCacheableEndpoint = (endpoint: string): boolean => !NOT_CACHED.some(re =
  */
 const seedTicketsFromList = (endpoint: string, options: ApiRequestOptions, data: unknown, token: string | null): void => {
     if (options.locale !== undefined && options.locale !== getDefaultLocale()) return;
+    const path = endpoint.split('?')[0];
+    if (/^\/api\/tickets\/[^/]+$/.test(path) && path !== API_ROUTES.TICKETS_ME) {
+        // одиночный тикет, не список — только его автор/мастер
+        if (data && typeof data === 'object' && !Array.isArray(data)) seedUsersFromTicket(data, token);
+        return;
+    }
     const items = Array.isArray(data)
         ? data
         : (data as { 'hydra:member'?: unknown[] } | null)?.['hydra:member'];
     if (!Array.isArray(items) || items.length === 0) return;
-    const path = endpoint.split('?')[0];
     // Свои обращения в ТП — так же: GET /tech-supports/{id} отдаёт ту же структуру (сверено), и
     // обращение из списка открывается без лоадера.
     if (path === API_ROUTES.TECH_SUPPORTS_ME) {
@@ -87,12 +92,26 @@ const seedTicketsFromList = (endpoint: string, options: ApiRequestOptions, data:
         }
         return;
     }
-    if (/^\/api\/tickets\/[^/]+$/.test(path) && path !== API_ROUTES.TICKETS_ME) return; // одиночный тикет, не список
     for (const item of items) {
         const ticket = (item && typeof item === 'object' && 'ticket' in item ? (item as { ticket?: unknown }).ticket : item) as
             { id?: unknown; title?: unknown; category?: unknown } | null | undefined;
         if (!ticket || typeof ticket !== 'object' || ticket.id == null || !('title' in ticket) || !('category' in ticket)) continue;
         seedMemoryByKey(apiCacheKey(buildRequestUrl(API_ROUTES.TICKET_BY_ID(String(ticket.id)), {}), token), ticket);
+        seedUsersFromTicket(ticket, token);
+    }
+};
+
+/**
+ * Автор/мастер, встроенные в тикет, — почти та же структура, что у GET /users/{id} (сверено: там
+ * лишь добавлены isOnline/patronymic) — чужой профиль, открытый из ленты/тикета, показывается сразу.
+ * Не перезаписываем уже полученный полный ответ.
+ */
+const seedUsersFromTicket = (ticket: object, token: string | null): void => {
+    for (const field of ['author', 'master'] as const) {
+        const user = (ticket as Record<string, unknown>)[field] as { id?: unknown; roles?: unknown } | null | undefined;
+        if (!user || typeof user !== 'object' || user.id == null || !('roles' in user)) continue;
+        const key = apiCacheKey(buildRequestUrl(API_ROUTES.USER_BY_ID(String(user.id)), {}), token);
+        if (peekByKey(key) === undefined) seedMemoryByKey(key, user);
     }
 };
 
@@ -105,6 +124,27 @@ export const peekApi = <T = any>(endpoint: string, options: ApiRequestOptions = 
     if (!isCacheableGet(options)) return undefined;
     const token = options.requiresAuth !== false ? getAuthToken() : null;
     return peekByKey(apiCacheKey(buildRequestUrl(endpoint, options), token)) as T | undefined;
+};
+
+/**
+ * Stale-while-revalidate для одного GET (мобильная сборка; на сайте peek пуст — просто запрос):
+ * сохранённый ответ применяется сразу и синхронно (экран/блок — без спиннера), иначе вызывается
+ * onMiss (обычно — включить лоадер); затем свежий ответ применяется, только если он отличается.
+ */
+export const swrGet = async <T = any>(
+    endpoint: string,
+    options: ApiRequestOptions,
+    apply: (data: T) => void | Promise<void>,
+    onMiss?: () => void,
+    // false — только сеть. Для «Показать ещё» (страница > 1): там apply дописывает к списку, и второе
+    // применение (свежий ответ после сохранённого) заменило бы весь список одной страницей.
+    useCache = true,
+): Promise<void> => {
+    const cached = useCache ? peekApi<T>(endpoint, options) : undefined;
+    if (cached !== undefined) await apply(cached);
+    else onMiss?.();
+    const fresh = await universalApiRequest(endpoint, options) as T;
+    if (cached === undefined || !sameResponse(cached, fresh)) await apply(fresh);
 };
 
 /**

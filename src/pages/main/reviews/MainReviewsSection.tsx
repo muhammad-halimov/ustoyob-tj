@@ -15,16 +15,25 @@ import { IoWarningOutline } from 'react-icons/io5';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { getPageSize } from '../../../utils/pageSizeUtils';
-import { parsePagedResponse, universalApiRequest } from '../../../utils/apiUtils';
+import { parsePagedResponse, peekApi, swrGet } from '../../../utils/apiUtils';
 import { useShowMore } from '../../../hooks';
 
 interface MainReviewsSectionProps {
     className?: string;
 }
 
+const reviewsUrl = (page: number) => `${API_ROUTES.REVIEWS}?page=${page}&itemsPerPage=${getPageSize()}`;
+
+const sortByNewest = (items: any[]) => [...items].sort((a: any, b: any) =>
+    new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
 export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ className }) => {
-    const [reviews, setReviews] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+    // Мобильная сборка: отзывы с прошлого раза — главная открывается с ними сразу, без спиннера.
+    const [reviews, setReviews] = useState<any[]>(() => {
+        const cached = peekApi(reviewsUrl(1), { requiresAuth: false });
+        return cached ? sortByNewest(parsePagedResponse<any>(cached, 1, getPageSize()).items) : [];
+    });
+    const [loading, setLoading] = useState(() => peekApi(reviewsUrl(1), { requiresAuth: false }) === undefined);
     const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
     const { page, skipFetchRef: skipReviewsFetchRef, applyFetch: applyReviewsFetch, showMoreProps: reviewsShowMoreProps } = useShowMore<any>(setReviews);
     const [complaintReviewId, setComplaintReviewId] = useState<string | number | null>(null);
@@ -36,16 +45,11 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     // Загружаем отзывы с API
     const fetchReviews = async (currentPage: number) => {
         try {
-            setLoading(true);
             const pageSize = getPageSize();
-            const data = await universalApiRequest(`${API_ROUTES.REVIEWS}?page=${currentPage}&itemsPerPage=${pageSize}`, { requiresAuth: false });
-            const { items: reviewsData, hasMore: fetchedHasMore } = parsePagedResponse<any>(data, currentPage, pageSize);
-            const sortedReviews = reviewsData.sort((a: any, b: any) => {
-                const dateA = new Date(a.createdAt || 0).getTime();
-                const dateB = new Date(b.createdAt || 0).getTime();
-                return dateB - dateA;
-            });
-            applyReviewsFetch(sortedReviews, fetchedHasMore);
+            await swrGet(reviewsUrl(currentPage), { requiresAuth: false }, (data: any) => {
+                const { items: reviewsData, hasMore: fetchedHasMore } = parsePagedResponse<any>(data, currentPage, pageSize);
+                applyReviewsFetch(sortByNewest(reviewsData), fetchedHasMore);
+            }, () => setLoading(true), currentPage === 1);
         } catch (error) {
             console.error('Error fetching reviews:', error);
         } finally {

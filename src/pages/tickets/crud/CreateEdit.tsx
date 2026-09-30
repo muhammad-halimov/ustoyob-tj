@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import type * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { IoCash } from 'react-icons/io5';
@@ -19,7 +19,8 @@ import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import { Markdown } from '../../../shared/ui/Text/Markdown';
 import type { Category, Occupation, Image, Unit, TicketFormData } from '../../../entities';
-import { universalApiRequest } from '../../../utils/apiUtils';
+import { peekApi, universalApiRequest } from '../../../utils/apiUtils';
+import { sameResponse } from '../../../utils/apiCache';
 import { getCategories, getOccupations, getUnits } from '../../../utils/dataCacheUtils';
 import { API_BASE_URL } from '../../../utils/configUtils';
 
@@ -118,7 +119,8 @@ const CreateEdit = () => {
         .map(p => getImageUrl(p.image));
     const photoGallery = usePreview({ images: existingImageUrls });
 
-    useEffect(() => {
+    // useLayoutEffect: заполнение формы из мобильного кэша (fetchTicketData) — до первой отрисовки.
+    useLayoutEffect(() => {
         console.log('CreateEdit useEffect triggered', { token: !!token, isEditMode, id });
         
         if (!token) {
@@ -225,57 +227,72 @@ const CreateEdit = () => {
     };
 
     const fetchTicketData = async (ticketId: string | number) => {
-        try {
-            setIsLoading(true);
-            const data = await universalApiRequest(API_ROUTES.TICKET_BY_ID(ticketId));
+        const ticketUrl = API_ROUTES.TICKET_BY_ID(ticketId);
 
-            // Преобразуем данные API в формат TicketFormData
-            const formattedData: TicketFormData = {
-                id: data.id,
-                title: data.title || '',
-                description: data.description || '',
-                notice: data.notice || '',
-                budget: data.budget ? String(data.budget) : '',
-                unit: data.unit,
-            };
-            
-            console.log('Formatted data:', formattedData);
-            console.log('Setting service data with:', formattedData);
-            
-            setServiceData(formattedData);
-            setSelectedCategory(data.category?.id || null);
-            // Subcategory stored as pending — will be applied once occupations + category filter is ready
-            setPendingSubcategoryId(data.subcategory?.id || null);
-            setSelectedUnit(data.unit?.id || null);
-            // Считаем договорной только если negotiableBudget=true И нет реального бюджета.
-            // Если budget > 0 — значит цена есть, галочка была записана ошибочно.
-            setNegotiableBudget(!!data.negotiableBudget && !(data.budget > 0));
-            setPhotos((data.images || []).map((img: Image) => toExistingPhoto(img, 'uploads/tickets')));
-            
-            console.log('State updated - category ID:', data.category?.id);
-            console.log('State updated - subcategory ID:', data.subcategory?.id);
-            console.log('State updated - images count:', data.images?.length || 0);
-
-            // Инициализируем адресные данные
-            if (data.addresses && data.addresses.length > 0) {
-                const address = data.addresses[0];
-                console.log('Address data from API:', address);
-                
-                const addressValue = {
-                    provinceId: address.province?.id || null,
-                    cityId: address.city?.id || null,
-                    suburbIds: address.suburb ? [address.suburb.id] : [],
-                    districtIds: address.district ? [address.district.id] : [],
-                    settlementId: address.settlement?.id || null,
-                    communityId: address.community?.id || null,
-                    villageId: address.village?.id || null
+        // Разбор ответа в состояние формы — общий для сохранённого (мобильный кэш) и свежего.
+        const applyTicketData = (data: any) => {
+                // Преобразуем данные API в формат TicketFormData
+                const formattedData: TicketFormData = {
+                    id: data.id,
+                    title: data.title || '',
+                    description: data.description || '',
+                    notice: data.notice || '',
+                    budget: data.budget ? String(data.budget) : '',
+                    unit: data.unit,
                 };
+            
+                console.log('Formatted data:', formattedData);
+                console.log('Setting service data with:', formattedData);
+            
+                setServiceData(formattedData);
+                setSelectedCategory(data.category?.id || null);
+                // Subcategory stored as pending — will be applied once occupations + category filter is ready
+                setPendingSubcategoryId(data.subcategory?.id || null);
+                setSelectedUnit(data.unit?.id || null);
+                // Считаем договорной только если negotiableBudget=true И нет реального бюджета.
+                // Если budget > 0 — значит цена есть, галочка была записана ошибочно.
+                setNegotiableBudget(!!data.negotiableBudget && !(data.budget > 0));
+                setPhotos((data.images || []).map((img: Image) => toExistingPhoto(img, 'uploads/tickets')));
+            
+                console.log('State updated - category ID:', data.category?.id);
+                console.log('State updated - subcategory ID:', data.subcategory?.id);
+                console.log('State updated - images count:', data.images?.length || 0);
+
+                // Инициализируем адресные данные
+                if (data.addresses && data.addresses.length > 0) {
+                    const address = data.addresses[0];
+                    console.log('Address data from API:', address);
                 
-                console.log('Setting address value:', addressValue);
-                setAddressValue(addressValue);
+                    const addressValue = {
+                        provinceId: address.province?.id || null,
+                        cityId: address.city?.id || null,
+                        suburbIds: address.suburb ? [address.suburb.id] : [],
+                        districtIds: address.district ? [address.district.id] : [],
+                        settlementId: address.settlement?.id || null,
+                        communityId: address.community?.id || null,
+                        villageId: address.village?.id || null
+                    };
+                
+                    console.log('Setting address value:', addressValue);
+                    setAddressValue(addressValue);
+                } else {
+                    console.log('No addresses in data');
+                }
+        };
+
+        try {
+            // Мобильная сборка: тикет уже открывали (обычно — только что, со страницы тикета) —
+            // форма заполняется сразу, без полноэкранного лоадера. Свежий ответ подставляется, только
+            // если он отличается (приходит за доли секунды — раньше, чем пользователь начнёт правку).
+            const cached = peekApi(ticketUrl);
+            if (cached) {
+                applyTicketData(cached);
+                setIsLoading(false);
             } else {
-                console.log('No addresses in data');
+                setIsLoading(true);
             }
+            const data = await universalApiRequest(ticketUrl);
+            if (!cached || !sameResponse(cached, data)) applyTicketData(data);
         } catch (error) {
             console.error('Error fetching ticket:', error);
             showError(t('createEdit:ticketLoadError'), () => navigate(ROUTES.TICKET_ME));

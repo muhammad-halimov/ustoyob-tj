@@ -32,16 +32,28 @@ function getTabFromPath(pathname: string): PageTab {
     return 'privacy_policy';
 }
 
+/**
+ * Документ, открывавшийся раньше (справочники переживают перезапуск в мобильной сборке, см.
+ * dataCacheUtils) — для мгновенного показа без спиннера. undefined — в кэше нет.
+ */
+const peekDocument = (type: PageTab, lang: string): LegalDocument | null | undefined => {
+    if (type === 'tech_support') return null;
+    const data = getLegalDocuments.peekStale(lang, `type=${type}`);
+    return data ? (data[0] ?? null) : undefined;
+};
+
 function Legal() {
     const { t, i18n } = useTranslation('common');
     const location = useLocation();
     const navigate = useNavigate();
     // Пять вкладок с длинными подписями в одну строку не помещаются — ≤960px (граница мобильного хедера) ставим их столбцом.
     const verticalTabs = useMediaQuery('(max-width: 960px)');
-    const [document, setDocument] = useState<LegalDocument | null>(null);
     // Инициализируем сразу из URL — без задержки через useEffect
     const [activeType, setActiveType] = useState<PageTab>(() => getTabFromPath(location.pathname));
-    const [isLoading, setIsLoading] = useState(true);
+    // Документ, открывавшийся раньше (справочники переживают перезапуск в мобильной сборке, см.
+    // dataCacheUtils) — показываем сразу, без спиннера; свежий догружается в эффекте ниже.
+    const [document, setDocument] = useState<LegalDocument | null>(() => peekDocument(getTabFromPath(location.pathname), i18n.language) ?? null);
+    const [isLoading, setIsLoading] = useState(() => peekDocument(getTabFromPath(location.pathname), i18n.language) === undefined);
     const [error, setError] = useState<string | null>(null);
 
     // Синхронизируем вкладку при навигации назад/вперёд
@@ -60,7 +72,9 @@ function Legal() {
             }
 
             try {
-                setIsLoading(true);
+                const cachedDoc = peekDocument(activeType, i18n.language);
+                if (cachedDoc !== undefined) setDocument(cachedDoc);
+                else setIsLoading(true);
                 setError(null);
                 const data = await getLegalDocuments(i18n.language, `type=${activeType}`);
                 setDocument(data.length > 0 ? data[0] : null);

@@ -1,5 +1,5 @@
 import { KEEP_ALIVE } from '../../app/layouts/keepAliveTabs';
-import {type ChangeEvent, useCallback, useEffect, useRef, useState, Dispatch, SetStateAction} from 'react';
+import {type ChangeEvent, useCallback, useEffect, useLayoutEffect, useRef, useState, Dispatch, SetStateAction} from 'react';
 import type * as React from 'react';
 import {Navigate, useNavigate, useParams} from 'react-router-dom';
 import {getAuthToken, getUserData, getUserRole, logout} from '../../utils/authUtils';
@@ -60,7 +60,7 @@ import { fetchAllPages } from '../../utils/paginationUtils';
 import { getFormattedDate } from '../../utils/timeUtils';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
 import { getPageSize } from '../../utils/pageSizeUtils';
-import { parsePagedResponse, peekApi, universalApiRequest } from '../../utils/apiUtils';
+import { parsePagedResponse, peekApi, swrGet, universalApiRequest } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
 import type { AvailableSocialNetwork as LocalAvailableSocialNetwork, UISocialNetwork } from '../../entities';
 import type { AddressFormData as LocalAddress } from '../../entities';
@@ -553,7 +553,10 @@ function Profile() {
 
     // Рендер иконки социальной сети перенесён в shared/config/socialNetworkConfig.tsx
 
-    useEffect(() => {
+    // useLayoutEffect и синхронная проверка авторизации (вместо await getCurrentUser()) — чтобы
+    // синхронная часть fetchUserData (показ профиля из мобильного кэша) успела до первой отрисовки,
+    // без кадров с полноэкранным лоадером. getCurrentUser внутри синхронный, await давал лишь задержку.
+    useLayoutEffect(() => {
         const initializeProfile = async () => {
             // Если авторизованный пользователь зашёл на свой публичный профиль — редиректим в ЛК
             // Проверяем это ПЕРВЫМ, до любых других запросов
@@ -567,7 +570,8 @@ function Profile() {
             }
 
             console.log('Initializing Profile...');
-            const authenticated = await getCurrentUser();
+            const authenticated = readOnly || !!getAuthToken();
+            void getCurrentUser();
             
             if (!readOnly && !authenticated) {
                 // Для приватного профиля без авторизации - останавливаемся
@@ -1539,7 +1543,6 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
     const fetchReviews = async () => {
         try {
-            setReviewsLoading(true);
             const token = getAuthToken();
             
             // Для публичных профилей токен необязателен
@@ -1561,9 +1564,147 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             const paginatedEndpoint = `${endpoint}&page=${reviewsPage}&itemsPerPage=${pageSize}`;
             console.log(`Trying endpoint: ${paginatedEndpoint}`);
 
-            let reviewsRaw: any;
+            // Разбор ответа — общий для сохранённого (мобильный кэш, см. swrGet) и свежего.
+            const applyReviews = async (reviewsRaw: any) => {
+                console.log('Raw reviews data:', reviewsRaw);
+                const reviewsArray: ReviewType[] = Array.isArray(reviewsRaw)
+                    ? reviewsRaw
+                    : (reviewsRaw?.['hydra:member'] ?? (reviewsRaw?.id ? [reviewsRaw] : []));
+                const { hasMore: reviewsHasMoreFlag } = parsePagedResponse<ReviewType>(reviewsArray, reviewsPage, pageSize);
+
+                console.log(`Processing ${reviewsArray.length} reviews`);
+                if (reviewsArray.length > 0) {
+                    // Убираем фильтрацию - отзывы уже приходят отфильтрованными из API
+                    console.log(`Found ${reviewsArray.length} reviews for ${userRole} ${profileData.id}`);
+                    const transformedReviews = await Promise.all(
+                        reviewsArray.map(async (review) => {
+                            console.log('Processing review:', review);
+
+                            // Use embedded master/client data from the review response instead of
+                            // making separate GET /api/users/{id} requests for each review.
+                            const masterRaw = review.master as any;
+                            const clientRaw = review.client as any;
+
+                            const masterData = masterRaw ? {
+                                id: masterRaw.id,
+                                email: '',
+                                name: masterRaw.name || '',
+                                surname: masterRaw.surname || '',
+                                rating: typeof masterRaw.rating === 'number' ? masterRaw.rating : 0,
+                                image: masterRaw.image || '',
+                                imageExternalUrl: masterRaw.imageExternalUrl || undefined,
+                            } : null;
+
+                            const clientData = clientRaw ? {
+                                id: clientRaw.id,
+                                email: '',
+                                name: clientRaw.name || '',
+                                surname: clientRaw.surname || '',
+                                rating: typeof clientRaw.rating === 'number' ? clientRaw.rating : 0,
+                                image: clientRaw.image || '',
+                                imageExternalUrl: clientRaw.imageExternalUrl || undefined,
+                            } : null;
+
+                            console.log('Master data:', masterData);
+                            console.log('Client data:', clientData);
+
+                            const getFullNameParts = (fullName: string) => {
+                                if (!fullName) {
+                                    return { firstName: 'Специалист', lastName: '' };
+                                }
+                                const parts = fullName.trim().split(/\s+/);
+                                return {
+                                    firstName: parts[1] || 'Специалист',
+                                    lastName: parts[0] || ''
+                                };
+                            };
+
+                            const nameParts = getFullNameParts(profileData.fullName);
+                            const user = masterData || {
+                                id: profileData.id,
+                                email: '',
+                                name: nameParts.firstName,
+                                surname: nameParts.lastName,
+                                rating: profileData.rating,
+                                image: profileData.avatar || ''
+                            };
+
+                            const reviewer = clientData || {
+                                id: 0,
+                                email: '',
+                                name: 'Заказчик',
+                                surname: '',
+                                rating: 0,
+                                image: ''
+                            };
+
+                            const serviceTitle = String(review.ticket?.title || 'Услуга');
+                            console.log(`Review ${review.id} has service title: ${serviceTitle}`);
+
+                            const transformedReview: ReviewType = {
+                                id: review.id,
+                                rating: review.rating || 0,
+                                description: review.description || '',
+                                services: {
+                                    id: review.ticket?.id || 0,
+                                    title: String(serviceTitle) // Ensure it's always a string
+                                },
+                                ticket: review.ticket,
+                                images: review.images || [],
+                                master: user,
+                                client: reviewer,
+                                vacation: String(serviceTitle), // Ensure string
+                                worker: clientData ?
+                                    smartNameTranslator(
+                                        `${clientData.surname || ''} ${clientData.name || 'Заказчик'}`.trim(),
+                                        i18n.language as 'ru' | 'tj' | 'eng'
+                                    ) :
+                                    smartNameTranslator('Заказчик', i18n.language as 'ru' | 'tj' | 'eng'),
+                                date: review.createdAt ?
+                                    new Date(review.createdAt).toLocaleDateString('ru-RU') :
+                                    getFormattedDate(),
+                                createdAt: review.createdAt || undefined
+                            };
+
+                            console.log('Transformed review:', transformedReview);
+                            return transformedReview;
+                        })
+                    );
+
+                    console.log('All transformed reviews:', transformedReviews);
+                    applyReviewsFetch(transformedReviews, reviewsHasMoreFlag);
+
+                    // Для специалистов фильтруем по user.id (получатели отзывов)
+                    // Для заказчиков фильтруем по reviewer.id (оставляющие отзывы) 
+                    const userReviews = userRole === 'client' 
+                        ? transformedReviews.filter(r => r.client?.id === profileData.id)
+                        : transformedReviews.filter(r => r.master?.id === profileData.id);
+                    const newRating = calculateAverageRating(userReviews);
+
+                    console.log('User reviews for rating calculation:', userReviews);
+                    console.log('Calculated new rating from', userReviews.length, 'reviews:', newRating);
+
+                    setProfileData(prev => prev ? {
+                        ...prev,
+                        reviews: userReviews.length,
+                        rating: newRating
+                    } : null);
+
+
+
+                } else {
+                    console.log(`No reviews data found for this ${userRole}`);
+                    applyReviewsFetch([], false);
+                    setProfileData(prev => prev ? {
+                        ...prev,
+                        reviews: 0
+                    } : null);
+                }
+            };
+
             try {
-                reviewsRaw = await universalApiRequest(paginatedEndpoint);
+                // Мобильная сборка: отзывы с прошлого раза — сразу, без спиннера.
+                await swrGet(paginatedEndpoint, {}, applyReviews, () => setReviewsLoading(true), reviewsPage === 1);
             } catch (err: any) {
                 if (err?.status === 404) {
                     console.log('No reviews found for this master');
@@ -1571,141 +1712,6 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                     return;
                 }
                 throw err;
-            }
-
-            console.log('Raw reviews data:', reviewsRaw);
-            const reviewsArray: ReviewType[] = Array.isArray(reviewsRaw)
-                ? reviewsRaw
-                : (reviewsRaw?.['hydra:member'] ?? (reviewsRaw?.id ? [reviewsRaw] : []));
-            const { hasMore: reviewsHasMoreFlag } = parsePagedResponse<ReviewType>(reviewsArray, reviewsPage, pageSize);
-
-            console.log(`Processing ${reviewsArray.length} reviews`);
-            if (reviewsArray.length > 0) {
-                // Убираем фильтрацию - отзывы уже приходят отфильтрованными из API
-                console.log(`Found ${reviewsArray.length} reviews for ${userRole} ${profileData.id}`);
-                const transformedReviews = await Promise.all(
-                    reviewsArray.map(async (review) => {
-                        console.log('Processing review:', review);
-
-                        // Use embedded master/client data from the review response instead of
-                        // making separate GET /api/users/{id} requests for each review.
-                        const masterRaw = review.master as any;
-                        const clientRaw = review.client as any;
-
-                        const masterData = masterRaw ? {
-                            id: masterRaw.id,
-                            email: '',
-                            name: masterRaw.name || '',
-                            surname: masterRaw.surname || '',
-                            rating: typeof masterRaw.rating === 'number' ? masterRaw.rating : 0,
-                            image: masterRaw.image || '',
-                            imageExternalUrl: masterRaw.imageExternalUrl || undefined,
-                        } : null;
-
-                        const clientData = clientRaw ? {
-                            id: clientRaw.id,
-                            email: '',
-                            name: clientRaw.name || '',
-                            surname: clientRaw.surname || '',
-                            rating: typeof clientRaw.rating === 'number' ? clientRaw.rating : 0,
-                            image: clientRaw.image || '',
-                            imageExternalUrl: clientRaw.imageExternalUrl || undefined,
-                        } : null;
-
-                        console.log('Master data:', masterData);
-                        console.log('Client data:', clientData);
-
-                        const getFullNameParts = (fullName: string) => {
-                            if (!fullName) {
-                                return { firstName: 'Специалист', lastName: '' };
-                            }
-                            const parts = fullName.trim().split(/\s+/);
-                            return {
-                                firstName: parts[1] || 'Специалист',
-                                lastName: parts[0] || ''
-                            };
-                        };
-
-                        const nameParts = getFullNameParts(profileData.fullName);
-                        const user = masterData || {
-                            id: profileData.id,
-                            email: '',
-                            name: nameParts.firstName,
-                            surname: nameParts.lastName,
-                            rating: profileData.rating,
-                            image: profileData.avatar || ''
-                        };
-
-                        const reviewer = clientData || {
-                            id: 0,
-                            email: '',
-                            name: 'Заказчик',
-                            surname: '',
-                            rating: 0,
-                            image: ''
-                        };
-
-                        const serviceTitle = String(review.ticket?.title || 'Услуга');
-                        console.log(`Review ${review.id} has service title: ${serviceTitle}`);
-
-                        const transformedReview: ReviewType = {
-                            id: review.id,
-                            rating: review.rating || 0,
-                            description: review.description || '',
-                            services: {
-                                id: review.ticket?.id || 0,
-                                title: String(serviceTitle) // Ensure it's always a string
-                            },
-                            ticket: review.ticket,
-                            images: review.images || [],
-                            master: user,
-                            client: reviewer,
-                            vacation: String(serviceTitle), // Ensure string
-                            worker: clientData ?
-                                smartNameTranslator(
-                                    `${clientData.surname || ''} ${clientData.name || 'Заказчик'}`.trim(),
-                                    i18n.language as 'ru' | 'tj' | 'eng'
-                                ) :
-                                smartNameTranslator('Заказчик', i18n.language as 'ru' | 'tj' | 'eng'),
-                            date: review.createdAt ?
-                                new Date(review.createdAt).toLocaleDateString('ru-RU') :
-                                getFormattedDate(),
-                            createdAt: review.createdAt || undefined
-                        };
-
-                        console.log('Transformed review:', transformedReview);
-                        return transformedReview;
-                    })
-                );
-
-                console.log('All transformed reviews:', transformedReviews);
-                applyReviewsFetch(transformedReviews, reviewsHasMoreFlag);
-
-                // Для специалистов фильтруем по user.id (получатели отзывов)
-                // Для заказчиков фильтруем по reviewer.id (оставляющие отзывы) 
-                const userReviews = userRole === 'client' 
-                    ? transformedReviews.filter(r => r.client?.id === profileData.id)
-                    : transformedReviews.filter(r => r.master?.id === profileData.id);
-                const newRating = calculateAverageRating(userReviews);
-
-                console.log('User reviews for rating calculation:', userReviews);
-                console.log('Calculated new rating from', userReviews.length, 'reviews:', newRating);
-
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    reviews: userReviews.length,
-                    rating: newRating
-                } : null);
-
-
-
-            } else {
-                console.log(`No reviews data found for this ${userRole}`);
-                applyReviewsFetch([], false);
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    reviews: 0
-                } : null);
             }
 
         } catch (error) {
@@ -1722,7 +1728,6 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
     const fetchServices = async () => {
         try {
-            setServicesLoading(true);
             const token = getAuthToken();
             
             // Для публичных профилей токен необязателен
@@ -1754,66 +1759,66 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 : `${API_ROUTES.TICKETS_ME}?${serviceParams.toString()}`;
             console.log(`Trying endpoint: ${endpoint}`);
 
-            let servicesRaw: any;
+            // Разбор ответа — общий для сохранённого (мобильный кэш, см. swrGet) и свежего.
+            const applyServices = (servicesRaw: any) => {
+                console.log('Raw services data:', servicesRaw);
+                const { items: servicesArray, hasMore: servicesHasMoreFlag } = parsePagedResponse<any>(servicesRaw, servicesPage, pageSize);
+
+                console.log(`Processing ${servicesArray.length} services`);
+            
+                const transformedServices: Ticket[] = servicesArray.map(service => {
+                    // Преобразуем изображения в правильный формат
+                    let serviceImages: Array<{id: string | number; image: string}> = [];
+                    if (service.images && Array.isArray(service.images)) {
+                        serviceImages = service.images
+                            .filter((img: any) => img && typeof img === 'object')
+                            .map((img: any) => ({
+                                id: img.id || 0,
+                                image: img.image || img.url || img.path || ''
+                            }))
+                            .filter((img: any) => img.image); // Оставляем только изображения с путём
+                    }
+
+                    return {
+                        id: service.id,
+                        title: service.title || t('components:app.service'),
+                        description: service.description || '',
+                        budget: service.budget || 0,
+                        price: service.budget || 0,
+                        negotiableBudget: service.negotiableBudget ?? false,
+                        unit: service.unit || undefined,
+                        service: service.service ?? true,
+                        createdAt: service.createdAt,
+                        active: service.active !== false,
+                        approved: service.approved,
+                        banned: service.banned,
+                        priority: service.priority ?? undefined,
+                        images: serviceImages,
+                    };
+                });
+
+                // Sort client-side rather than trusting `order[priority]=asc` alone — API Platform's
+                // OrderFilter only sorts by properties explicitly whitelisted server-side, and nothing
+                // in API_REFERENCE.md's filter list for /api/tickets confirms `priority` is one of them.
+                // Same fallback-to-end pattern used for Occupation/Category priority sort elsewhere.
+                transformedServices.sort((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity));
+
+                console.log('Transformed services:', transformedServices);
+
+                applyServicesFetch(transformedServices, servicesHasMoreFlag);
+            };
+
             try {
-                servicesRaw = await universalApiRequest(endpoint, { locale: false });
+                // Мобильная сборка: услуги с прошлого раза — сразу, без спиннера.
+                await swrGet(endpoint, { locale: false }, applyServices, () => setServicesLoading(true), servicesPage === 1);
             } catch (err: any) {
                 if (err?.status === 404) {
                     console.log(`No services found for this ${userRole}`);
-                    setProfileData(prev => prev ? { ...prev, services: [] } : null);
-                    applyServicesFetch([], false);
-                    return;
                 }
                 setProfileData(prev => prev ? { ...prev, services: [] } : null);
                 applyServicesFetch([], false);
                 return;
             }
-
-            console.log('Raw services data:', servicesRaw);
-            const { items: servicesArray, hasMore: servicesHasMoreFlag } = parsePagedResponse<any>(servicesRaw, servicesPage, pageSize);
-
-            console.log(`Processing ${servicesArray.length} services`);
-            
-            const transformedServices: Ticket[] = servicesArray.map(service => {
-                // Преобразуем изображения в правильный формат
-                let serviceImages: Array<{id: string | number; image: string}> = [];
-                if (service.images && Array.isArray(service.images)) {
-                    serviceImages = service.images
-                        .filter((img: any) => img && typeof img === 'object')
-                        .map((img: any) => ({
-                            id: img.id || 0,
-                            image: img.image || img.url || img.path || ''
-                        }))
-                        .filter((img: any) => img.image); // Оставляем только изображения с путём
-                }
-
-                return {
-                    id: service.id,
-                    title: service.title || t('components:app.service'),
-                    description: service.description || '',
-                    budget: service.budget || 0,
-                    price: service.budget || 0,
-                    negotiableBudget: service.negotiableBudget ?? false,
-                    unit: service.unit || undefined,
-                    service: service.service ?? true,
-                    createdAt: service.createdAt,
-                    active: service.active !== false,
-                    approved: service.approved,
-                    banned: service.banned,
-                    priority: service.priority ?? undefined,
-                    images: serviceImages,
-                };
-            });
-
-            // Sort client-side rather than trusting `order[priority]=asc` alone — API Platform's
-            // OrderFilter only sorts by properties explicitly whitelisted server-side, and nothing
-            // in API_REFERENCE.md's filter list for /api/tickets confirms `priority` is one of them.
-            // Same fallback-to-end pattern used for Occupation/Category priority sort elsewhere.
-            transformedServices.sort((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity));
-
-            console.log('Transformed services:', transformedServices);
-
-            applyServicesFetch(transformedServices, servicesHasMoreFlag);
 
         } catch (error) {
             console.error('Error fetching services:', error);

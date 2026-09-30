@@ -373,50 +373,53 @@ function Favorites() {
     };
 
 
+    // Преобразование тикета — общее для сохранённого (мобильный кэш) и свежего ответа.
+    const toFavTicketView = (ticket: Ticket): FavoriteTicketView => {
+
+        const isMasterTicket = ticket.service;
+        const userType = isMasterTicket ? 'master' : 'client';
+        const authorId = isMasterTicket
+            ? ticket.master?.id || 0
+            : ticket.author?.id || 0;
+
+        let authorName = 'Неизвестный';
+        if (isMasterTicket && ticket.master) {
+            authorName = `${ticket.master.surname || ''} ${ticket.master.name || ''}`.trim() || 'Специалист';
+        } else if (ticket.author) {
+            authorName = `${ticket.author.surname || ''} ${ticket.author.name || ''}`.trim() || 'Заказчик';
+        }
+
+        return {
+            entryId: 0,  // unauth — no server entry id
+            id: ticket.id,
+            title: ticket.title || 'Без названия',
+            price: ticket.budget ?? 0,
+            unit: (typeof ticket.unit === 'object' ? ticket.unit?.title : ticket.unit) || 'tjs',
+            description: ticket.description || 'Описание отсутствует',
+            address: getTicketFullAddress(ticket),
+            date: ticket.createdAt ?? '',
+            author: authorName,
+            authorId: authorId,
+            timeAgo: ticket.createdAt ?? '',
+            category: ticket.category?.title || 'другое',
+            subcategory: ticket.subcategory?.title,
+            status: getTicketStatus(ticket.active, ticket.service),
+            type: userType,
+            active: ticket.active,
+            service: ticket.service,
+            userRating: isMasterTicket ? (ticket.master?.rating || 0) : (ticket.author?.rating || 0),
+            userReviewCount: ticket.reviewsCount || 0,
+            responsesCount: ticket.responsesCount,
+            viewsCount: ticket.viewsCount,
+            photos: (ticket.images || ticket.ticketImages)?.map(img => formatTicketImageUrl(img.image)).filter(Boolean) as string[],
+            photoSources: (ticket.images || ticket.ticketImages)?.map(img => toPhotoSource(img)).filter(s => s.url),
+            negotiableBudget: ticket.negotiableBudget,
+        };
+    };
+
     const fetchTicketDetails = async (ticketId: string | number): Promise<FavoriteTicketView | null> => {
         try {
-            const ticket: Ticket = await universalApiRequest(API_ROUTES.TICKET_BY_ID(ticketId));
-
-            const isMasterTicket = ticket.service;
-            const userType = isMasterTicket ? 'master' : 'client';
-            const authorId = isMasterTicket
-                ? ticket.master?.id || 0
-                : ticket.author?.id || 0;
-
-            let authorName = 'Неизвестный';
-            if (isMasterTicket && ticket.master) {
-                authorName = `${ticket.master.surname || ''} ${ticket.master.name || ''}`.trim() || 'Специалист';
-            } else if (ticket.author) {
-                authorName = `${ticket.author.surname || ''} ${ticket.author.name || ''}`.trim() || 'Заказчик';
-            }
-
-            return {
-                entryId: 0,  // unauth — no server entry id
-                id: ticket.id,
-                title: ticket.title || 'Без названия',
-                price: ticket.budget ?? 0,
-                unit: (typeof ticket.unit === 'object' ? ticket.unit?.title : ticket.unit) || 'tjs',
-                description: ticket.description || 'Описание отсутствует',
-                address: getTicketFullAddress(ticket),
-                date: ticket.createdAt ?? '',
-                author: authorName,
-                authorId: authorId,
-                timeAgo: ticket.createdAt ?? '',
-                category: ticket.category?.title || 'другое',
-                subcategory: ticket.subcategory?.title,
-                status: getTicketStatus(ticket.active, ticket.service),
-                type: userType,
-                active: ticket.active,
-                service: ticket.service,
-                userRating: isMasterTicket ? (ticket.master?.rating || 0) : (ticket.author?.rating || 0),
-                userReviewCount: ticket.reviewsCount || 0,
-                responsesCount: ticket.responsesCount,
-                viewsCount: ticket.viewsCount,
-                photos: (ticket.images || ticket.ticketImages)?.map(img => formatTicketImageUrl(img.image)).filter(Boolean) as string[],
-                photoSources: (ticket.images || ticket.ticketImages)?.map(img => toPhotoSource(img)).filter(s => s.url),
-                negotiableBudget: ticket.negotiableBudget,
-            };
-
+            return toFavTicketView(await universalApiRequest(API_ROUTES.TICKET_BY_ID(ticketId)));
         } catch (error) {
             console.error(`Error fetching ticket details for ID ${ticketId}:`, error);
             return null;
@@ -426,26 +429,29 @@ function Favorites() {
     // Алиас для обратной совместимости с вызовами для неавторизованных
     const fetchTicketDetailsForUnauthorized = fetchTicketDetails;
 
+    const toFavUserView = (u: User): FavoriteUserView => {
+        const isMaster = u.roles?.includes('ROLE_MASTER') ?? false;
+        return {
+            entryId: 0,
+            id: u.id,
+            email: u.email || '',
+            name: u.name || '',
+            surname: u.surname || '',
+            rating: u.rating || 0,
+            image: resolveAvatar(u)?.src ?? null,
+            avatarImage: resolveAvatar(u),
+            role: isMaster ? 'master' : 'client',
+            specialties: ((u as { occupation?: Array<{ id: number; title: string }> }).occupation || []).map(o => o.title),
+            reviewsCount: (u as { reviewsCount?: number }).reviewsCount || 0,
+            gender: (u as { gender?: string }).gender,
+            isOnline: u.isOnline,
+            lastSeen: u.lastSeen,
+        };
+    };
+
     const fetchUserProfile = async (userId: string | number): Promise<FavoriteUserView | null> => {
         try {
-            const u: User = await universalApiRequest(API_ROUTES.USER_BY_ID(userId), { requiresAuth: false });
-            const isMaster = u.roles?.includes('ROLE_MASTER') ?? false;
-            return {
-                entryId: 0,
-                id: u.id,
-                email: u.email || '',
-                name: u.name || '',
-                surname: u.surname || '',
-                rating: u.rating || 0,
-                image: resolveAvatar(u)?.src ?? null,
-                avatarImage: resolveAvatar(u),
-                role: isMaster ? 'master' : 'client',
-                specialties: ((u as { occupation?: Array<{ id: number; title: string }> }).occupation || []).map(o => o.title),
-                reviewsCount: (u as { reviewsCount?: number }).reviewsCount || 0,
-                gender: (u as { gender?: string }).gender,
-                isOnline: u.isOnline,
-                lastSeen: u.lastSeen,
-            };
+            return toFavUserView(await universalApiRequest(API_ROUTES.USER_BY_ID(userId), { requiresAuth: false }));
         } catch {
             return null;
         }
@@ -466,6 +472,20 @@ function Favorites() {
                 const localFavorites = loadLocalStorageFavorites();
 
                 setLikedTickets(localFavorites.tickets);
+
+                // Мобильная сборка: все эти тикеты/профили уже открывались — собираем список из кэша
+                // сразу, без спиннера; ниже он обновляется свежими данными, как и раньше.
+                if (isInitialLoadRef.current) {
+                    const cachedTickets = localFavorites.tickets.map(tid => peekApi<Ticket>(API_ROUTES.TICKET_BY_ID(tid)));
+                    const cachedUsers = (localFavorites.users ?? []).map(uid => peekApi<User>(API_ROUTES.USER_BY_ID(uid), { requiresAuth: false }));
+                    if (cachedTickets.every(Boolean) && cachedUsers.every(Boolean)) {
+                        const views = cachedTickets.map(tk => toFavTicketView(tk!));
+                        const sortedCached = applyFavoriteSort(views, sortBy);
+                        setFavoriteTicketViews(secondarySortBy !== 'none' ? applyFavoriteSort(sortedCached, secondarySortBy) : sortedCached);
+                        setFavoriteUserViews(cachedUsers.map(u => toFavUserView(u!)));
+                        setIsLoading(false);
+                    }
+                }
 
                 const tickets: FavoriteTicketView[] = [];
                 for (const ticketId of localFavorites.tickets) {

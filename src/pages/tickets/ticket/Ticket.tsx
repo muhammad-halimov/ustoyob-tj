@@ -31,7 +31,7 @@ import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
 import Recommendations from '../../main/recommendations/Recommendations';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { getPageSize } from '../../../utils/pageSizeUtils';
-import { getTicketFullAddress, parsePagedResponse, peekApi, universalApiRequest } from '../../../utils/apiUtils';
+import { getTicketFullAddress, parsePagedResponse, peekApi, rememberApi, swrGet, universalApiRequest } from '../../../utils/apiUtils';
 import { sameResponse } from '../../../utils/apiCache';
 import { fetchAllPages } from '../../../utils/paginationUtils';
 import { useShowMore } from '../../../hooks';
@@ -672,8 +672,6 @@ export function Ticket() {
     const fetchReviews = async () => {
         if (!order) return;
         
-        setReviewsLoading(true);
-        
         try {
             // Тип тикета уже известен из fetchOrder — не делаем повторный запрос
             const isService = isServiceRef.current;
@@ -681,72 +679,75 @@ export function Ticket() {
             // Формируем правильный эндпоинт
             const serviceParam = isService ? 'true' : 'false';
             const pageSize = getPageSize();
-            const data = await universalApiRequest(`${API_ROUTES.REVIEWS}?ticket.service=${serviceParam}&exists[ticket]=true&exists[master]=true&exists[client]=true&ticket=${order.id}&page=${reviewsPage}&itemsPerPage=${pageSize}`);
-            const { items: reviewsData, hasMore: fetchedHasMore } = parsePagedResponse(data, reviewsPage, pageSize);
+            const reviewsUrl = `${API_ROUTES.REVIEWS}?ticket.service=${serviceParam}&exists[ticket]=true&exists[master]=true&exists[client]=true&ticket=${order.id}&page=${reviewsPage}&itemsPerPage=${pageSize}`;
+            // Мобильная сборка: отзывы с прошлого раза — сразу, без спиннера (см. swrGet).
+            await swrGet(reviewsUrl, {}, (data: any) => {
+                const { items: reviewsData, hasMore: fetchedHasMore } = parsePagedResponse(data, reviewsPage, pageSize);
             
-            console.log('=== Ticket Reviews Debug ===');
-            console.log('Total reviews:', reviewsData.length);
-            if (reviewsData.length > 0) {
-                console.log('First review sample:', reviewsData[0]);
-                console.log('Review master:', (reviewsData[0] as any).master);
-                console.log('Review client:', (reviewsData[0] as any).client);
-                console.log('Review services:', (reviewsData[0] as any).services);
-                console.log('Review ticket:', (reviewsData[0] as any).ticket);
-            }
+                console.log('=== Ticket Reviews Debug ===');
+                console.log('Total reviews:', reviewsData.length);
+                if (reviewsData.length > 0) {
+                    console.log('First review sample:', reviewsData[0]);
+                    console.log('Review master:', (reviewsData[0] as any).master);
+                    console.log('Review client:', (reviewsData[0] as any).client);
+                    console.log('Review services:', (reviewsData[0] as any).services);
+                    console.log('Review ticket:', (reviewsData[0] as any).ticket);
+                }
             
-            // Используем embedded данные из ответа API — без дополнительных запросов
+                // Используем embedded данные из ответа API — без дополнительных запросов
 
-            const transformedReviews = reviewsData.map((review: any) => {
-                const masterRaw = review.master;
-                const clientRaw = review.client;
+                const transformedReviews = reviewsData.map((review: any) => {
+                    const masterRaw = review.master;
+                    const clientRaw = review.client;
 
-                const masterData = masterRaw ? {
-                    id: masterRaw.id || 0,
-                    email: '',
-                    name: masterRaw.name || '',
-                    surname: masterRaw.surname || '',
-                    rating: masterRaw.rating || 0,
-                    // Сырые image/imageExternalUrl + поля превью: аватар решает resolveAvatar() в ReviewsSection.
-                    image: masterRaw.image || '',
-                    imageExternalUrl: masterRaw.imageExternalUrl || '',
-                    ...pickImageFields(masterRaw),
-                } : null;
+                    const masterData = masterRaw ? {
+                        id: masterRaw.id || 0,
+                        email: '',
+                        name: masterRaw.name || '',
+                        surname: masterRaw.surname || '',
+                        rating: masterRaw.rating || 0,
+                        // Сырые image/imageExternalUrl + поля превью: аватар решает resolveAvatar() в ReviewsSection.
+                        image: masterRaw.image || '',
+                        imageExternalUrl: masterRaw.imageExternalUrl || '',
+                        ...pickImageFields(masterRaw),
+                    } : null;
 
-                const clientData = clientRaw ? {
-                    id: clientRaw.id || 0,
-                    email: '',
-                    name: clientRaw.name || '',
-                    surname: clientRaw.surname || '',
-                    rating: clientRaw.rating || 0,
-                    image: clientRaw.image || '',
-                    imageExternalUrl: clientRaw.imageExternalUrl || '',
-                    ...pickImageFields(clientRaw),
-                } : null;
+                    const clientData = clientRaw ? {
+                        id: clientRaw.id || 0,
+                        email: '',
+                        name: clientRaw.name || '',
+                        surname: clientRaw.surname || '',
+                        rating: clientRaw.rating || 0,
+                        image: clientRaw.image || '',
+                        imageExternalUrl: clientRaw.imageExternalUrl || '',
+                        ...pickImageFields(clientRaw),
+                    } : null;
 
-                const serviceTitle = String(review.ticket?.title || 'Услуга');
+                    const serviceTitle = String(review.ticket?.title || 'Услуга');
 
-                return {
-                    id: review.id,
-                    rating: review.rating || 0,
-                    description: review.description || '',
-                    forReviewer: review.forClient || false,
-                    services: {
-                        id: review.ticket?.id || 0,
-                        title: serviceTitle
-                    },
-                    ticket: review.ticket,
-                    images: review.images || [],
-                    master: masterData || { id: 0, email: '', name: t('components:app.defaultMaster'), surname: '', rating: 0, image: '' },
-                    client: clientData || { id: 0, email: '', name: t('components:app.defaultClient'), surname: '', rating: 0, image: '' },
-                    date: review.createdAt
-                        ? new Date(review.createdAt).toLocaleDateString('ru-RU')
-                        : ''
-                };
-            });
+                    return {
+                        id: review.id,
+                        rating: review.rating || 0,
+                        description: review.description || '',
+                        forReviewer: review.forClient || false,
+                        services: {
+                            id: review.ticket?.id || 0,
+                            title: serviceTitle
+                        },
+                        ticket: review.ticket,
+                        images: review.images || [],
+                        master: masterData || { id: 0, email: '', name: t('components:app.defaultMaster'), surname: '', rating: 0, image: '' },
+                        client: clientData || { id: 0, email: '', name: t('components:app.defaultClient'), surname: '', rating: 0, image: '' },
+                        date: review.createdAt
+                            ? new Date(review.createdAt).toLocaleDateString('ru-RU')
+                            : ''
+                    };
+                });
             
-            console.log('Transformed reviews:', transformedReviews);
-            applyReviewsFetch(transformedReviews, fetchedHasMore);
+                console.log('Transformed reviews:', transformedReviews);
+                applyReviewsFetch(transformedReviews, fetchedHasMore);
             
+            }, () => { if (reviewsPage === 1) setReviews([]); setReviewsLoading(true); }, reviewsPage === 1);
         } catch (error) {
             console.error('Error fetching reviews:', error);
             setReviews([]);
@@ -801,8 +802,6 @@ export function Ticket() {
     const fetchSimilarTickets = async () => {
         if (!order) return;
         
-        setSimilarTicketsLoading(true);
-        
         try {
             // Строим параметры фильтрации: та же категория, но не этот тикет, активные и исключаем свои тикеты
             const params = new URLSearchParams({
@@ -816,6 +815,14 @@ export function Ticket() {
             }
             // До 100 подходящих (две страницы по 50), а не первые 25: дальше объявления сортируются «свой город
             // первым» и режутся до 6 — по одной странице город-приоритет работал только внутри неё.
+            // Мобильная сборка: уже отобранные 6 похожих с прошлого раза — сразу, без спиннера (кэшируем
+            // итог, а не всю выборку до 100 тикетов).
+            const similarKey = `${API_ROUTES.TICKETS}?${params.toString()}&__similar=1`;
+            const cachedSimilar = peekApi<ApiTicket[]>(similarKey);
+            // Нет сохранённого — не спиннер поверх похожих от ПРЕДЫДУЩЕГО тикета (компонент тот же при
+            // переходе тикет → тикет), а просто скрываем блок: он появится, когда придут данные.
+            setSimilarTickets(cachedSimilar ?? []);
+
             let data: ApiTicket[] = await fetchAllPages<ApiTicket>(`${API_ROUTES.TICKETS}?${params.toString()}`, { maxPages: 2 });
                 
                 // Сортируем: сначала тикеты из того же города, затем по дате
@@ -832,7 +839,9 @@ export function Ticket() {
                 });
                 
                 // Ограничиваем до 6 похожих объявлений
-                setSimilarTickets(data.slice(0, 6));
+                const similar = data.slice(0, 6);
+                rememberApi(similarKey, {}, similar);
+                if (!cachedSimilar || !sameResponse(cachedSimilar, similar)) setSimilarTickets(similar);
         } catch (error) {
             console.error('Error fetching similar tickets:', error);
             setSimilarTickets([]);

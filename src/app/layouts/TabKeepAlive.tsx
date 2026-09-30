@@ -81,6 +81,27 @@ export function TabKeepAlive() {
         window.scrollTo({ top: scrollByTab.current.get(active) ?? 0, behavior: 'instant' });
     }, [active]);
 
+    // Повторное нажатие на уже открытую вкладку в нижней панели (переход на тот же адрес — новый
+    // location.key при том же пути и параметрах) — как в нативных приложениях: плавно наверх. И окно,
+    // и собственные прокручиваемые блоки вкладки (например, список чатов со своим скроллом).
+    const containerByTab = useRef(new Map<string, HTMLDivElement | null>());
+    const prevLocation = useRef(liveLocation.location);
+    useEffect(() => {
+        const prev = prevLocation.current;
+        const cur = liveLocation.location;
+        prevLocation.current = cur;
+        if (!active || prev.key === cur.key) return;
+        if (prev.pathname !== cur.pathname || prev.search !== cur.search) return;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        scrollByTab.current.set(active, 0);
+        const root = containerByTab.current.get(active);
+        root?.querySelectorAll<HTMLElement>('*').forEach(el => {
+            if (el.scrollTop <= 0) return;
+            const overflowY = getComputedStyle(el).overflowY;
+            if (overflowY === 'auto' || overflowY === 'scroll') el.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }, [liveLocation.location, active]);
+
     if (!KEEP_ALIVE) return null;
 
     return (
@@ -90,7 +111,9 @@ export function TabKeepAlive() {
                 return (
                     <Activity key={`${path}:${generation}`} mode={isActive ? 'visible' : 'hidden'}>
                         <UNSAFE_LocationContext.Provider value={isActive ? liveLocation : frozen.current.get(path) ?? liveLocation}>
-                            <Page />
+                            <div ref={el => { containerByTab.current.set(path, el); }} style={{ display: 'contents' }}>
+                                <Page />
+                            </div>
                         </UNSAFE_LocationContext.Provider>
                     </Activity>
                 );

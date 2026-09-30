@@ -13,6 +13,9 @@ import { fetchAllPages } from './paginationUtils';
 import type { LocaleType } from './apiUtils';
 import { getStorageItem, getDefaultLocale, getStorageJSON, setStorageJSON } from './storageUtils';
 import { API_ROUTES } from '../app/routers/routes';
+import { Capacitor } from '@capacitor/core';
+
+const IS_NATIVE_APP = Capacitor.isNativePlatform();
 
 // ─── Типы ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +69,8 @@ function createCachedFetcher<T>(
 ) {
     const cache    = new Map<string, CacheEntry<T>>();
     const inFlight = new Map<string, Promise<T[]>>();
+    // Мобильная сборка: каждый справочник переживает перезапуск (localStorage), даже без явного ключа.
+    if (!persistKey && IS_NATIVE_APP) persistKey = `dataCache:${endpoint}`;
 
     const readEntry = (cacheKey: string): CacheEntry<T> | undefined =>
         cache.get(cacheKey) ?? (persistKey ? getStorageJSON<CacheEntry<T>>(`${persistKey}:${cacheKey}`) ?? undefined : undefined);
@@ -92,7 +97,18 @@ function createCachedFetcher<T>(
         }
 
         const existing = inFlight.get(cacheKey);
+        // Мобильная сборка: протухший справочник отдаём сразу, а свежий подтягиваем в фоне
+        // (stale-while-revalidate) — экран не ждёт сеть и не показывает спиннер.
+        if (IS_NATIVE_APP && cached && cached.locale === targetLocale) {
+            cache.set(cacheKey, cached);
+            if (!existing) void load(cacheKey, fullEndpoint, targetLocale);
+            return cached.data;
+        }
         if (existing) return existing;
+        return load(cacheKey, fullEndpoint, targetLocale);
+    }
+
+    function load(cacheKey: string, fullEndpoint: string, targetLocale: string): Promise<T[]> {
 
         const promise = (async (): Promise<T[]> => {
             try {

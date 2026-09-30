@@ -11,7 +11,8 @@ import { Capacitor } from '@capacitor/core';
 import { API_ROUTES } from '../app/routers/routes';
 import { ApiError } from './appMessagesUtils';
 import { getAuthToken } from './authUtils';
-import { getAppealReasons, getDistricts, getMyTechSupports } from './dataCacheUtils';
+import i18n from 'i18next';
+import { getAppealReasons, getDistricts, getLegalDocuments, getMyTechSupports } from './dataCacheUtils';
 import { getPageSize } from './pageSizeUtils';
 import { rememberApi, universalApiRequest, type ApiRequestOptions } from './apiUtils';
 import { APP_READY_EVENT } from './nativeSplash';
@@ -31,6 +32,10 @@ const prefetchAll = async (): Promise<void> => {
     // Публичное — и для гостей: форма и таблица обращений в ТП.
     await getAppealReasons(undefined, 'applicableTo=support').catch(() => {});
     await getAppealReasons().catch(() => {});
+    // Юридические страницы — тем же ключом, что в Legal.tsx (язык i18next + тип документа).
+    for (const type of ['privacy_policy', 'terms_of_use', 'public_offer', 'third_party']) {
+        await getLegalDocuments(i18n.language, `type=${type}`).catch(() => {});
+    }
     if (!getAuthToken()) return;
     const pageSize = getPageSize();
     await warm(`${API_ROUTES.CHATS_ME}?page=1&itemsPerPage=${pageSize}`, { locale: false });
