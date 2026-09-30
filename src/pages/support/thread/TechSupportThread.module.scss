@@ -40,8 +40,16 @@
 .threadMetaActions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: map.get(vars.$spacing, 2);
   margin-left: auto;
+}
+
+// «Закрыть заявку» — общая кнопка Reset (Button/Reset); на мобилке см. media-блок внизу файла.
+.closeTicketBtn {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 // Toggles MediaSidebar (or, reused as-is, the admin ticket-edit mode) — only rendered once
@@ -477,6 +485,19 @@
 }
 
 @media screen and (max-width: map.get(vars.$breakpoints, mobile)) {
+  // Свой ряд под бейджами на всю ширину: кнопка закрытия тянется, медиа/карандаш справа от неё.
+  .threadMetaActions {
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: nowrap;
+  }
+
+  .closeTicketBtn {
+    flex: 1;
+    justify-content: center;
+    padding: 9px 12px;
+  }
+
   .messages { max-height: 50vh; }
   .messageImage { width: 72px; height: 72px; }
 }

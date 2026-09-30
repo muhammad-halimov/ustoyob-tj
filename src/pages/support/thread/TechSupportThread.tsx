@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline, IoPersonOutline, IoHeadsetOutline, IoTrashOutline } from 'react-icons/io5';
+import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline, IoPersonOutline, IoHeadsetOutline, IoTrashOutline, IoCloseCircleOutline } from 'react-icons/io5';
 import styles from './TechSupportThread.module.scss';
 import { universalApiRequest } from '../../../utils/apiUtils';
 import { API_ROUTES } from '../../../app/routers/routes';
@@ -18,6 +18,7 @@ import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { MediaSidebar } from '../../../shared/ui/Photo/MediaSidebar/MediaSidebar';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
+import { Reset } from '../../../shared/ui/Button/Reset/Reset';
 import { Img } from '../../../shared/ui/Photo/Img';
 import type { PhotoSource } from '../../../entities';
 import { Markdown } from '../../../shared/ui/Text/Markdown';
@@ -142,6 +143,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // (see canEditTicket) — reason/priority/status stay admin-only once inside, see the JSX.
     const [isEditingTicket, setIsEditingTicket] = useState(false);
     const [isSavingTicket, setIsSavingTicket] = useState(false);
+    const [isClosingTicket, setIsClosingTicket] = useState(false);
     const [editTitle, setEditTitle] = useState('');
     const [editDescription, setEditDescription] = useState('');
     const [editReasonIri, setEditReasonIri] = useState('');
@@ -413,6 +415,12 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // opening the editor on a ticket older than 24h still gets reason/priority/status, just
     // not these three — sending them anyway would 403 edit_window_expired even unchanged.
     const canEditTicketContent = isTicketEditWindowOpen;
+    // §11: the author may close their own ticket from new/renewed/in_progress/resolved
+    // (closed → renewed is the reopen path, which already happens on reply). Admins have the
+    // full status selector in the edit form instead, so this button is author-only.
+    const canCloseTicket = isTicketAuthor && (
+        statusKey === 'new' || statusKey === 'renewed' || statusKey === 'in_progress' || statusKey === 'resolved'
+    );
 
     // Current user's own name, prefixed onto "Имя (Вы - роль)" on your own replies —
     // getUserData() returns the full cached profile, not just the id.
@@ -559,6 +567,25 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         setEditMessageText(msg.description ?? '');
         setEditMessagePhotos((msg.images ?? []).map(img => toExistingPhoto(img, 'uploads/tech_support_messages')));
         setEditingMessageId(msg.id);
+    };
+
+    const handleCloseTicket = async () => {
+        if (isClosingTicket || !window.confirm(t('thread.closeTicketConfirm'))) return;
+        setIsClosingTicket(true);
+        try {
+            await universalApiRequest(API_ROUTES.TECH_SUPPORT_BY_ID(ticketId), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { status: 'closed' },
+                locale: false,
+            });
+            await fetchTicket();
+            getMyTechSupports.clearCache();
+        } catch (err) {
+            setError(resolveApiError(err, t('thread.closeTicketError')));
+        } finally {
+            setIsClosingTicket(false);
+        }
     };
 
     const cancelEditMessage = () => {
@@ -861,6 +888,15 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                             )}
 
                             <div className={styles.threadMetaActions}>
+                                {canCloseTicket && !isEditingTicket && (
+                                    <Reset
+                                        className={styles.closeTicketBtn}
+                                        label={t('thread.closeTicket')}
+                                        altIcon={<IoCloseCircleOutline size={18} />}
+                                        onClick={handleCloseTicket}
+                                        disabled={isClosingTicket}
+                                    />
+                                )}
                                 {sentImages.length > 0 && (
                                     <button
                                         type="button"
