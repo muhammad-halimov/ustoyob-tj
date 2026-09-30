@@ -50,6 +50,32 @@
   margin-bottom: 8px;
 }
 
+// Свой тикет: заголовок слева, карандаш + переключатель в правом верхнем углу,
+// плашка статуса ("Не подтверждено") — вторым рядом слева, под названием и над категорией.
+.titleControlRowOwner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 8px;
+
+  .orderTitle {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .controlsGroup {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .statusBadge {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: start;
+  }
+}
+
 .orderTitle {
   font-size: 28px;
   font-weight: 600;
@@ -221,7 +247,11 @@
 .categoryContainer {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  // Одним рядом всегда: пока хватает места — капсулы ровно по длине названия, упёрлись в край —
+  // обе сжимаются (flex-shrink) и текст уходит в Marquee, а не переносится на второй ряд.
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  min-width: 0;
   gap: 6px;
 }
 
@@ -239,8 +269,8 @@
   cursor: pointer;
   font-family: inherit;
   overflow: hidden;     // allow inner Marquee to detect overflow
-  max-width: 220px;
-  min-width: 0;
+  flex: 0 1 auto;
+  min-width: 56px;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 
   &:hover {
@@ -279,8 +309,8 @@
   font-weight: 500;
   padding: 5px 14px;
   overflow: hidden;     // allow inner Marquee
-  max-width: 160px;
-  min-width: 0;
+  flex: 0 1 auto;
+  min-width: 48px;
 }
 
 .section {
@@ -1046,20 +1076,6 @@
     flex-wrap: wrap;
   }
 
-  .categoryContainer {
-    flex: 1;
-    min-width: 0;
-    flex-wrap: nowrap;
-  }
-
-  .categoryBadge {
-    max-width: 140px;
-  }
-
-  .subcategoryBadge {
-    max-width: 100px;
-  }
-
   .actionButtons {
     width: 100%;
     gap: 10px;
@@ -1086,13 +1102,11 @@
   .categoryBadge {
     font-size: 13px !important;
     padding: 4px 10px 4px 8px;
-    max-width: 110px !important;
   }
 
   .subcategoryBadge {
     font-size: 12px !important;
     padding: 4px 10px;
-    max-width: 80px !important;
   }
 
   .priceBadge {
@@ -1253,13 +1267,6 @@
       border-radius: 50%;
     }
   }
-
-  .toggle_label {
-    font-size: 14px;
-    font-weight: 500;
-    color: #333;
-    white-space: nowrap;
-  }
 }
 
 .similarTicketsWrapper {
@@ -1398,10 +1405,6 @@
 
   .timeAgo {
     color: var(--color-text-secondary);
-  }
-
-  .toggle_label {
-    color: var(--color-text-black);
   }
 
   .categoryBadge {

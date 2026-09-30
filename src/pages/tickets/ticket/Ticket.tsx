@@ -881,7 +881,7 @@ export function Ticket() {
                     <h1 className={styles.orderTitle}>
                         <Marquee text={order.title} alwaysScroll />
                     </h1>
-                    <TicketStatusBadge approved={order.approved} banned={order.banned} />
+                    <TicketStatusBadge approved={order.approved} banned={order.banned} className={styles.statusBadge} />
                     <div className={styles.controlsGroup}>
                         {currentUserId === order.authorId ? (
                             <div className={styles.ownerControls}>
@@ -903,12 +903,10 @@ export function Ticket() {
                                             checked={isTicketActive}
                                             onChange={handleToggleActive}
                                             disabled={isTogglingActive}
+                                            aria-label={isTicketActive ? t('ticket:active') : t('ticket:inactive')}
                                         />
                                         <span className={styles.slider}></span>
                                     </label>
-                                    <span className={styles.toggle_label}>
-                                        {isTicketActive ? t('ticket:active') : t('ticket:inactive')}
-                                    </span>
                                 </div>
                             </div>
                         ) : (
