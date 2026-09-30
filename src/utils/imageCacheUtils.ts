@@ -14,16 +14,11 @@
  * миллисекунды чтения с диска вместо целого сетевого запроса.
  *
  * ВАЖНО (мобильная Capacitor-сборка): приложение там живёт на origin `https://localhost`, а картинки —
- * на origin API (`ustoyob.tj`). Это настоящий cross-origin запрос, и бэкенд не шлёт для статики
- * `Access-Control-Allow-Origin` — обычный `fetch()` падает CORS'ом на КАЖДОЙ иконке, каждый раз (см.
- * `isCacheable` — origin уже проверен доверенным, значит проблема именно в отсутствии заголовка на
- * ответе, а не в наших правах его запрашивать). Из-за этого весь этот кэш на мобилке молча не работает
- * вообще — `getCachedImage` всегда падает в `catch` и отдаёт `null`, а иконки показываются только через
- * обычный `<img src>` (без blob:, без мгновенного повтора). `mode: 'no-cors'` НЕ спасает: WebView отдаёт
- * `opaque`-ответ с телом, обнулённым до 0 байт (проверено на реальном устройстве/эмуляторе) — Blob из
- * него не восстановить. Единственный настоящий фикс — добавить `Access-Control-Allow-Origin` на ответы
- * статики (`/uploads/…` и т.п.) на уровне веб-сервера/CDN перед бэкендом: это публичные, некреденциальные
- * файлы, `*` там безопасен. NelmioCorsBundle тут не поможет — статика отдаётся до ядра Symfony.
+ * на origin API (`ustoyob.tj`), т.е. `fetch()` здесь cross-origin и работает только благодаря
+ * `Access-Control-Allow-Origin: *` на `/uploads/` и `/media/` (nginx `ustoyob-tj-front`; NelmioCorsBundle
+ * статику не видит — она отдаётся до ядра Symfony). Без этого заголовка весь кэш на мобилке молча не
+ * работает: `getCachedImage` всегда отдаёт `null`, иконки идут только через обычный `<img src>`.
+ * `mode: 'no-cors'` не заменяет заголовок — WebView отдаёт opaque-ответ с телом 0 байт.
  */
 import { API_BASE_URL } from './configUtils';
 
@@ -197,7 +192,15 @@ export const getCachedImage = (url: string): Promise<string | null> => {
                 return registerBlob(url, idbHit.blob, idbHit.timestamp);
             }
 
-            const res = await fetch(url);
+            // Падение обычного fetch здесь — почти всегда ответ из HTTP-кэша WebView, сохранённый ещё
+            // без Access-Control-Allow-Origin (immutable на год — сам сервер уже не спрашивается).
+            // no-cache перепроверяет у сервера (304 без тела) и заодно обновляет запись в кэше.
+            let res: Response;
+            try {
+                res = await fetch(url);
+            } catch {
+                res = await fetch(url, { cache: 'no-cache' });
+            }
             if (!res.ok || !(res.headers.get('content-type') ?? '').startsWith('image/')) return null;
             const blob = await res.blob();
             const timestamp = Date.now();
