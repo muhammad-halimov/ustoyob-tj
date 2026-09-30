@@ -3,7 +3,7 @@ import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline, IoPersonOutline, IoHeadsetOutline, IoTrashOutline, IoCloseCircleOutline } from 'react-icons/io5';
 import styles from './TechSupportThread.module.scss';
-import { universalApiRequest } from '../../../utils/apiUtils';
+import { peekApi, universalApiRequest } from '../../../utils/apiUtils';
 import { API_ROUTES } from '../../../app/routers/routes';
 import { resolveApiError } from '../../../utils/appMessagesUtils';
 import { getUserData, isAdmin } from '../../../utils/authUtils';
@@ -112,8 +112,12 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // combined "can this viewer open the ticket editor at all" gate).
     const isAdminUser = isAdmin();
 
-    const [ticket, setTicket] = useState<SupportTicket | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    // Мобильная сборка: обращение уже открывали — показываем сразу из кэша API, свежее приходит следом.
+    const [ticket, setTicket] = useState<SupportTicket | null>(() => {
+        const cached = peekApi<SupportTicket>(API_ROUTES.TECH_SUPPORT_BY_ID(ticketId));
+        return cached ? { ...cached, messages: sortMessagesByCreatedAt(cached.messages ?? []) } : null;
+    });
+    const [isLoading, setIsLoading] = useState(() => ticket === null);
     const [error, setError] = useState('');
     // `ticket.reason.title` comes embedded in the ticket response and doesn't seem to respect
     // ?locale= the way a direct GET /api/appeal-reasons?locale= does — look the title up by id

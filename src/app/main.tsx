@@ -27,6 +27,7 @@ import { loadAppMessages } from '../utils/appMessagesUtils';
 import { isNativePlatform, initNativeOAuthDeepLinks } from '../utils/mobileOAuth';
 import { initNativeChrome } from '../utils/nativeChrome';
 import { initNativeSplash } from '../utils/nativeSplash';
+import { initNativePrefetch } from '../utils/nativePrefetch';
 import './styles/native.scss';
 
 // Инициализируем кеш данных при старте приложения
@@ -48,6 +49,7 @@ if (isNativePlatform()) initNativeOAuthDeepLinks();
 // Мобильное приложение: безопасные зоны iOS (viewport-fit=cover + html.native-ios), см. utils/nativeChrome.ts.
 // Сплэш — первым: снимается только из JS, поэтому таймер-страховку ставим раньше всего остального.
 initNativeSplash();
+initNativePrefetch();
 initNativeChrome();
 
 createRoot(document.getElementById('root')!).render(

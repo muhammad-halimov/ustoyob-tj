@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {getAuthToken, getUserData, getUserRole} from '../../utils/authUtils';
 import styles from './Favorite.module.scss';
 import {useNavigate} from 'react-router-dom';
@@ -117,8 +117,10 @@ function Favorites() {
     const currentUserId = getUserData()?.id;
     const { t } = useTranslation(['components', 'common']);
 
-    // Загрузка избранного при монтировании (с восстановлением страниц и скролла)
-    useEffect(() => {
+    // Загрузка избранного при монтировании (с восстановлением страниц и скролла).
+    // useLayoutEffect, не useEffect: синхронная часть fetchFavorites (показ сохранённого ответа из
+    // мобильного кэша) выполняется до первой отрисовки — без кадров с полноэкранным лоадером.
+    useLayoutEffect(() => {
         const doRestore = async () => {
             const targetPage = savedPageRef.current;
             if (targetPage > 1) {

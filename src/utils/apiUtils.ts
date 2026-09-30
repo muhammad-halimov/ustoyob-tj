@@ -77,6 +77,16 @@ const seedTicketsFromList = (endpoint: string, options: ApiRequestOptions, data:
         : (data as { 'hydra:member'?: unknown[] } | null)?.['hydra:member'];
     if (!Array.isArray(items) || items.length === 0) return;
     const path = endpoint.split('?')[0];
+    // Свои обращения в ТП — так же: GET /tech-supports/{id} отдаёт ту же структуру (сверено), и
+    // обращение из списка открывается без лоадера.
+    if (path === API_ROUTES.TECH_SUPPORTS_ME) {
+        for (const item of items) {
+            const ts = item as { id?: unknown; status?: unknown; messages?: unknown } | null;
+            if (!ts || typeof ts !== 'object' || ts.id == null || !('status' in ts) || !('messages' in ts)) continue;
+            seedMemoryByKey(apiCacheKey(buildRequestUrl(API_ROUTES.TECH_SUPPORT_BY_ID(String(ts.id)), {}), token), ts);
+        }
+        return;
+    }
     if (/^\/api\/tickets\/[^/]+$/.test(path) && path !== API_ROUTES.TICKETS_ME) return; // одиночный тикет, не список
     for (const item of items) {
         const ticket = (item && typeof item === 'object' && 'ticket' in item ? (item as { ticket?: unknown }).ticket : item) as

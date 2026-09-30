@@ -68,7 +68,11 @@ function TechSupport({ embedded = false }: TechSupportProps) {
     }, [searchParams]);
 
     // My tickets state
-    const [myTickets, setMyTickets] = useState<SupportTicket[]>([]);
+    // Мобильная сборка: список с прошлого раза — без спиннера на входе, свежий приходит тихо следом.
+    const [myTickets, setMyTickets] = useState<SupportTicket[]>(() => {
+        const data = getMyTechSupports.peek();
+        return Array.isArray(data) ? data as SupportTicket[] : (data as { 'hydra:member'?: SupportTicket[] } | undefined)?.['hydra:member'] ?? [];
+    });
     const [loadingMyTickets, setLoadingMyTickets] = useState(false);
     const [myTicketsError, setMyTicketsError] = useState('');
 
@@ -91,8 +95,10 @@ function TechSupport({ embedded = false }: TechSupportProps) {
     const [photos, setPhotos] = useState<PhotoItem[]>([]);
 
     // UI state
-    const [reasons, setReasons] = useState<AppealReason[]>([]);
-    const [loadingReasons, setLoadingReasons] = useState(true);
+    // Мобильная сборка: причины с прошлого раза (localStorage) — поле категории без спиннера.
+    const [reasons, setReasons] = useState<AppealReason[]>(() => getAppealReasons.peekStale(undefined, 'applicableTo=support') ?? []);
+    const [loadingReasons, setLoadingReasons] = useState(() => reasons.length === 0);
+    const reasonsSeededRef = useRef(reasons.length > 0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const [showError, setShowError] = useState(false);
@@ -111,7 +117,7 @@ function TechSupport({ embedded = false }: TechSupportProps) {
     // reasons are valid choices when creating a ticket, so the form/filter stay scoped to those.
     const fetchReasons = useCallback(async () => {
         try {
-            setLoadingReasons(true);
+            if (!reasonsSeededRef.current) setLoadingReasons(true);
             const list = await getAppealReasons(undefined, 'applicableTo=support');
             setReasons(list);
         } catch {
@@ -125,7 +131,7 @@ function TechSupport({ embedded = false }: TechSupportProps) {
     // A ticket's own `reason` isn't restricted to `applicableTo=support` server-side (e.g. tickets
     // created from a report/complaint flow can carry an "overall"-tagged reason) — so the table/
     // thread's id→title lookup needs the full unfiltered list, separate from the form's scoped one.
-    const [allReasons, setAllReasons] = useState<AppealReason[]>([]);
+    const [allReasons, setAllReasons] = useState<AppealReason[]>(() => getAppealReasons.peekStale() ?? []);
     const fetchAllReasons = useCallback(async () => {
         try {
             const list = await getAppealReasons();

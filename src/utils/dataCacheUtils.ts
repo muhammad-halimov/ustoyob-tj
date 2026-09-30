@@ -8,7 +8,7 @@ import type { Province, City, Occupation, Category, District } from '../entities
 import type { AppealReason } from '../entities';
 import type { Unit } from '../entities';
 import type { LegalDocument } from '../entities';
-import { universalApiRequest } from './apiUtils';
+import { peekApi, rememberApi, universalApiRequest } from './apiUtils';
 import { fetchAllPages } from './paginationUtils';
 import type { LocaleType } from './apiUtils';
 import { getStorageItem, getDefaultLocale, getStorageJSON, setStorageJSON } from './storageUtils';
@@ -165,6 +165,8 @@ function createMeCache<T>(endpoint: string, cacheDuration = CACHE_DURATION, page
                 // paged — коллекция (например, свои обращения в ТП): нужны ВСЕ страницы, а не первые 25.
                 const data = (paged ? await fetchAllPages(endpoint) : await universalApiRequest(endpoint)) as T;
                 cached = { data, timestamp: Date.now() };
+                // Мобильная сборка: весь собранный список — в кэш API (переживает перезапуск), см. peek.
+                rememberApi(`${endpoint}?__all=1`, {}, data);
                 return data;
             } finally {
                 inFlight = null;
@@ -175,6 +177,8 @@ function createMeCache<T>(endpoint: string, cacheDuration = CACHE_DURATION, page
     }
 
     fetcher.clearCache = (): void => { cached = null; inFlight = null; };
+    /** Последние данные синхронно (память, в мобильной сборке — и сохранённые до перезапуска), без сети. */
+    fetcher.peek = (): T | undefined => cached?.data ?? peekApi<T>(`${endpoint}?__all=1`);
     return fetcher;
 }
 
@@ -186,7 +190,7 @@ export const getOccupations    = createCachedFetcher<Occupation>(API_ROUTES.OCCU
 export const getCategories     = createCachedFetcher<Category>(API_ROUTES.CATEGORIES,       { requiresAuth: false }, STATIC_CACHE_DURATION, 'dataCache:categories');
 export const getDistricts      = createCachedFetcher<District>(API_ROUTES.DISTRICTS,        {}, STATIC_CACHE_DURATION, 'dataCache:districts');
 export const getUnits          = createCachedFetcher<Unit>(API_ROUTES.UNITS,                {}, STATIC_CACHE_DURATION);
-export const getAppealReasons  = createCachedFetcher<AppealReason>(API_ROUTES.APPEAL_REASONS);
+export const getAppealReasons  = createCachedFetcher<AppealReason>(API_ROUTES.APPEAL_REASONS, {}, undefined, 'dataCache:appealReasons');
 export const getLegalDocuments = createCachedFetcher<LegalDocument>(API_ROUTES.LEGAL_DOCUMENTS, {}, STATIC_CACHE_DURATION);
 /** Own tech-support tickets — short TTL since it's the user's own mutable data (see TechSupport.tsx). */
 export const getMyTechSupports = createMeCache<unknown>(API_ROUTES.TECH_SUPPORTS_ME, 60 * 1000, true);

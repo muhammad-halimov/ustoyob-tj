@@ -1,0 +1,51 @@
+/**
+ * Фоновая предзагрузка основных экранов — только мобильная сборка и только залогиненный пользователь.
+ * После того как главная готова (`app:ready`), тихо запрашиваем данные экранов, куда обычно идут
+ * дальше: ответы ложатся в кэш API (utils/apiCache.ts), и даже первый заход на экран после установки
+ * или перезапуска открывается сразу, как в нативном приложении, без спиннера.
+ *
+ * URL и параметры должны в точности совпадать с тем, что запрашивает сам экран, — иначе ключ кэша
+ * не совпадёт. Запросы идут по одному, чтобы не мешать тому, что пользователь делает на экране.
+ */
+import { Capacitor } from '@capacitor/core';
+import { API_ROUTES } from '../app/routers/routes';
+import { ApiError } from './appMessagesUtils';
+import { getAuthToken } from './authUtils';
+import { getAppealReasons, getDistricts, getMyTechSupports } from './dataCacheUtils';
+import { getPageSize } from './pageSizeUtils';
+import { rememberApi, universalApiRequest, type ApiRequestOptions } from './apiUtils';
+import { APP_READY_EVENT } from './nativeSplash';
+
+const START_DELAY_MS = 1500;
+
+/** GET в кэш; пустой /me-список бэкенд отдаёт 404 — запоминаем его как пустой, как это делают экраны. */
+const warm = async (endpoint: string, options: ApiRequestOptions = {}): Promise<void> => {
+    try {
+        await universalApiRequest(endpoint, options);
+    } catch (err) {
+        if (err instanceof ApiError && err.http === 404) rememberApi(endpoint, options, []);
+    }
+};
+
+const prefetchAll = async (): Promise<void> => {
+    // Публичное — и для гостей: форма и таблица обращений в ТП.
+    await getAppealReasons(undefined, 'applicableTo=support').catch(() => {});
+    await getAppealReasons().catch(() => {});
+    if (!getAuthToken()) return;
+    const pageSize = getPageSize();
+    await warm(`${API_ROUTES.CHATS_ME}?page=1&itemsPerPage=${pageSize}`, { locale: false });
+    await warm(`${API_ROUTES.FAVORITES_ME}?page=1&itemsPerPage=${pageSize}`);
+    await warm(`${API_ROUTES.TICKETS_ME}?active=true&page=1&itemsPerPage=${pageSize}`);
+    await warm(API_ROUTES.USERS_ME);
+    await warm(API_ROUTES.PROFILE_OAUTH_PROVIDERS, { locale: false });
+    // Профиль показывается из кэша, только если есть и справочники (остальные прогревает preloadData).
+    await getDistricts().catch(() => {});
+    await getMyTechSupports().catch(() => {});
+};
+
+export function initNativePrefetch(): void {
+    if (!Capacitor.isNativePlatform()) return;
+    window.addEventListener(APP_READY_EVENT, () => {
+        setTimeout(() => { void prefetchAll(); }, START_DELAY_MS);
+    }, { once: true });
+}
