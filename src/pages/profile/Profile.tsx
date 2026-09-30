@@ -60,7 +60,7 @@ import { fetchAllPages } from '../../utils/paginationUtils';
 import { getFormattedDate } from '../../utils/timeUtils';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
 import { getPageSize } from '../../utils/pageSizeUtils';
-import { parsePagedResponse, universalApiRequest } from '../../utils/apiUtils';
+import { parsePagedResponse, peekApi, universalApiRequest } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
 import type { AvailableSocialNetwork as LocalAvailableSocialNetwork, UISocialNetwork } from '../../entities';
 import type { AddressFormData as LocalAddress } from '../../entities';
@@ -186,7 +186,13 @@ function Profile() {
     const [editingPhone, setEditingPhone] = useState<string | null>(null);
     const [phoneForm, setPhoneForm] = useState({ number: '', type: 'tj' as 'tj' | 'international' });
 
-    const [linkedProviders, setLinkedProviders] = useState<OAuthProvider[]>([]);
+    // Мобильная сборка: список с прошлого раза (utils/apiCache.ts) — секция без спиннера при заходе.
+    const parseProviders = (data: unknown): OAuthProvider[] =>
+        Array.isArray(data) ? data : ((data as { providers?: OAuthProvider[] } | null)?.providers ?? []);
+    const [linkedProviders, setLinkedProviders] = useState<OAuthProvider[]>(() => {
+        const cached = peekApi(API_ROUTES.PROFILE_OAUTH_PROVIDERS, { locale: false });
+        return cached ? parseProviders(cached) : [];
+    });
     const [linkedProvidersLoading, setLinkedProvidersLoading] = useState(false);
 
     // Загружаем привязанные OAuth-провайдеры (только для своей страницы)
@@ -198,9 +204,11 @@ function Profile() {
         providersAbortRef.current?.abort(); // отменяем предыдущий незавершённый запрос, если он ещё летит
         const controller = new AbortController();
         providersAbortRef.current = controller;
-        setLinkedProvidersLoading(true);
+        const cached = peekApi(API_ROUTES.PROFILE_OAUTH_PROVIDERS, { locale: false });
+        if (cached) setLinkedProviders(parseProviders(cached));
+        else setLinkedProvidersLoading(true);
         universalApiRequest(API_ROUTES.PROFILE_OAUTH_PROVIDERS, { locale: false, signal: controller.signal })
-            .then(data => setLinkedProviders(Array.isArray(data) ? data : ((data as any).providers ?? [])))
+            .then(data => setLinkedProviders(parseProviders(data)))
             .catch(() => {})
             .finally(() => setLinkedProvidersLoading(false));
     }, []);
@@ -1228,6 +1236,201 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             const currentLocale = getStorageItem('i18nextLng') || 'tj';
             const userPath = userId ? API_ROUTES.USER_BY_ID(userId) : API_ROUTES.USERS_ME;
 
+            // Разбор ответа — общий для сохранённого (мобильный кэш, см. utils/apiCache.ts) и свежего.
+            // keepSections — не сбрасывать услуги/примеры работ; loadSections — догрузить их.
+            const applyUserData = (userData: User, pRaw: unknown, cRaw: unknown, dRaw: unknown, localizedOccupations: Occupation[], keepSections: boolean, loadSections: boolean) => {
+                console.log('User data received:', userData);
+
+                // Sync server-state refs so subsequent mutations don't need a redundant GET
+                rawEducationRef.current = (userData as any).education || [];
+                rawPhonesRef.current = ((userData as any).phones as LocalPhone[]) || [];
+                rawAddressesRef.current = ((userData as any).addresses as Address[]) || [];
+
+                // Обновляем текущего пользователя из ответа (только для приватного профиля)
+                if (!readOnly) {
+                    setCurrentUser({ id: (userData as any).id, email: (userData as any).email ?? '', name: (userData as any).name ?? '', surname: (userData as any).surname ?? '' });
+                    profileLoadedOnceRef.current = true;
+                }
+
+                // Строим lookup maps из переведённых географических данных
+                const toArr = (d: any) => Array.isArray(d) ? d : (d?.['hydra:member'] || []);
+                const provincesArr2: any[] = toArr(pRaw);
+                const citiesArr: any[] = toArr(cRaw);
+                const districtsArr: any[] = toArr(dRaw);
+
+                const provinceMap = new Map<string | number, string>(provincesArr2.map((p: any) => [p.id, p.title]));
+                const cityMap     = new Map<string | number, string>(citiesArr.map((c: any) => [c.id, c.title]));
+                const districtMap = new Map<string | number, string>(districtsArr.map((d: any) => [d.id, d.title]));
+                const suburbMap   = new Map<string | number, string>();
+                const settlementMap = new Map<string | number, string>();
+                const communityMap  = new Map<string | number, string>();
+                const villageMap    = new Map<string | number, string>();
+                citiesArr.forEach((city: any) => {
+                    (city.suburbs || []).forEach((s: any) => suburbMap.set(s.id, s.title));
+                });
+                districtsArr.forEach((dist: any) => {
+                    (dist.settlements || []).forEach((s: any) => {
+                        settlementMap.set(s.id, s.title);
+                        (s.village || s.villages || []).forEach((v: any) => villageMap.set(v.id, v.title));
+                    });
+                    (dist.communities || []).forEach((c: any) => communityMap.set(c.id, c.title));
+                });
+
+                const addrId = (part: any): string | number | null => part ? (typeof part === 'object' ? part.id : null) : null;
+                const resolveAddr = (part: any, map: Map<string | number, string>): string => {
+                    const id = addrId(part);
+                    if (id && map.has(id)) return map.get(id)!;
+                    if (typeof part === 'object' && part?.title) return String(part.title);
+                    return '';
+                };
+                const buildAddressText = (addr: Address): string => {
+                    const parts = [
+                        resolveAddr(addr.province, provinceMap),
+                        resolveAddr(addr.city, cityMap),
+                        resolveAddr(addr.district, districtMap),
+                        resolveAddr(addr.suburb, suburbMap),
+                        resolveAddr(addr.settlement, settlementMap),
+                        resolveAddr(addr.community, communityMap),
+                        resolveAddr(addr.village, villageMap),
+                    ].filter(Boolean);
+                    return parts.join(', ');
+                };
+
+                // Определяем роль пользователя
+                const roles = Array.isArray(userData.roles) ? userData.roles : [];
+                const role = roles.includes('ROLE_MASTER') ? 'master' : 'client';
+                setUserRole(role);
+                console.log('User role:', role);
+
+                // resolveAvatar: превью 480 px + BlurHash + откат на оригинал; для OAuth-аватара — внешний URL.
+                const avatarImage = resolveAvatar(userData);
+                const avatarUrl: string | null = avatarImage?.src ?? null;
+                const avatarFull = resolveAvatar(userData, 'webp')?.src;
+
+                // Получаем все адреса пользователя
+                const userAddresses = userData.addresses as Address[] | undefined;
+
+                // Строим displayText для каждого адреса через lookup maps (переведённые названия)
+                const loadedAddresses: LocalAddress[] = [];
+                let workArea = '';
+                if (userAddresses && Array.isArray(userAddresses)) {
+                    const addressStrings: string[] = [];
+                    userAddresses.forEach((addr, i) => {
+                        const addressText = buildAddressText(addr);
+                        if (addressText) {
+                            addressStrings.push(addressText);
+                            const addressValue: AddressValue = {
+                                provinceId: addrId(addr.province),
+                                cityId: addrId(addr.city),
+                                suburbIds: addr.suburb ? [addrId(addr.suburb)].filter((id): id is number => id !== null) : [],
+                                districtIds: addr.district ? [addrId(addr.district)].filter((id): id is number => id !== null) : [],
+                                settlementId: addrId(addr.settlement),
+                                communityId: addrId(addr.community),
+                                villageId: addrId(addr.village),
+                            };
+                            loadedAddresses.push({
+                                id: addr.id?.toString() || `addr-${i}`,
+                                displayText: addressText,
+                                addressValue,
+                            });
+                        }
+                    });
+                    workArea = [...new Set(addressStrings)].join(', ');
+                }
+
+                // Создаем пустой массив социальных сетей - показываем только те, что есть в API
+                const loadedSocialNetworks: UISocialNetwork[] = [];
+
+                // Если в API есть социальные сети, добавляем их
+                if (userData.socialNetworks && Array.isArray(userData.socialNetworks)) {
+                    console.log('Found social networks in API:', userData.socialNetworks);
+
+                    userData.socialNetworks.forEach((sn) => {
+                        const networkType = sn.network?.toLowerCase();
+                        const handle = sn.handle || '';
+
+                        // Добавляем только те сети, которые реально заполнены или есть в API
+                        if (networkType && (handle || (userData.socialNetworks && userData.socialNetworks.length > 0))) {
+                            loadedSocialNetworks.push({
+                                id: sn.id?.toString() || `network-${Date.now()}-${Math.random()}`,
+                                network: networkType,
+                                handle: handle
+                            });
+                        }
+                    });
+                } else {
+                    console.log('No social networks found in API');
+                }
+
+                // Обновляем состояние социальных сетей
+                setSocialNetworks(loadedSocialNetworks);
+
+                // Загружаем телефоны напрямую из backend-ответа (Phone entity)
+                const loadedPhones: LocalPhone[] = ((userData.phones as LocalPhone[]) || [])
+                    .sort((a: LocalPhone, b: LocalPhone) => ((b.main ?? false) ? 1 : 0) - ((a.main ?? false) ? 1 : 0));
+
+                // localizedOccupations уже получены выше через Promise.all
+                setOccupations(localizedOccupations);
+
+                const transformedData: ProfileData = {
+                    id: userData.id,
+                    fullName: [userData.surname, userData.name, userData.patronymic]
+                        .filter(Boolean)
+                        .join(' ') || t('profile:defaultFullName'),
+                    email: userData.email || undefined,
+                    gender: (userData as any).gender || (userData as any).sex || undefined,
+                    dateOfBirth: userData.dateOfBirth || undefined,
+                    specialties: Array.isArray(userData.occupation) ? (userData.occupation as Occupation[]) : [],
+                    rating: userData.rating || 0,
+                    reviews: 0,
+                    avatar: avatarUrl,
+                    avatarImage,
+                    avatarFull,
+                    education: transformEducation(userData.education || [], localizedOccupations),
+                    workExamples: [],
+                    workArea: workArea,
+                    addresses: loadedAddresses,
+                    canWorkRemotely: userData.atHome || false,
+                    services: [],
+                    socialNetworks: loadedSocialNetworks as unknown as SocialNetwork[], 
+                    phones: loadedPhones,
+                    isOnline: (userData as any).isOnline ?? false,
+                    lastSeen: (userData as any).lastSeen ?? null,
+                };
+
+                setProfileData(prev => ({
+                    ...transformedData,
+                    // В тихом режиме сохраняем данные секций, которые не перезагружаются
+                    services: keepSections ? (prev?.services ?? []) : [],
+                    workExamples: keepSections ? (prev?.workExamples ?? []) : [],
+                }));
+
+                // Подгружаем услуги и галерею после обновления профиля (нужны переведённые данные)
+                // При тихом обновлении (silent) не трогаем другие секции
+                if (loadSections) {
+                    fetchServices();
+                    if (role === 'master') {
+                        fetchUserGallery();
+                    }
+                }
+            };
+
+            // Мобильная сборка: профиль уже открывали (в т.ч. до перезапуска приложения) — показываем
+            // сохранённое сразу, без полноэкранного лоадера; свежий ответ ниже тихо подменяет данные.
+            let appliedFromCache = false;
+            if (!silent && KEEP_ALIVE && !profileLoadedOnceRef.current) {
+                const cachedUser = peekApi<User>(userPath, { locale: currentLocale as any });
+                const cp = getProvinces.peekStale(currentLocale);
+                const cc = getCities.peekStale(currentLocale);
+                const cd = getDistricts.peekStale(currentLocale);
+                const co = getOccupations.peekStale(currentLocale);
+                if (cachedUser && cp && cc && cd && co) {
+                    applyUserData(cachedUser, cp, cc, cd, co, false, true);
+                    setIsLoading(false);
+                    appliedFromCache = true;
+                }
+            }
+
             // Загружаем данные пользователя + географию + профессии параллельно
             const [userData, pRaw, cRaw, dRaw, localizedOccupations] = await Promise.all([
                 universalApiRequest(userPath, { locale: currentLocale as any }) as Promise<User>,
@@ -1237,180 +1440,8 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 getOccupations(currentLocale),
             ]);
 
-            console.log('User data received:', userData);
 
-            // Sync server-state refs so subsequent mutations don't need a redundant GET
-            rawEducationRef.current = (userData as any).education || [];
-            rawPhonesRef.current = ((userData as any).phones as LocalPhone[]) || [];
-            rawAddressesRef.current = ((userData as any).addresses as Address[]) || [];
-
-            // Обновляем текущего пользователя из ответа (только для приватного профиля)
-            if (!readOnly) {
-                setCurrentUser({ id: (userData as any).id, email: (userData as any).email ?? '', name: (userData as any).name ?? '', surname: (userData as any).surname ?? '' });
-                profileLoadedOnceRef.current = true;
-            }
-
-            // Строим lookup maps из переведённых географических данных
-            const toArr = (d: any) => Array.isArray(d) ? d : (d?.['hydra:member'] || []);
-            const provincesArr2: any[] = toArr(pRaw);
-            const citiesArr: any[] = toArr(cRaw);
-            const districtsArr: any[] = toArr(dRaw);
-
-            const provinceMap = new Map<string | number, string>(provincesArr2.map((p: any) => [p.id, p.title]));
-            const cityMap     = new Map<string | number, string>(citiesArr.map((c: any) => [c.id, c.title]));
-            const districtMap = new Map<string | number, string>(districtsArr.map((d: any) => [d.id, d.title]));
-            const suburbMap   = new Map<string | number, string>();
-            const settlementMap = new Map<string | number, string>();
-            const communityMap  = new Map<string | number, string>();
-            const villageMap    = new Map<string | number, string>();
-            citiesArr.forEach((city: any) => {
-                (city.suburbs || []).forEach((s: any) => suburbMap.set(s.id, s.title));
-            });
-            districtsArr.forEach((dist: any) => {
-                (dist.settlements || []).forEach((s: any) => {
-                    settlementMap.set(s.id, s.title);
-                    (s.village || s.villages || []).forEach((v: any) => villageMap.set(v.id, v.title));
-                });
-                (dist.communities || []).forEach((c: any) => communityMap.set(c.id, c.title));
-            });
-
-            const addrId = (part: any): string | number | null => part ? (typeof part === 'object' ? part.id : null) : null;
-            const resolveAddr = (part: any, map: Map<string | number, string>): string => {
-                const id = addrId(part);
-                if (id && map.has(id)) return map.get(id)!;
-                if (typeof part === 'object' && part?.title) return String(part.title);
-                return '';
-            };
-            const buildAddressText = (addr: Address): string => {
-                const parts = [
-                    resolveAddr(addr.province, provinceMap),
-                    resolveAddr(addr.city, cityMap),
-                    resolveAddr(addr.district, districtMap),
-                    resolveAddr(addr.suburb, suburbMap),
-                    resolveAddr(addr.settlement, settlementMap),
-                    resolveAddr(addr.community, communityMap),
-                    resolveAddr(addr.village, villageMap),
-                ].filter(Boolean);
-                return parts.join(', ');
-            };
-
-            // Определяем роль пользователя
-            const roles = Array.isArray(userData.roles) ? userData.roles : [];
-            const role = roles.includes('ROLE_MASTER') ? 'master' : 'client';
-            setUserRole(role);
-            console.log('User role:', role);
-
-            // resolveAvatar: превью 480 px + BlurHash + откат на оригинал; для OAuth-аватара — внешний URL.
-            const avatarImage = resolveAvatar(userData);
-            const avatarUrl: string | null = avatarImage?.src ?? null;
-            const avatarFull = resolveAvatar(userData, 'webp')?.src;
-
-            // Получаем все адреса пользователя
-            const userAddresses = userData.addresses as Address[] | undefined;
-
-            // Строим displayText для каждого адреса через lookup maps (переведённые названия)
-            const loadedAddresses: LocalAddress[] = [];
-            let workArea = '';
-            if (userAddresses && Array.isArray(userAddresses)) {
-                const addressStrings: string[] = [];
-                userAddresses.forEach((addr, i) => {
-                    const addressText = buildAddressText(addr);
-                    if (addressText) {
-                        addressStrings.push(addressText);
-                        const addressValue: AddressValue = {
-                            provinceId: addrId(addr.province),
-                            cityId: addrId(addr.city),
-                            suburbIds: addr.suburb ? [addrId(addr.suburb)].filter((id): id is number => id !== null) : [],
-                            districtIds: addr.district ? [addrId(addr.district)].filter((id): id is number => id !== null) : [],
-                            settlementId: addrId(addr.settlement),
-                            communityId: addrId(addr.community),
-                            villageId: addrId(addr.village),
-                        };
-                        loadedAddresses.push({
-                            id: addr.id?.toString() || `addr-${i}`,
-                            displayText: addressText,
-                            addressValue,
-                        });
-                    }
-                });
-                workArea = [...new Set(addressStrings)].join(', ');
-            }
-
-            // Создаем пустой массив социальных сетей - показываем только те, что есть в API
-            const loadedSocialNetworks: UISocialNetwork[] = [];
-
-            // Если в API есть социальные сети, добавляем их
-            if (userData.socialNetworks && Array.isArray(userData.socialNetworks)) {
-                console.log('Found social networks in API:', userData.socialNetworks);
-
-                userData.socialNetworks.forEach((sn) => {
-                    const networkType = sn.network?.toLowerCase();
-                    const handle = sn.handle || '';
-
-                    // Добавляем только те сети, которые реально заполнены или есть в API
-                    if (networkType && (handle || (userData.socialNetworks && userData.socialNetworks.length > 0))) {
-                        loadedSocialNetworks.push({
-                            id: sn.id?.toString() || `network-${Date.now()}-${Math.random()}`,
-                            network: networkType,
-                            handle: handle
-                        });
-                    }
-                });
-            } else {
-                console.log('No social networks found in API');
-            }
-
-            // Обновляем состояние социальных сетей
-            setSocialNetworks(loadedSocialNetworks);
-
-            // Загружаем телефоны напрямую из backend-ответа (Phone entity)
-            const loadedPhones: LocalPhone[] = ((userData.phones as LocalPhone[]) || [])
-                .sort((a: LocalPhone, b: LocalPhone) => ((b.main ?? false) ? 1 : 0) - ((a.main ?? false) ? 1 : 0));
-
-            // localizedOccupations уже получены выше через Promise.all
-            setOccupations(localizedOccupations);
-
-            const transformedData: ProfileData = {
-                id: userData.id,
-                fullName: [userData.surname, userData.name, userData.patronymic]
-                    .filter(Boolean)
-                    .join(' ') || t('profile:defaultFullName'),
-                email: userData.email || undefined,
-                gender: (userData as any).gender || (userData as any).sex || undefined,
-                dateOfBirth: userData.dateOfBirth || undefined,
-                specialties: Array.isArray(userData.occupation) ? (userData.occupation as Occupation[]) : [],
-                rating: userData.rating || 0,
-                reviews: 0,
-                avatar: avatarUrl,
-                avatarImage,
-                avatarFull,
-                education: transformEducation(userData.education || [], localizedOccupations),
-                workExamples: [],
-                workArea: workArea,
-                addresses: loadedAddresses,
-                canWorkRemotely: userData.atHome || false,
-                services: [],
-                socialNetworks: loadedSocialNetworks as unknown as SocialNetwork[], 
-                phones: loadedPhones,
-                isOnline: (userData as any).isOnline ?? false,
-                lastSeen: (userData as any).lastSeen ?? null,
-            };
-
-            setProfileData(prev => ({
-                ...transformedData,
-                // В тихом режиме сохраняем данные секций, которые не перезагружаются
-                services: silent ? (prev?.services ?? []) : [],
-                workExamples: silent ? (prev?.workExamples ?? []) : [],
-            }));
-
-            // Подгружаем услуги и галерею после обновления профиля (нужны переведённые данные)
-            // При тихом обновлении (silent) не трогаем другие секции
-            if (!silent) {
-                fetchServices();
-                if (role === 'master') {
-                    fetchUserGallery();
-                }
-            }
+            applyUserData(userData, pRaw, cRaw, dRaw, localizedOccupations, silent || appliedFromCache, !silent && !appliedFromCache);
 
         } catch (error) {
             console.error('Error fetching user data:', error);

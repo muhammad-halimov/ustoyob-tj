@@ -28,9 +28,11 @@ import {
     getTicketFullAddress,
     getTicketShortAddress,
     parsePagedResponse,
+    peekApi,
     ticketToTicketView,
     universalApiRequest
 } from '../../../utils/apiUtils';
+import { sameResponse } from '../../../utils/apiCache';
 import type {Occupation, Ticket, TicketView} from '../../../entities';
 import {Img} from '../../../shared/ui/Photo/Img';
 import {resolveImage} from '../../../utils/imageUtils';
@@ -330,111 +332,131 @@ function Category() {
             const pageSize = getPageSize();
             const endpoint = `${API_ROUTES.TICKETS}?active=true&category=${id}&page=${page}&itemsPerPage=${pageSize}${serviceParam}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
 
-            let ticketsData: Ticket[] = [];
-            let fetchedHasMore = false;
-            try {
-                const data = await universalApiRequest(endpoint);
+            // Разбор ответа — общий для сохранённого (мобильный кэш, см. utils/apiCache.ts) и свежего.
+            const applyCategoryTickets = (data: unknown) => {
+                let ticketsData: Ticket[] = [];
+                let fetchedHasMore = false;
                 const parsed = parsePagedResponse<Ticket>(data, page, pageSize);
                 ticketsData = parsed.items;
                 fetchedHasMore = parsed.hasMore;
-            } catch (err) {
-                console.error('Category - Error fetching tickets:', err);
-            }
 
-            console.log('Category - Total tickets received:', ticketsData.length);
+                console.log('Category - Total tickets received:', ticketsData.length);
 
-            // Форматируем тикеты
-            const formattedTickets: TicketView[] = ticketsData.map(ticket => {
-                return {
-                    ...ticketToTicketView(ticket),
-                    id: ticket.id,
-                    fullAddress: getFullAddress(ticket),
-                    address: getShortAddress(ticket),
-                    status: ticket.active ? 'В работе' : 'Завершен',
-                    responsesCount: ticket.responsesCount,
-                    viewsCount: ticket.viewsCount,
-                };
-            });
-
-            // Применяем фильтр по времени
-            let filteredTickets = formattedTickets;
-            if (timeFilter !== 'all') {
-                const now = new Date();
-                const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                const startOfYesterday = new Date(startOfToday);
-                startOfYesterday.setDate(startOfYesterday.getDate() - 1);
-                const startOfWeek = new Date(startOfToday);
-                startOfWeek.setDate(startOfWeek.getDate() - 7);
-                const startOfMonth = new Date(startOfToday);
-                startOfMonth.setMonth(startOfMonth.getMonth() - 1);
-
-                filteredTickets = formattedTickets.filter(ticket => {
-                    const ticketDate = new Date(ticket.date);
-                    
-                    switch (timeFilter) {
-                        case 'today':
-                            return ticketDate >= startOfToday;
-                        case 'yesterday':
-                            return ticketDate >= startOfYesterday && ticketDate < startOfToday;
-                        case 'week':
-                            return ticketDate >= startOfWeek;
-                        case 'month':
-                            return ticketDate >= startOfMonth;
-                        default:
-                            return true;
-                    }
+                // Форматируем тикеты
+                const formattedTickets: TicketView[] = ticketsData.map(ticket => {
+                    return {
+                        ...ticketToTicketView(ticket),
+                        id: ticket.id,
+                        fullAddress: getFullAddress(ticket),
+                        address: getShortAddress(ticket),
+                        status: ticket.active ? 'В работе' : 'Завершен',
+                        responsesCount: ticket.responsesCount,
+                        viewsCount: ticket.viewsCount,
+                    };
                 });
-            }
 
-            // Применяем сортировку
-            const sortedTickets = [...filteredTickets].sort((a, b) => {
-                // Вспомогательная функция для получения значения сортировки
-                const getSortValue = (ticket: TicketView, sortType: typeof sortBy | typeof secondarySortBy): number => {
-                    switch (sortType) {
-                        case 'newest':
-                            return new Date(ticket.date).getTime();
-                        case 'oldest':
-                            return -new Date(ticket.date).getTime();
-                        case 'price-asc':
-                            return ticket.price;
-                        case 'price-desc':
-                            return -ticket.price;
-                        case 'reviews-asc':
-                            return ticket.userReviewCount || 0;
-                        case 'reviews-desc':
-                            return -(ticket.userReviewCount || 0);
-                        case 'rating-asc':
-                            return ticket.userRating || 0;
-                        case 'rating-desc':
-                            return -(ticket.userRating || 0);
-                        default:
-                            return 0;
-                    }
-                };
+                // Применяем фильтр по времени
+                let filteredTickets = formattedTickets;
+                if (timeFilter !== 'all') {
+                    const now = new Date();
+                    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    const startOfYesterday = new Date(startOfToday);
+                    startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+                    const startOfWeek = new Date(startOfToday);
+                    startOfWeek.setDate(startOfWeek.getDate() - 7);
+                    const startOfMonth = new Date(startOfToday);
+                    startOfMonth.setMonth(startOfMonth.getMonth() - 1);
 
-                // Основная сортировка
-                const primaryDiff = getSortValue(b, sortBy) - getSortValue(a, sortBy);
-                
-                // Если значения равны и есть вторичная сортировка, применяем её
-                if (primaryDiff === 0 && secondarySortBy !== 'none') {
-                    return getSortValue(b, secondarySortBy) - getSortValue(a, secondarySortBy);
-                }
-                
-                return primaryDiff;
-            });
-
-            applyTicketsFetch(sortedTickets, fetchedHasMore);
-
-            // Fallback: if fetchCategoryName didn't populate the name yet, grab it from tickets
-            if (ticketsData.length > 0) {
-                const nameFromTicket = (ticketsData[0] as any)?.category?.title;
-                if (nameFromTicket) {
-                    setCategoryName((prev) => {
-                        const next = prev || nameFromTicket;
-                        if (!prev && id) setSessionItem(`cat-name-${id}`, next);
-                        return next;
+                    filteredTickets = formattedTickets.filter(ticket => {
+                        const ticketDate = new Date(ticket.date);
+                    
+                        switch (timeFilter) {
+                            case 'today':
+                                return ticketDate >= startOfToday;
+                            case 'yesterday':
+                                return ticketDate >= startOfYesterday && ticketDate < startOfToday;
+                            case 'week':
+                                return ticketDate >= startOfWeek;
+                            case 'month':
+                                return ticketDate >= startOfMonth;
+                            default:
+                                return true;
+                        }
                     });
                 }
+
+                // Применяем сортировку
+                const sortedTickets = [...filteredTickets].sort((a, b) => {
+                    // Вспомогательная функция для получения значения сортировки
+                    const getSortValue = (ticket: TicketView, sortType: typeof sortBy | typeof secondarySortBy): number => {
+                        switch (sortType) {
+                            case 'newest':
+                                return new Date(ticket.date).getTime();
+                            case 'oldest':
+                                return -new Date(ticket.date).getTime();
+                            case 'price-asc':
+                                return ticket.price;
+                            case 'price-desc':
+                                return -ticket.price;
+                            case 'reviews-asc':
+                                return ticket.userReviewCount || 0;
+                            case 'reviews-desc':
+                                return -(ticket.userReviewCount || 0);
+                            case 'rating-asc':
+                                return ticket.userRating || 0;
+                            case 'rating-desc':
+                                return -(ticket.userRating || 0);
+                            default:
+                                return 0;
+                        }
+                    };
+
+                    // Основная сортировка
+                    const primaryDiff = getSortValue(b, sortBy) - getSortValue(a, sortBy);
+                
+                    // Если значения равны и есть вторичная сортировка, применяем её
+                    if (primaryDiff === 0 && secondarySortBy !== 'none') {
+                        return getSortValue(b, secondarySortBy) - getSortValue(a, secondarySortBy);
+                    }
+                
+                    return primaryDiff;
+                });
+
+                applyTicketsFetch(sortedTickets, fetchedHasMore);
+
+                // Fallback: if fetchCategoryName didn't populate the name yet, grab it from tickets
+                if (ticketsData.length > 0) {
+                    const nameFromTicket = (ticketsData[0] as any)?.category?.title;
+                    if (nameFromTicket) {
+                        setCategoryName((prev) => {
+                            const next = prev || nameFromTicket;
+                            if (!prev && id) setSessionItem(`cat-name-${id}`, next);
+                            return next;
+                        });
+                    }
+                }
+            };
+
+            // Мобильная сборка: категорию уже открывали — показываем список сразу, без лоадера; свежий
+            // ответ ниже тихо подменяет его, если что-то изменилось. «Показать ещё» — как раньше.
+            const cached = page === 1 && !appendTicketsRef.current ? peekApi(endpoint) : undefined;
+            if (cached) {
+                applyCategoryTickets(cached);
+                setIsLoading(false);
+            }
+
+            let data: unknown = [];
+            let fetchFailed = false;
+            try {
+                data = await universalApiRequest(endpoint);
+            } catch (err) {
+                console.error('Category - Error fetching tickets:', err);
+                fetchFailed = true;
+            }
+            if (fetchFailed) {
+                if (!cached) applyCategoryTickets([]);
+            } else if (!cached || !sameResponse(cached, data)) {
+                applyCategoryTickets(data);
             }
         } catch (error) {
             console.error('Error fetching tickets:', error);

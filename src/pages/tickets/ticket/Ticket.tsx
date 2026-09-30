@@ -1,5 +1,5 @@
 import {useNavigate, useParams} from 'react-router-dom';
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {getAuthToken, getUserData, getUserRole} from '../../../utils/authUtils';
 import { resolveAvatar, formatTicketImageUrl, toPhotoSource, pickImageFields } from '../../../utils/imageUtils';
 import { formatLocalizedDate, getTimeAgo } from '../../../utils/timeUtils';
@@ -31,7 +31,8 @@ import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
 import Recommendations from '../../main/recommendations/Recommendations';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { getPageSize } from '../../../utils/pageSizeUtils';
-import { getTicketFullAddress, parsePagedResponse, universalApiRequest } from '../../../utils/apiUtils';
+import { getTicketFullAddress, parsePagedResponse, peekApi, universalApiRequest } from '../../../utils/apiUtils';
+import { sameResponse } from '../../../utils/apiCache';
 import { fetchAllPages } from '../../../utils/paginationUtils';
 import { useShowMore } from '../../../hooks';
 import { API_BASE_URL } from '../../../utils/configUtils';
@@ -122,7 +123,9 @@ export function Ticket() {
     const [similarTickets, setSimilarTickets] = useState<ApiTicket[]>([]);
     const [similarTicketsLoading, setSimilarTicketsLoading] = useState(false);
 
-    useEffect(() => {
+    // useLayoutEffect, не useEffect: синхронная часть fetchOrder (показ сохранённого ответа из
+    // мобильного кэша) выполняется до первой отрисовки — без кадра с полноэкранным лоадером.
+    useLayoutEffect(() => {
         console.log('Ticket useEffect triggered with id:', id);
         
         initChatModals();
@@ -245,21 +248,10 @@ export function Ticket() {
     };
 
     const fetchOrder = async (ticketId: string | number) => {
-        const fetchTime = Date.now();
-        console.log(`[${fetchTime}] fetchOrder STARTED for ticket ID:`, ticketId);
-        
-        try {
-            setIsLoading(true);
-            setError(null);
-            setNotFound(false);
-            // Контакты прошлого объявления не должны «висеть» на следующем, пока грузятся новые.
-            setAuthorPhones([]);
-            phonesForUserRef.current = null;
+        const ticketUrl = API_ROUTES.TICKET_BY_ID(ticketId!);
 
-            console.log('Fetching ticket with ID:', ticketId);
-
-            const responseData = await universalApiRequest(API_ROUTES.TICKET_BY_ID(ticketId!));
-
+        // Разбор ответа — общий для сохранённого (мобильный кэш, см. utils/apiCache.ts) и свежего.
+        const applyTicket = (responseData: any) => {
             // API может возвращать как объект, так и массив с одним элементом
         let ticketData: ApiTicket;
         
@@ -410,17 +402,35 @@ export function Ticket() {
 
             // Не блокируем показ объявления: телефоны догружаются следом и появляются, когда придут.
             if (contactSource?.id != null) void fetchAuthorPhones(contactSource.id);
+        };
+
+        try {
+            setError(null);
+            setNotFound(false);
+            // Контакты прошлого объявления не должны «висеть» на следующем, пока грузятся новые.
+            setAuthorPhones([]);
+            phonesForUserRef.current = null;
+
+            // Мобильная сборка: объявление уже открывали — показываем сразу, без полноэкранного
+            // лоадера, а свежий ответ ниже тихо подменяет данные, если что-то изменилось.
+            const cached = peekApi(ticketUrl);
+            if (cached) {
+                applyTicket(cached);
+                setIsLoading(false);
+            } else {
+                setIsLoading(true);
+            }
+
+            const responseData = await universalApiRequest(ticketUrl);
+            if (!cached || !sameResponse(cached, responseData)) applyTicket(responseData);
         } catch (error) {
-            const fetchTime = Date.now();
-            console.error(`[${fetchTime}] fetchOrder ERROR for ticket:`, error);
+            console.error('fetchOrder error for ticket:', error);
             if (error instanceof ApiError && error.http === 404) {
                 setNotFound(true);
             } else {
                 setError(t('ticket:loadError'));
             }
         } finally {
-            const fetchTime = Date.now();
-            console.log(`[${fetchTime}] fetchOrder COMPLETED, setting isLoading to false`);
             setIsLoading(false);
         }
     };

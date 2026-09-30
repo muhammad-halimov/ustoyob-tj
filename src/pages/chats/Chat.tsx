@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
-import { getAuthToken, fetchCurrentUser, isAdmin } from "../../utils/authUtils";
+import { getAuthToken, fetchCurrentUser, getUserData, isAdmin } from "../../utils/authUtils";
 import { API_ROUTES, ROUTES } from '../../app/routers/routes';
 import { smartNameTranslator } from '../../utils/textUtils';
 import Auth from '../../shared/ui/Modal/Auth/Auth';
@@ -24,8 +24,8 @@ import { Clear } from '../../shared/ui/Button/Clear/Clear';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../shared/ui/SelectSearch';
 import { getPageSize } from '../../utils/pageSizeUtils';
-import { parsePagedResponse, universalApiRequest } from '../../utils/apiUtils';
-import { resolveApiError } from '../../utils/appMessagesUtils';
+import { parsePagedResponse, peekApi, rememberApi, universalApiRequest } from '../../utils/apiUtils';
+import { ApiError, resolveApiError } from '../../utils/appMessagesUtils';
 import { useShowMore } from '../../hooks';
 import { fetchBlacklistEntries, blockUser as blockUserApi, unblockUser as unblockUserApi } from '../../hooks/useBlacklist';
 import { InfoBanner } from '../../widgets/Banners/InfoBanner/InfoBanner';
@@ -58,7 +58,20 @@ function Chat() {
     const isAdminUser = isAdmin();
     const [activeTab, setActiveTab] = useState<"active" | "archive">("active");
     const [selectedChat, setSelectedChat] = useState<string | number | null>(null);
-    const [chats, setChats] = useState<ApiChat[]>([]);
+    // Мобильная сборка: пользователь и список чатов с прошлого раза (localStorage + кэш API, см.
+    // utils/apiCache.ts) — вкладка открывается сразу со списком, свежий приходит тихо следом.
+    const [chatSeed] = useState(() => {
+        if (!KEEP_ALIVE || !getAuthToken()) return null;
+        const user = getUserData() as unknown as ApiUser | null;
+        if (!user) return null;
+        const list = peekApi(`${API_ROUTES.CHATS_ME}?page=1&itemsPerPage=${getPageSize()}`, { locale: false });
+        const items = Array.isArray(list) ? list : list?.['hydra:member'];
+        return {
+            user,
+            chats: Array.isArray(items) ? (items as ApiChat[]).map(c => ({ ...c, isArchived: c.active === false })) : null,
+        };
+    });
+    const [chats, setChats] = useState<ApiChat[]>(() => chatSeed?.chats ?? []);
     const { page: chatPage, appendRef: appendChatsRef, skipFetchRef: skipChatFetchRef, setHasMore: setChatHasMore, showMoreProps: chatsShowMoreProps } = useShowMore<ApiChat>(setChats);
     const [messages, setMessages] = useState<Message[]>([]);
     // Pagination over GET /chats/{id}/messages (§5, newest-first) for the open thread — reset
@@ -67,14 +80,14 @@ function Chat() {
     const [hasMoreMessages, setHasMoreMessages] = useState(false);
     const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
     const [newMessage, setNewMessage] = useState("");
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(() => !chatSeed?.chats);
     // Нативная сборка (keep-alive вкладок): список уже загружался — при возврате на вкладку не
     // показываем полноэкранный лоадер, даже если чатов ноль.
-    const chatsLoadedOnceRef = useRef(false);
+    const chatsLoadedOnceRef = useRef(!!chatSeed?.chats);
     const [isLoadingMoreChats, setIsLoadingMoreChats] = useState(false);
     const [isChatListRefreshing, setIsChatListRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
+    const [currentUser, setCurrentUser] = useState<ApiUser | null>(() => chatSeed?.user ?? null);
     const [isMobileChatActive, setIsMobileChatActive] = useState(false);
     const [selectedPhotoItems, setSelectedPhotoItems] = useState<PhotoItem[]>([]);
     const [isUploading, setIsUploading] = useState(false);
@@ -495,11 +508,22 @@ function Chat() {
      * Real-time delivery is handled by the shared inbox SSE — no per-chat EventSource needed.
      */
     const loadChatData = useCallback(async (chatId: string | number) => {
-        setIsChatLoading(true);
+        // Мобильная сборка: переписку уже открывали — показываем сохранённые сообщения сразу,
+        // без «Загрузка сообщений», а fetchChatMessages ниже тихо подменит их свежими.
+        const pageSize = getPageSize();
+        const cachedMessages = currentUserRef.current
+            ? peekApi(`${API_ROUTES.CHAT_MESSAGES(chatId)}?page=1&itemsPerPage=${pageSize}`, { locale: false })
+            : undefined;
+        if (cachedMessages) {
+            const { items } = parsePagedResponse<ApiMessage>(cachedMessages, 1, pageSize);
+            setMessages(items.map(mapApiMessageToView).reverse());
+        } else {
+            setIsChatLoading(true);
+        }
         await fetchChatMessages(chatId);
         await markChatAsRead(chatId);
         setIsChatLoading(false);
-    }, [fetchChatMessages, markChatAsRead]);
+    }, [fetchChatMessages, markChatAsRead, mapApiMessageToView]);
 
     /**
      * Processes a Mercure real-time event for the currently open chat.
@@ -1070,7 +1094,9 @@ function Chat() {
             setIsLoading(false);
             return null;
         }
-        setCurrentUser(userData as unknown as ApiUser);
+        // Тот же пользователь (уже подставлен из localStorage) — не меняем объект, иначе эффекты на
+        // [currentUser] перезапустили бы загрузку чатов второй раз.
+        setCurrentUser(prev => (prev && prev.id === userData.id ? prev : userData as unknown as ApiUser));
         return userData as unknown as ApiUser;
     }, []);
 
@@ -1095,7 +1121,17 @@ function Chat() {
 
             console.log('Fetching chats with token...');
             const pageSize = getPageSize();
-            const responseData: any = await universalApiRequest(`${API_ROUTES.CHATS_ME}?page=${chatPage}&itemsPerPage=${pageSize}`, { locale: false });
+            const chatsUrl = `${API_ROUTES.CHATS_ME}?page=${chatPage}&itemsPerPage=${pageSize}`;
+            let responseData: any;
+            try {
+                responseData = await universalApiRequest(chatsUrl, { locale: false });
+            } catch (err) {
+                // Пустой список чатов бэкенд отдаёт 404 — это «пусто», а не ошибка; запоминаем, чтобы
+                // в следующий раз вкладка открылась сразу, без лоадера.
+                if (!(err instanceof ApiError && err.http === 404)) throw err;
+                responseData = [];
+                rememberApi(chatsUrl, { locale: false }, responseData);
+            }
             chatsLoadedOnceRef.current = true;
 
             let chatsData: ApiChat[] = [];

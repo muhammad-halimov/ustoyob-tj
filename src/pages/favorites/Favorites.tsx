@@ -31,7 +31,10 @@ import {IoListOutline, IoPeopleOutline} from 'react-icons/io5';
 import {ShowMore} from '../../shared/ui/Button/ShowMore/ShowMore';
 import {SelectSearch} from '../../shared/ui/SelectSearch';
 import {getPageSize} from '../../utils/pageSizeUtils';
-import {applyFavoriteSort, getTicketFullAddress, parsePagedResponse, universalApiRequest} from '../../utils/apiUtils';
+import {applyFavoriteSort, getTicketFullAddress, parsePagedResponse, peekApi, rememberApi, universalApiRequest} from '../../utils/apiUtils';
+import { sameResponse } from '../../utils/apiCache';
+import { ApiError } from '../../utils/appMessagesUtils';
+import { KEEP_ALIVE } from '../../app/layouts/keepAliveTabs';
 import {formatProfileImageUrl, formatTicketImageUrl, toPhotoSource, resolveAvatar} from '../../utils/imageUtils';
 import type {
     FavoriteEntry,
@@ -448,7 +451,9 @@ function Favorites() {
 
     const fetchFavorites = async (pageOverride?: number) => {
         try {
-            setIsFavoritesRefreshing(true);
+            // Мобильная сборка: фоновое обновление при возврате на вкладку — без спиннера поверх уже
+            // показанного списка/пустого состояния; спиннер — только до первой загрузки.
+            if (!KEEP_ALIVE || isInitialLoadRef.current) setIsFavoritesRefreshing(true);
             if (isInitialLoadRef.current) {
                 setIsLoading(true);
             }
@@ -483,91 +488,115 @@ function Favorites() {
             // Авторизованные — новый flat-list API
             const pageSize = getPageSize();
             const currentPage = pageOverride ?? page;
-            const rawData = await universalApiRequest(`${API_ROUTES.FAVORITES_ME}?page=${currentPage}&itemsPerPage=${pageSize}`);
-            const { items: entries, hasMore: fetchedHasMore } = parsePagedResponse<FavoriteEntry>(rawData, currentPage, pageSize);
+            const favUrl = `${API_ROUTES.FAVORITES_ME}?page=${currentPage}&itemsPerPage=${pageSize}`;
 
-                const tickets: FavoriteTicketView[] = [];
-                const users: FavoriteUserView[] = [];
+            // Разбор ответа — общий для сохранённого (мобильный кэш, см. utils/apiCache.ts) и свежего.
+            const applyFavorites = (rawData: unknown) => {
+                const { items: entries, hasMore: fetchedHasMore } = parsePagedResponse<FavoriteEntry>(rawData, currentPage, pageSize);
 
-                for (const entry of entries) {
-                    if (entry.type === 'ticket' && entry.ticket) {
-                        const ticket = entry.ticket;
-                        const isMasterTicket = ticket.service;
-                        const person = isMasterTicket ? ticket.master : ticket.author;
-                        const authorId = person?.id || 0;
-                        const authorName = person
-                            ? `${person.surname || ''} ${person.name || ''}`.trim() || (isMasterTicket ? 'Специалист' : 'Заказчик')
-                            : 'Неизвестный';
-                        const authorAvatar = resolveAvatar(person);
-                        tickets.push({
-                            entryId: entry.id,
-                            id: ticket.id,
-                            title: ticket.title || 'Без названия',
-                            price: ticket.budget || 0,
-                            unit: (typeof ticket.unit === 'object' ? ticket.unit?.title : ticket.unit) || 'tjs',
-                            description: ticket.description || '',
-                            address: getTicketFullAddress(ticket),
-                            date: ticket.createdAt || '',
-                            author: authorName,
-                            authorId,
-                            timeAgo: ticket.createdAt || '',
-                            category: ticket.category?.title || 'другое',
-                            subcategory: ticket.subcategory?.title,
-                            status: getTicketStatus(ticket.active, ticket.service),
-                            type: isMasterTicket ? 'master' : 'client',
-                            active: ticket.active,
-                            service: ticket.service,
-                            authorImage: authorAvatar?.src,
-                            authorAvatar,
-                            userRating: person?.rating || 0,
-                            userReviewCount: ticket.reviewsCount || 0,
-                            responsesCount: ticket.responsesCount,
-                            viewsCount: ticket.viewsCount,
-                            photos: (ticket.images || ticket.ticketImages)?.map(img => formatTicketImageUrl(img.image)).filter(Boolean) as string[],
-                photoSources: (ticket.images || ticket.ticketImages)?.map(img => toPhotoSource(img)).filter(s => s.url),
-                            negotiableBudget: ticket.negotiableBudget,
-                        });
-                    } else if (entry.type === 'user' && entry.user) {
-                        const u = entry.user;
-                        const isMaster = u.roles?.includes('ROLE_MASTER') ?? false;
-                        users.push({
-                            entryId: entry.id,
-                            id: u.id,
-                            email: u.email || '',
-                            name: u.name || '',
-                            surname: u.surname || '',
-                            rating: u.rating || 0,
-                            image: u.image || null,
-                            avatarImage: resolveAvatar(u),
-                            role: isMaster ? 'master' : 'client',
-                            specialties: ((u as { occupation?: Array<{ id: number; title: string }> }).occupation || []).map(o => o.title),
-                            reviewsCount: (u as { reviewsCount?: number }).reviewsCount ?? 0,
-                            gender: u.gender,
-                            isOnline: u.isOnline,
-                            lastSeen: u.lastSeen,
-                        });
+                    const tickets: FavoriteTicketView[] = [];
+                    const users: FavoriteUserView[] = [];
+
+                    for (const entry of entries) {
+                        if (entry.type === 'ticket' && entry.ticket) {
+                            const ticket = entry.ticket;
+                            const isMasterTicket = ticket.service;
+                            const person = isMasterTicket ? ticket.master : ticket.author;
+                            const authorId = person?.id || 0;
+                            const authorName = person
+                                ? `${person.surname || ''} ${person.name || ''}`.trim() || (isMasterTicket ? 'Специалист' : 'Заказчик')
+                                : 'Неизвестный';
+                            const authorAvatar = resolveAvatar(person);
+                            tickets.push({
+                                entryId: entry.id,
+                                id: ticket.id,
+                                title: ticket.title || 'Без названия',
+                                price: ticket.budget || 0,
+                                unit: (typeof ticket.unit === 'object' ? ticket.unit?.title : ticket.unit) || 'tjs',
+                                description: ticket.description || '',
+                                address: getTicketFullAddress(ticket),
+                                date: ticket.createdAt || '',
+                                author: authorName,
+                                authorId,
+                                timeAgo: ticket.createdAt || '',
+                                category: ticket.category?.title || 'другое',
+                                subcategory: ticket.subcategory?.title,
+                                status: getTicketStatus(ticket.active, ticket.service),
+                                type: isMasterTicket ? 'master' : 'client',
+                                active: ticket.active,
+                                service: ticket.service,
+                                authorImage: authorAvatar?.src,
+                                authorAvatar,
+                                userRating: person?.rating || 0,
+                                userReviewCount: ticket.reviewsCount || 0,
+                                responsesCount: ticket.responsesCount,
+                                viewsCount: ticket.viewsCount,
+                                photos: (ticket.images || ticket.ticketImages)?.map(img => formatTicketImageUrl(img.image)).filter(Boolean) as string[],
+                    photoSources: (ticket.images || ticket.ticketImages)?.map(img => toPhotoSource(img)).filter(s => s.url),
+                                negotiableBudget: ticket.negotiableBudget,
+                            });
+                        } else if (entry.type === 'user' && entry.user) {
+                            const u = entry.user;
+                            const isMaster = u.roles?.includes('ROLE_MASTER') ?? false;
+                            users.push({
+                                entryId: entry.id,
+                                id: u.id,
+                                email: u.email || '',
+                                name: u.name || '',
+                                surname: u.surname || '',
+                                rating: u.rating || 0,
+                                image: u.image || null,
+                                avatarImage: resolveAvatar(u),
+                                role: isMaster ? 'master' : 'client',
+                                specialties: ((u as { occupation?: Array<{ id: number; title: string }> }).occupation || []).map(o => o.title),
+                                reviewsCount: (u as { reviewsCount?: number }).reviewsCount ?? 0,
+                                gender: u.gender,
+                                isOnline: u.isOnline,
+                                lastSeen: u.lastSeen,
+                            });
+                        }
                     }
-                }
 
-                // Sort per page so "Show More" appends sorted items at the end without re-mixing all pages
-                const sortedPage = applyFavoriteSort(tickets, sortBy);
-                const finalTickets = secondarySortBy !== 'none' ? applyFavoriteSort(sortedPage, secondarySortBy) : sortedPage;
+                    // Sort per page so "Show More" appends sorted items at the end without re-mixing all pages
+                    const sortedPage = applyFavoriteSort(tickets, sortBy);
+                    const finalTickets = secondarySortBy !== 'none' ? applyFavoriteSort(sortedPage, secondarySortBy) : sortedPage;
 
-                if (appendFavRef.current) {
-                    appendFavRef.current = false;
-                    setFavoriteTicketViews(prev => [...prev, ...finalTickets]);
-                    setFavoriteUserViews(prev => [...prev, ...users]);
-                    ticketsPerPageRef.current = [...ticketsPerPageRef.current, finalTickets.length];
-                    usersPerPageRef.current = [...usersPerPageRef.current, users.length];
-                    setLikedTickets(prev => [...prev, ...finalTickets.map(t => t.id)]);
-                } else {
-                    setFavoriteTicketViews(finalTickets);
-                    setFavoriteUserViews(users);
-                    ticketsPerPageRef.current = [finalTickets.length];
-                    usersPerPageRef.current = [users.length];
-                    setLikedTickets(finalTickets.map(t => t.id));
-                }
-                setHasMore(fetchedHasMore);
+                    if (appendFavRef.current) {
+                        appendFavRef.current = false;
+                        setFavoriteTicketViews(prev => [...prev, ...finalTickets]);
+                        setFavoriteUserViews(prev => [...prev, ...users]);
+                        ticketsPerPageRef.current = [...ticketsPerPageRef.current, finalTickets.length];
+                        usersPerPageRef.current = [...usersPerPageRef.current, users.length];
+                        setLikedTickets(prev => [...prev, ...finalTickets.map(t => t.id)]);
+                    } else {
+                        setFavoriteTicketViews(finalTickets);
+                        setFavoriteUserViews(users);
+                        ticketsPerPageRef.current = [finalTickets.length];
+                        usersPerPageRef.current = [users.length];
+                        setLikedTickets(finalTickets.map(t => t.id));
+                    }
+                    setHasMore(fetchedHasMore);
+            };
+
+            // Мобильная сборка: избранное уже открывали (в т.ч. до перезапуска) — показываем сразу, без
+            // полноэкранного лоадера; свежий ответ ниже тихо подменяет список, если он изменился.
+            const cached = !appendFavRef.current ? peekApi(favUrl) : undefined;
+            if (cached && isInitialLoadRef.current) {
+                applyFavorites(cached);
+                setIsLoading(false);
+            }
+
+            let rawData: unknown;
+            try {
+                rawData = await universalApiRequest(favUrl);
+            } catch (err) {
+                // Пустое избранное бэкенд отдаёт 404 — это «пусто», а не ошибка; запоминаем, чтобы в
+                // следующий раз пустой экран показался сразу, без спиннера.
+                if (!(err instanceof ApiError && err.http === 404)) throw err;
+                rawData = [];
+                rememberApi(favUrl, {}, rawData);
+            }
+            if (!cached || !sameResponse(cached, rawData)) applyFavorites(rawData);
         } catch (error) {
             console.error('Error fetching favorites:', error);
             setHasMore(false);

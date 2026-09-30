@@ -118,6 +118,16 @@ function createCachedFetcher<T>(
     // Синхронный аналог peekCachedImage (imageCacheUtils) — отдаёт уже закэшированные данные без
     // await, если они есть и не протухли. Нужен там, где начальный `loading:true` иначе на каждый
     // маунт мелькает спиннером на один кадр, даже когда данные уже лежат в памяти (см. Category.tsx).
+    // Как peek, но без учёта TTL — для мгновенного первого показа экрана в мобильной сборке
+    // (stale-while-revalidate): свежие данные экран всё равно запрашивает следом.
+    fetcher.peekStale = (locale?: string, params?: string): T[] | undefined => {
+        const targetLocale = opts.locale !== undefined
+            ? (opts.locale === false ? 'fixed' : opts.locale)
+            : normalizeLocale(locale || getCurrentLocale());
+        const cacheKey = params ? `${targetLocale}:${params}` : targetLocale;
+        const cached = readEntry(cacheKey);
+        return cached && cached.locale === targetLocale ? cached.data : undefined;
+    };
     fetcher.peek = (locale?: string, params?: string): T[] | undefined => {
         const targetLocale = opts.locale !== undefined
             ? (opts.locale === false ? 'fixed' : opts.locale)
@@ -170,11 +180,11 @@ function createMeCache<T>(endpoint: string, cacheDuration = CACHE_DURATION, page
 
 // ─── Загрузчики ──────────────────────────────────────────────────────────────
 
-export const getProvinces      = createCachedFetcher<Province>(API_ROUTES.PROVINCES);
-export const getCities         = createCachedFetcher<City>(API_ROUTES.CITIES);
-export const getOccupations    = createCachedFetcher<Occupation>(API_ROUTES.OCCUPATIONS);
+export const getProvinces      = createCachedFetcher<Province>(API_ROUTES.PROVINCES, {}, undefined, 'dataCache:provinces');
+export const getCities         = createCachedFetcher<City>(API_ROUTES.CITIES, {}, undefined, 'dataCache:cities');
+export const getOccupations    = createCachedFetcher<Occupation>(API_ROUTES.OCCUPATIONS, {}, undefined, 'dataCache:occupations');
 export const getCategories     = createCachedFetcher<Category>(API_ROUTES.CATEGORIES,       { requiresAuth: false }, STATIC_CACHE_DURATION, 'dataCache:categories');
-export const getDistricts      = createCachedFetcher<District>(API_ROUTES.DISTRICTS,        {}, STATIC_CACHE_DURATION);
+export const getDistricts      = createCachedFetcher<District>(API_ROUTES.DISTRICTS,        {}, STATIC_CACHE_DURATION, 'dataCache:districts');
 export const getUnits          = createCachedFetcher<Unit>(API_ROUTES.UNITS,                {}, STATIC_CACHE_DURATION);
 export const getAppealReasons  = createCachedFetcher<AppealReason>(API_ROUTES.APPEAL_REASONS);
 export const getLegalDocuments = createCachedFetcher<LegalDocument>(API_ROUTES.LEGAL_DOCUMENTS, {}, STATIC_CACHE_DURATION);

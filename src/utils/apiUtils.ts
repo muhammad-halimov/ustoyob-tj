@@ -6,6 +6,8 @@ import type { Ticket, SortByType, FavoriteTicketView, ResolvedImage } from '../e
 import type { TicketView } from '../entities';
 import { formatTicketImageUrl, toPhotoSource, resolveAvatar } from './imageUtils';
 import { API_BASE_URL } from './configUtils';
+import { apiCacheKey, peekByKey, seedMemoryByKey, storeByKey } from './apiCache';
+import { API_ROUTES } from '../app/routers/routes';
 
 export type LocaleType = 'tj' | 'ru' | 'eng';
 
@@ -42,8 +44,70 @@ const appendLocale = (url: string, locale: LocaleType): string => {
  * - Throws on any non-2xx response.
  * - Returns the parsed JSON body, or `null` for empty responses (204 / Empty body).
  */
-export const universalApiRequest = async (endpoint: string, options: ApiRequestOptions = {}): Promise<any> => {
+/** Итоговый URL запроса (база + ?locale=) — общий для самого запроса и для ключа кэша. */
+const buildRequestUrl = (endpoint: string, options: ApiRequestOptions): string => {
     const locale = options.locale !== false ? (options.locale ?? getDefaultLocale()) : null;
+    let url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+    if (locale) url = appendLocale(url, locale);
+    return url;
+};
+
+const isCacheableGet = (options: ApiRequestOptions): boolean =>
+    (options.method ?? 'GET').toUpperCase() === 'GET' && !options.body;
+
+// Не кэшируем: токены (Mercure-подписки, refresh — секреты, и устаревший токен бесполезен) и
+// справочники — у них свой кэш в dataCacheUtils, дублировать их сюда — лишние сотни КБ.
+const NOT_CACHED = [
+    /token/i,
+    /\/subscribe(\?|$)/,
+    new RegExp(`^(${[API_ROUTES.PROVINCES, API_ROUTES.CITIES, API_ROUTES.DISTRICTS, API_ROUTES.OCCUPATIONS, API_ROUTES.CATEGORIES, API_ROUTES.UNITS].join('|')})(\\?|$)`),
+];
+const isCacheableEndpoint = (endpoint: string): boolean => !NOT_CACHED.some(re => re.test(endpoint));
+
+/**
+ * Тикет в списке (лента, категория, мои, избранное, недавно просмотренные) отдаётся в том же виде,
+ * что и GET /tickets/{id} (сверено) — кладём каждый под ключ его собственного запроса, и страница
+ * тикета, открытая из списка, показывается сразу, без лоадера (её свежий запрос всё равно уходит).
+ * Только память, без localStorage: это подсказка, а не основной кэш.
+ */
+const seedTicketsFromList = (endpoint: string, options: ApiRequestOptions, data: unknown, token: string | null): void => {
+    if (options.locale !== undefined && options.locale !== getDefaultLocale()) return;
+    const items = Array.isArray(data)
+        ? data
+        : (data as { 'hydra:member'?: unknown[] } | null)?.['hydra:member'];
+    if (!Array.isArray(items) || items.length === 0) return;
+    const path = endpoint.split('?')[0];
+    if (/^\/api\/tickets\/[^/]+$/.test(path) && path !== API_ROUTES.TICKETS_ME) return; // одиночный тикет, не список
+    for (const item of items) {
+        const ticket = (item && typeof item === 'object' && 'ticket' in item ? (item as { ticket?: unknown }).ticket : item) as
+            { id?: unknown; title?: unknown; category?: unknown } | null | undefined;
+        if (!ticket || typeof ticket !== 'object' || ticket.id == null || !('title' in ticket) || !('category' in ticket)) continue;
+        seedMemoryByKey(apiCacheKey(buildRequestUrl(API_ROUTES.TICKET_BY_ID(String(ticket.id)), {}), token), ticket);
+    }
+};
+
+/**
+ * Последний успешный ответ на этот GET — синхронно, без сети (только мобильная сборка, см.
+ * utils/apiCache.ts). `undefined`, если такого запроса ещё не было. Параметры те же, что у
+ * universalApiRequest, чтобы ключ совпал.
+ */
+export const peekApi = <T = any>(endpoint: string, options: ApiRequestOptions = {}): T | undefined => {
+    if (!isCacheableGet(options)) return undefined;
+    const token = options.requiresAuth !== false ? getAuthToken() : null;
+    return peekByKey(apiCacheKey(buildRequestUrl(endpoint, options), token)) as T | undefined;
+};
+
+/**
+ * Запомнить ответ для GET вручную — для случаев, когда сервер отдаёт «пусто» ошибкой (404 на пустой
+ * /me-список), и в кэш сам ответ не попадает. Только мобильная сборка (см. utils/apiCache.ts).
+ */
+export const rememberApi = (endpoint: string, options: ApiRequestOptions, data: unknown): void => {
+    if (!isCacheableGet(options)) return;
+    const token = options.requiresAuth !== false ? getAuthToken() : null;
+    storeByKey(apiCacheKey(buildRequestUrl(endpoint, options), token), data, JSON.stringify(data));
+};
+
+export const universalApiRequest = async (endpoint: string, options: ApiRequestOptions = {}): Promise<any> => {
 
     const executeRequest = async (): Promise<Response> => {
         const token = getAuthToken();
@@ -60,8 +124,7 @@ export const universalApiRequest = async (endpoint: string, options: ApiRequestO
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        let url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
-        if (locale) url = appendLocale(url, locale);
+        const url = buildRequestUrl(endpoint, options);
 
         return fetch(url, {
             method: options.method || 'GET',
@@ -96,7 +159,13 @@ export const universalApiRequest = async (endpoint: string, options: ApiRequestO
     }
 
     const text = await response.text();
-    return text ? JSON.parse(text) : null;
+    const data = text ? JSON.parse(text) : null;
+    if (text && isCacheableGet(options) && isCacheableEndpoint(endpoint)) {
+        const token = options.requiresAuth !== false ? getAuthToken() : null;
+        storeByKey(apiCacheKey(buildRequestUrl(endpoint, options), token), data, text);
+        seedTicketsFromList(endpoint, options, data, token);
+    }
+    return data;
 };
 
 /**

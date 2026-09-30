@@ -3,7 +3,7 @@ import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES, API_ROUTES } from '../../../app/routers/routes';
-import { getAuthToken, fetchCurrentUser } from '../../../utils/authUtils';
+import { getAuthToken, fetchCurrentUser, getUserData } from '../../../utils/authUtils';
 import { useLanguageChange } from '../../../hooks';
 import styles from './MyTickets.module.scss';
 import { PageLoader } from '../../../widgets/PageLoader';
@@ -19,7 +19,9 @@ import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import { SortingFilter } from '../../../widgets/Sorting/CriteriaFilter';
 import { getPageSize } from '../../../utils/pageSizeUtils';
-import { parsePagedResponse, ticketToTicketView, universalApiRequest } from '../../../utils/apiUtils';
+import { parsePagedResponse, peekApi, ticketToTicketView, universalApiRequest } from '../../../utils/apiUtils';
+import { sameResponse } from '../../../utils/apiCache';
+import { KEEP_ALIVE } from '../../../app/layouts/keepAliveTabs';
 import { useShowMore } from '../../../hooks';
 import type { Ticket, TicketView, User } from '../../../entities';
 import type { SortByType, SecondarySortByType, TimeFilterType } from '../../../types/common';
@@ -36,10 +38,15 @@ function MyTickets() {
     const navigate = useNavigate();
     const { t } = useTranslation(['myTickets', 'common']);
     
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    // Мобильная сборка: пользователь с прошлого раза (localStorage) — список можно показать сразу из
+    // кэша API (utils/apiCache.ts), не дожидаясь /users/me.
+    const myTicketsUrl = (tab: 'active' | 'inactive', pageNum: number) =>
+        `${API_ROUTES.TICKETS_ME}?active=${tab === 'active' ? 'true' : 'false'}&page=${pageNum}&itemsPerPage=${getPageSize()}`;
+    const [currentUser, setCurrentUser] = useState<User | null>(() =>
+        KEEP_ALIVE && getAuthToken() ? (getUserData() as unknown as User | null) : null);
     const [allTickets, setAllTickets] = useState<TicketView[]>([]);
     const [displayedTickets, setDisplayedTickets] = useState<TicketView[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(() => !(currentUser && peekApi(myTicketsUrl('active', 1))));
     const [isContentLoading, setIsContentLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
     const { page, setPage, appendRef: appendTicketsRef, skipFetchRef: skipTicketsFetchRef, applyFetch: applyTicketsFetch, showMoreProps: ticketsShowMoreProps } = useShowMore<TicketView>(setAllTickets);
@@ -119,7 +126,9 @@ function MyTickets() {
             setIsLoading(false);
             return null;
         }
-        setCurrentUser(userData as unknown as User);
+        // Тот же пользователь (уже подставлен из localStorage) — не меняем объект, иначе эффект на
+        // [currentUser] загрузил бы список второй раз.
+        setCurrentUser(prev => (prev && prev.id === userData.id ? prev : userData as unknown as User));
         return userData as unknown as User;
     }, []);
 
@@ -130,7 +139,6 @@ function MyTickets() {
         }
 
         try {
-            setIsContentLoading(true);
             const token = getAuthToken();
 
             if (!token) {
@@ -142,110 +150,126 @@ function MyTickets() {
 
             // Получаем тикеты с пагинацией и фильтром по active
             const pageSize = getPageSize();
-            const activeParam = `&active=${activeTab === 'active' ? 'true' : 'false'}`;
-            const responseData = await universalApiRequest(`${API_ROUTES.TICKETS_ME}?${activeParam.slice(1)}&page=${page}&itemsPerPage=${pageSize}`);
-            let ticketsData: Ticket[];
+            const ticketsUrl = myTicketsUrl(activeTab, page);
 
-                if (Array.isArray(responseData)) {
-                    ticketsData = responseData;
-                } else if (responseData && 'hydra:member' in responseData) {
-                    ticketsData = responseData['hydra:member'];
-                    const totalItems: number = responseData['hydra:totalItems'] ?? ticketsData.length;
-                    if (activeTab === 'active') {
-                        setActiveTabTotal(totalItems);
-                    } else {
-                        setInactiveTabTotal(totalItems);
-                    }
-                } else {
-                    ticketsData = [];
-                }
-                const { hasMore: fetchedHasMore } = parsePagedResponse<Ticket>(responseData, page, pageSize);
-                console.log('Received tickets:', ticketsData);
+            // Разбор ответа — общий для сохранённого (мобильный кэш) и свежего.
+            const applyMyTickets = (responseData: any) => {
+                let ticketsData: Ticket[];
 
-                // Фильтруем тикеты текущего пользователя (на сервере /me уже фильтрует, но дополнительная проверка)
-                const myTickets = ticketsData.filter(ticket =>
-                    ticket.author?.id === currentUser.id ||
-                    ticket.master?.id === currentUser.id
-                );
-
-                console.log('My tickets:', myTickets);
-
-                const formattedTickets: TicketView[] = myTickets.map(ticket => {
-                    const base = ticketToTicketView(ticket);
-                    return {
-                        ...base,
-                        master: `${ticket.master?.surname || ''} ${ticket.master?.name || ''}`.trim()
-                            || (ticket.service ? t('myTickets:master') : t('myTickets:client')),
-                        masterId: ticket.master?.id || 0,
-                        status: ticket.active ? t('myTickets:statusActive') : t('myTickets:statusDone'),
-                    };
-                });
-
-                // Применяем фильтр по времени (как в категориях)
-                let timeFilteredTickets = formattedTickets;
-                if (timeFilter !== 'all') {
-                    const now = new Date();
-                    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                    const startOfYesterday = new Date(startOfToday);
-                    startOfYesterday.setDate(startOfYesterday.getDate() - 1);
-                    const startOfWeek = new Date(startOfToday);
-                    startOfWeek.setDate(startOfWeek.getDate() - 7);
-                    const startOfMonth = new Date(startOfToday);
-                    startOfMonth.setMonth(startOfMonth.getMonth() - 1);
-
-                    timeFilteredTickets = formattedTickets.filter(ticket => {
-                        const ticketDate = new Date(ticket.date);
-
-                        switch (timeFilter) {
-                            case 'today':
-                                return ticketDate >= startOfToday;
-                            case 'yesterday':
-                                return ticketDate >= startOfYesterday && ticketDate < startOfToday;
-                            case 'week':
-                                return ticketDate >= startOfWeek;
-                            case 'month':
-                                return ticketDate >= startOfMonth;
-                            default:
-                                return true;
+                    if (Array.isArray(responseData)) {
+                        ticketsData = responseData;
+                    } else if (responseData && 'hydra:member' in responseData) {
+                        ticketsData = responseData['hydra:member'];
+                        const totalItems: number = responseData['hydra:totalItems'] ?? ticketsData.length;
+                        if (activeTab === 'active') {
+                            setActiveTabTotal(totalItems);
+                        } else {
+                            setInactiveTabTotal(totalItems);
                         }
+                    } else {
+                        ticketsData = [];
+                    }
+                    const { hasMore: fetchedHasMore } = parsePagedResponse<Ticket>(responseData, page, pageSize);
+                    console.log('Received tickets:', ticketsData);
+
+                    // Фильтруем тикеты текущего пользователя (на сервере /me уже фильтрует, но дополнительная проверка)
+                    const myTickets = ticketsData.filter(ticket =>
+                        ticket.author?.id === currentUser.id ||
+                        ticket.master?.id === currentUser.id
+                    );
+
+                    console.log('My tickets:', myTickets);
+
+                    const formattedTickets: TicketView[] = myTickets.map(ticket => {
+                        const base = ticketToTicketView(ticket);
+                        return {
+                            ...base,
+                            master: `${ticket.master?.surname || ''} ${ticket.master?.name || ''}`.trim()
+                                || (ticket.service ? t('myTickets:master') : t('myTickets:client')),
+                            masterId: ticket.master?.id || 0,
+                            status: ticket.active ? t('myTickets:statusActive') : t('myTickets:statusDone'),
+                        };
                     });
-                }
 
-                // Применяем сортировку (как в категориях)
-                const getSortValue = (ticket: TicketView, sortType: SortByType | SecondarySortByType): number => {
-                    switch (sortType) {
-                        case 'newest':
-                            return new Date(ticket.date).getTime();
-                        case 'oldest':
-                            return -new Date(ticket.date).getTime();
-                        case 'price-asc':
-                            return ticket.price;
-                        case 'price-desc':
-                            return -ticket.price;
-                        case 'reviews-asc':
-                            return ticket.userReviewCount || 0;
-                        case 'reviews-desc':
-                            return -(ticket.userReviewCount || 0);
-                        case 'rating-asc':
-                            return ticket.userRating || 0;
-                        case 'rating-desc':
-                            return -(ticket.userRating || 0);
-                        default:
-                            return 0;
-                    }
-                };
+                    // Применяем фильтр по времени (как в категориях)
+                    let timeFilteredTickets = formattedTickets;
+                    if (timeFilter !== 'all') {
+                        const now = new Date();
+                        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        const startOfYesterday = new Date(startOfToday);
+                        startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+                        const startOfWeek = new Date(startOfToday);
+                        startOfWeek.setDate(startOfWeek.getDate() - 7);
+                        const startOfMonth = new Date(startOfToday);
+                        startOfMonth.setMonth(startOfMonth.getMonth() - 1);
 
-                const sortedTickets = [...timeFilteredTickets].sort((a, b) => {
-                    const primaryDiff = getSortValue(b, sortBy) - getSortValue(a, sortBy);
+                        timeFilteredTickets = formattedTickets.filter(ticket => {
+                            const ticketDate = new Date(ticket.date);
 
-                    if (primaryDiff === 0 && secondarySortBy !== 'none') {
-                        return getSortValue(b, secondarySortBy) - getSortValue(a, secondarySortBy);
+                            switch (timeFilter) {
+                                case 'today':
+                                    return ticketDate >= startOfToday;
+                                case 'yesterday':
+                                    return ticketDate >= startOfYesterday && ticketDate < startOfToday;
+                                case 'week':
+                                    return ticketDate >= startOfWeek;
+                                case 'month':
+                                    return ticketDate >= startOfMonth;
+                                default:
+                                    return true;
+                            }
+                        });
                     }
 
-                    return primaryDiff;
-                });
+                    // Применяем сортировку (как в категориях)
+                    const getSortValue = (ticket: TicketView, sortType: SortByType | SecondarySortByType): number => {
+                        switch (sortType) {
+                            case 'newest':
+                                return new Date(ticket.date).getTime();
+                            case 'oldest':
+                                return -new Date(ticket.date).getTime();
+                            case 'price-asc':
+                                return ticket.price;
+                            case 'price-desc':
+                                return -ticket.price;
+                            case 'reviews-asc':
+                                return ticket.userReviewCount || 0;
+                            case 'reviews-desc':
+                                return -(ticket.userReviewCount || 0);
+                            case 'rating-asc':
+                                return ticket.userRating || 0;
+                            case 'rating-desc':
+                                return -(ticket.userRating || 0);
+                            default:
+                                return 0;
+                        }
+                    };
 
-                applyTicketsFetch(sortedTickets, fetchedHasMore);
+                    const sortedTickets = [...timeFilteredTickets].sort((a, b) => {
+                        const primaryDiff = getSortValue(b, sortBy) - getSortValue(a, sortBy);
+
+                        if (primaryDiff === 0 && secondarySortBy !== 'none') {
+                            return getSortValue(b, secondarySortBy) - getSortValue(a, secondarySortBy);
+                        }
+
+                        return primaryDiff;
+                    });
+
+                    applyTicketsFetch(sortedTickets, fetchedHasMore);
+            };
+
+            // Мобильная сборка: список уже открывали — показываем сразу, без лоадера; свежий ответ ниже
+            // тихо подменяет его, если что-то изменилось. «Показать ещё» (page > 1) — как раньше.
+            const cached = page === 1 && !appendTicketsRef.current ? peekApi(ticketsUrl) : undefined;
+            if (cached) {
+                applyMyTickets(cached);
+                setIsLoading(false);
+            } else {
+                setIsContentLoading(true);
+            }
+
+            const responseData = await universalApiRequest(ticketsUrl);
+            if (!cached || !sameResponse(cached, responseData)) applyMyTickets(responseData);
         } catch (error) {
             console.error('Error fetching tickets:', error);
             setAllTickets([]);
