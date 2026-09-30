@@ -33,40 +33,34 @@ export function Marquee({ text, className, duration, alwaysScroll = false, thres
             const container = containerRef.current;
             if (!container) return;
 
-            // Measure true text width by appending a temp span directly to document.body.
-            // This is immune to any ancestor overflow:hidden, transform, will-change, or filter
-            // that would otherwise clamp scrollWidth when using position:fixed/absolute inside the tree.
+            // Ширина текста — из его же собственной первой копии, уже отрисованной тем же шрифтом и
+            // теми же правилами вёрстки, что и контейнер. Раньше мерили отдельным временным span'ом
+            // в <body>: у него метрики могли расходиться с реальной раскладкой на пару пикселей
+            // (реальные Android-телефоны, шрифт ещё догружается), и тогда в контейнере с шириной
+            // «по содержимому» (title карточки на мобилке) получался цикл: текст «не влезает» →
+            // включается вторая копия → контейнер раздувается → «влезает» → копия пропадает → ...
+            // — название мигало и «прыгало». Копия — inline-block с nowrap, её ширина — это ширина
+            // текста, обрезка контейнером (overflow:hidden) на неё не влияет.
             const cs = window.getComputedStyle(container);
-            const tmp = document.createElement('span');
-            tmp.style.cssText = [
-                'position:fixed',
-                'top:-9999px',
-                'left:-9999px',
-                'visibility:hidden',
-                'white-space:nowrap',
-                'pointer-events:none',
-                `font-size:${cs.fontSize}`,
-                `font-weight:${cs.fontWeight}`,
-                `font-family:${cs.fontFamily}`,
-                `letter-spacing:${cs.letterSpacing}`,
-                `font-style:${cs.fontStyle}`,
-            ].join(';');
-            tmp.textContent = text;
-            document.body.appendChild(tmp);
-            const measuredWidth = tmp.scrollWidth;
-            document.body.removeChild(tmp);
+            const first = textRef.current?.firstElementChild as HTMLElement | null;
+            if (!first) return;
+            const rawWidth = first.getBoundingClientRect().width - parseFloat(window.getComputedStyle(first).paddingRight || '0');
+            const measuredWidth = Math.ceil(rawWidth);
 
             // Gap must match paddingRight on the inner spans (3em → integer px).
             const gapPx = Math.round(3 * parseFloat(cs.fontSize));
             setCopyOffsetPx(measuredWidth + gapPx);
             setTextWidth(measuredWidth);
-            setIsOverflowing(measuredWidth > container.clientWidth + threshold);
+            setIsOverflowing(rawWidth > container.clientWidth + threshold);
         };
 
         check();
 
         const ro = new ResizeObserver(check);
         if (containerRef.current) ro.observe(containerRef.current);
+        // Веб-шрифт мог догрузиться уже после первого замера — ширина текста поменялась, а
+        // размер контейнера (фиксированный) — нет, ResizeObserver не сработает.
+        void document.fonts?.ready.then(check);
         return () => ro.disconnect();
     }, [text, threshold]);
 
