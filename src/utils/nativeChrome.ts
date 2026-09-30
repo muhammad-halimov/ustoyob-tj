@@ -50,6 +50,23 @@ export function initNativeChrome(): void {
     addViewportDirective('maximum-scale=1');
     addViewportDirective('user-scalable=no');
 
+    // Тема применяется синхронно до первого рендера: раньше data-theme ставил ThemeProvider уже после
+    // монтирования React, и между сплэшем и приложением мелькал белый экран (для тёмной темы).
+    // Логика та же, что в ThemeContext: ручной выбор действует, пока системная тема не менялась.
+    try {
+        const system = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        const saved = window.localStorage.getItem('themeOverride');
+        const base = window.localStorage.getItem('themeOverrideBase');
+        const overrideBase = base === 'light' || base === 'dark' ? base : system;
+        const theme = (saved === 'light' || saved === 'dark') && overrideBase === system ? saved : system;
+        document.documentElement.setAttribute('data-theme', theme);
+    } catch {
+        // без localStorage/matchMedia — оставляем работу ThemeProvider
+    }
+
+    // Общий для обеих платформ класс — «нативные» правила поведения (см. `html.native` в native.scss).
+    document.documentElement.classList.add('native');
+
     if (platform !== 'ios') return;
     addViewportDirective('viewport-fit=cover');
     document.documentElement.classList.add('native-ios');

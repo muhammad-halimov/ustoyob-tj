@@ -167,6 +167,45 @@ html.native-ios {
   }
 }
 
+// ── Нативное поведение (обе платформы, `html.native` ставит utils/nativeChrome.ts) ──────────────
+// Приложение не должно вести себя как сайт: элементы управления не выделяются долгим тапом, картинки не
+// «утаскиваются» и не открывают системное меню, страница не «резинится» и не тянется на pull-to-refresh
+// WebView. Текст контента (описания, сообщения, поля ввода) остаётся выделяемым — его копируют.
+html.native {
+  overscroll-behavior: none;
+
+  body {
+    overscroll-behavior: none;
+    -webkit-touch-callout: none;
+  }
+
+  button,
+  a,
+  nav,
+  label,
+  [role='button'],
+  [class*='_mobile_header_'],
+  [class*='_mobile_super_header_'],
+  img,
+  svg {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  img {
+    -webkit-user-drag: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable='true'] {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
+}
+
 @keyframes nativeNavBubbleIn {
   from { transform: translateY(28px) scale(0.92); opacity: 0; }
   to   { transform: none; opacity: 1; }

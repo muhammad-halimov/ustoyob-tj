@@ -113,6 +113,9 @@ export default function Category() {
             setCategories([]); // Устанавливаем пустой массив при ошибке
         } finally {
             setLoading(false);
+            // Мобильная сборка: главная получила первые данные — можно снимать нативный сплэш
+            // (utils/nativeSplash.ts); на сайте события никто не слушает.
+            window.dispatchEvent(new Event('app:ready'));
         }
     };
 

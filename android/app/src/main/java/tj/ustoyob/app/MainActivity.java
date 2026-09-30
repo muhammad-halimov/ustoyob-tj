@@ -13,6 +13,9 @@ public class MainActivity extends BridgeActivity {
         // Кастомный плагин — до super.onCreate(), так требует Capacitor.
         registerPlugin(NavigationBarPlugin.class);
         super.onCreate(savedInstanceState);
+        // WebView по умолчанию белый до первого кадра страницы — между сплэшем и приложением
+        // мелькала белая вспышка. Красим в фон приложения (день/ночь — по системной теме).
+        getBridge().getWebView().setBackgroundColor(getColor(R.color.app_window_bg));
         requestHighestRefreshRate();
     }
 

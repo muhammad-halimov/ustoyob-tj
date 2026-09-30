@@ -4,6 +4,16 @@ const config: CapacitorConfig = {
   appId: 'tj.ustoyob.app',
   appName: 'ustoyob.tj',
   webDir: 'dist',
+  plugins: {
+    SplashScreen: {
+      // Сплэш держим сами до первых данных на главной (utils/nativeSplash.ts, максимум пару секунд) —
+      // иначе приложение открывается пустой оболочкой, а блоки «дорисовываются» на глазах.
+      launchAutoHide: false,
+      launchShowDuration: 0,
+      backgroundColor: '#3A54DA',
+      showSpinner: false,
+    },
+  },
   ios: {
     // `never` (значение Capacitor по умолчанию, указано явно): веб-вью на весь экран, под статус-баром
     // и «домашней полоской». Безопасные зоны обрабатываются в CSS через env(safe-area-inset-*) —

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Фон окна/WebView до первого кадра приложения: совпадает с фоном светлой темы приложения. -->
+    <color name="app_window_bg">#F2F2F5</color>
+</resources>
