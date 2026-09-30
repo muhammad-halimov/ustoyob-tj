@@ -63,10 +63,24 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
      *
      * Формат: [текущий статус => [список статусов, куда автор может перевести сам]]
      *
-     *   resolved → renewed  (автор не согласен с решением — переоткрывает тикет)
-     *   closed   → renewed  (тикет закрыли из-за отсутствия ответа/нерешённости —
-     *                         автор возвращается и продолжает с тем же тикетом,
-     *                         вместо того чтобы заводить новый с нуля)
+     *   new/renewed/in_progress → closed  (автор сам закрывает тикет — вопрос
+     *                                       решился без участия админа, или
+     *                                       заявка больше не актуальна; не
+     *                                       нужно ждать, пока админ переведёт
+     *                                       её в resolved/closed вручную)
+     *   resolved → renewed | closed       (автор либо не согласен с решением
+     *                                       и переоткрывает, либо соглашается
+     *                                       и закрывает сам)
+     *   closed   → renewed                (тикет закрыли из-за отсутствия
+     *                                       ответа/нерешённости — автор
+     *                                       возвращается и продолжает с тем
+     *                                       же тикетом, вместо того чтобы
+     *                                       заводить новый с нуля)
+     *
+     * banned сюда намеренно не входит — тикет в этом статусе для автора
+     * полностью заблокирован (см. STATUS_BANNED и блокировку в
+     * ApiPostTechSupportMessageController), самостоятельный выход из него
+     * автору не положен ни в каком направлении.
      *
      * ROLE_ADMIN (включая ROLE_SUPER_ADMIN — см. User::getRoles()) переводит
      * тикет в ЛЮБОЙ статус из ЛЮБОГО, без ограничений этой таблицы — это
@@ -77,8 +91,11 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
      * быть исключением.
      */
     private const array AUTHOR_TRANSITIONS = [
-        'resolved' => ['renewed'],
-        'closed'   => ['renewed'],
+        'new'         => ['closed'],
+        'renewed'     => ['closed'],
+        'in_progress' => ['closed'],
+        'resolved'    => ['renewed', 'closed'],
+        'closed'      => ['renewed'],
     ];
 
     /**
