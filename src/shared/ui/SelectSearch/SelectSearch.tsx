@@ -148,6 +148,8 @@ export function SelectSearch<T = unknown>({
         if (!el) return;
         el.style.height = 'auto';
         el.style.height = `${el.scrollHeight}px`;
+        const maxH = parseFloat(getComputedStyle(el).maxHeight);
+        el.style.overflowY = Number.isFinite(maxH) && el.scrollHeight > maxH ? 'auto' : 'hidden';
     }, [value, isExpandable]);
 
     // Закрытие по клику снаружи
