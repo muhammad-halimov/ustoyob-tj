@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { setSessionItem } from '../../utils/storageUtils';
 import { setAuthToken } from '../../utils/authUtils';
 import { markMobileOAuthFlowFromUrl } from '../../utils/mobileOAuth';
+import { markCodeHandoffFromUrl } from '../../utils/mobileOAuthHandoff';
 import { markOAuthPopupFlow } from '../../utils/oauthPopup';
 
 /**
@@ -35,6 +36,7 @@ const TelegramMobileStartPage = () => {
 
     useEffect(() => {
         markMobileOAuthFlowFromUrl();
+        markCodeHandoffFromUrl();
 
         const params = new URLSearchParams(window.location.search);
 

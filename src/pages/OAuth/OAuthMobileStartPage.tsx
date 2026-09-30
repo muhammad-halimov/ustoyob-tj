@@ -8,6 +8,7 @@ import { resolveApiError } from '../../utils/appMessagesUtils';
 import { setSessionItem } from '../../utils/storageUtils';
 import { setAuthToken } from '../../utils/authUtils';
 import { markMobileOAuthFlowFromUrl, finishMobileOAuthFlow, finishMobileOAuthLinkFlow } from '../../utils/mobileOAuth';
+import { markCodeHandoffFromUrl } from '../../utils/mobileOAuthHandoff';
 import type { OAuthProviderName } from '../../entities';
 
 interface OAuthUrlResponse {
@@ -47,6 +48,7 @@ const OAuthMobileStartPage = () => {
         }
 
         markMobileOAuthFlowFromUrl();
+        markCodeHandoffFromUrl();
 
         const params = new URLSearchParams(window.location.search);
         const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
