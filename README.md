@@ -311,6 +311,23 @@ android/app/build/outputs/apk/debug/app-debug.apk
 
 Это debug-сборка — она подписана дефолтным debug-ключом Android и годится только для установки/тестирования на устройстве или эмуляторе (`adb install -r app/build/outputs/apk/debug/app-debug.apk`), но не для публикации в Google Play.
 
+### Альтернативная сборка — свой бэкенд/домен + установка на устройство по Wi-Fi
+
+Собрать с временным переопределением `VITE_API_BASE_URL`/`VITE_APP_ORIGIN` (например, против staging-бэкенда
+или другого домена, не трогая `.env`/`.env.local`) и поставить сразу на реальное устройство, подключённое
+по Wi-Fi через `adb connect`, а не через USB/эмулятор:
+
+```bash
+VITE_API_BASE_URL=https://x.x.com VITE_APP_ORIGIN=https://x.com npm run build \
+  && npx cap sync android && (cd android && ./gradlew assembleDebug)
+adb -s 192.168.1.1:5555 install -r android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+- `VITE_API_BASE_URL` — бэкенд, на который пойдут API-запросы (см. `src/utils/configUtils.ts`); пусто/не задано — относительные URL через dev-прокси Vite.
+- `VITE_APP_ORIGIN` — домен публичного сайта, на который открывается in-app browser для OAuth (`APP_WEB_ORIGIN` в `src/utils/mobileOAuth.ts`, по умолчанию `https://ustoyob.tj`) — переопределять, если тестируете вход/привязку провайдеров против другого окружения сайта, а не прод-домена.
+- `192.168.1.1:5555` — IP:порт устройства из `adb connect 192.168.1.1:5555` (Wi-Fi debugging уже включён на телефоне: Параметры разработчика → Отладка по Wi-Fi); `adb devices -l` должен показывать его до `-s`.
+- Переменные окружения подставляются только на этот один запуск сборки — постоянные значения по-прежнему берутся из `.env`/`.env.local` (см. «Переменные окружения» выше).
+
 Для релизной сборки (`./gradlew assembleRelease`) сначала нужен подписывающий ключ:
 
 ```bash
