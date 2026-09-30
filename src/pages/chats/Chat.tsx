@@ -34,6 +34,8 @@ import type { User as ApiUser } from '../../entities/api/User';
 import type { Chat as ApiChat, ChatMessage as ApiMessage } from '../../entities/api/Chat';
 import type { ChatImageView as ChatImageThumbnail, ChatMessageView as Message } from '../../entities/view/Chat';
 import { API_BASE_URL } from '../../utils/configUtils';
+import { sameResponse } from '../../utils/apiCache';
+import { CHAT_MESSAGES_OPTIONS, chatFirstPageUrl, prefetchChatMessages } from '../../utils/nativeChatPrefetch';
 
 // Backend physically rejects PATCH /chat-messages/{id} past this window (`edit_window_expired`,
 // 403) — 15 minutes from the message's own `createdAt`. Hiding the pencil once it's expired
@@ -118,6 +120,10 @@ function Chat() {
      *  which reads as "the window growing/changing height" while it's actually just the message
      *  list sliding underneath a container that never resized at all. */
     const justSwitchedChatRef = useRef(false);
+    /** Последняя применённая первая страница переписки (сырой ответ) и миниатюры чата — свежий
+     *  ответ, совпавший с ними, не перерисовывает переписку (и не дёргает прокрутку). */
+    const lastAppliedPageRef = useRef<{ chatId: string | number; page: unknown } | null>(null);
+    const lastAppliedImagesRef = useRef<{ chatId: string | number; images: unknown } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const presenceSourceRef = useRef<EventSource | null>(null);
     const inboxSourceRef = useRef<EventSource | null>(null);
@@ -212,8 +218,9 @@ function Chat() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser]);
 
-    // Обработка выбранного чата
-    useEffect(() => {
+    // Обработка выбранного чата. Layout-эффект: переписка из кэша (см. loadChatData) ставится до
+    // первой отрисовки открытого чата — без кадра с чужими сообщениями или «Нет сообщений».
+    useLayoutEffect(() => {
         selectedChatIdRef.current = selectedChat;
         justSwitchedChatRef.current = true;
         // Stale pagination state from whichever chat was open before shouldn't leak into the
@@ -283,8 +290,8 @@ function Chat() {
     // the first time a newly-selected chat's messages land — playing the whole smooth-scroll
     // animation on every chat open (however long its history is) looked like the container
     // itself resizing; a real new message arriving in an already-open chat still gets the
-    // smooth scroll.
-    useEffect(() => {
+    // smooth scroll. Layout-эффект: при открытии чата первый же кадр — уже внизу переписки.
+    useLayoutEffect(() => {
         if (skipAutoScrollRef.current) {
             skipAutoScrollRef.current = false;
             return;
@@ -375,6 +382,22 @@ function Chat() {
         };
     }, [currentUser, getImageUrl, getTranslatedFullName]);
 
+    // Миниатюры для боковой панели — из плоского списка chatData.images (still present —
+    // `Chat.images` is unaffected by the `messages` field removal), новые сверху.
+    const toChatThumbnails = useCallback((images: ApiChat['images']): ChatImageThumbnail[] => {
+        const thumbnails: ChatImageThumbnail[] = (images || []).map(img => ({
+            id: img.id,
+            imageUrl: getImageUrl(img.image),
+            source: toPhotoSource(img, 'uploads/chat_messages'),
+            author: img.author,
+            createdAt: img.createdAt || new Date().toISOString()
+        }));
+        thumbnails.sort((a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        return thumbnails;
+    }, [getImageUrl]);
+
     /**
      * Loads a chat's metadata + its most recent page of messages — used both for opening a
      * chat and for the "refetch after I just sent/edited/deleted something" refresh. Always
@@ -385,8 +408,12 @@ function Chat() {
      * an acceptable rough edge (that history is still one more "load older" click away) given
      * the alternative (merging pages) risks bleeding one chat's messages into another's view
      * when switching chats, since this same function handles both cases.
+     *
+     * `skipIfShown` — на экране уже эта же первая страница (из кэша, см. showCachedChat): если
+     * сервер вернул ровно её, переписку не перерисовываем. После отправки/правки/удаления не
+     * передаётся — там свежий ответ применяется всегда.
      */
-    const fetchChatMessages = useCallback(async (chatId: string | number) => {
+    const fetchChatMessages = useCallback(async (chatId: string | number, skipIfShown = false) => {
         try {
             const token = getAuthToken();
             if (!token) {
@@ -395,6 +422,10 @@ function Chat() {
             }
 
             console.log('Fetching messages for chat:', chatId);
+            // Чат и первая страница переписки — параллельно, а не друг за другом.
+            const pageSize = getPageSize();
+            const pageRequest = currentUser ? universalApiRequest(chatFirstPageUrl(chatId), CHAT_MESSAGES_OPTIONS) : null;
+            pageRequest?.catch(() => { /* ошибку разберёт await ниже */ });
             const chatData: ApiChat = await universalApiRequest(API_ROUTES.CHAT_BY_ID(chatId), { locale: false });
             console.log('Chat data received:', chatData);
 
@@ -414,29 +445,27 @@ function Chat() {
                 return newChats;
             });
 
-            if (currentUser) {
-                const pageSize = getPageSize();
-                const responseData = await universalApiRequest(`${API_ROUTES.CHAT_MESSAGES(chatId)}?page=1&itemsPerPage=${pageSize}`, { locale: false });
+            if (pageRequest) {
+                const responseData = await pageRequest;
+                // Пока шли запросы, пользователь открыл другой чат — эту переписку на экран не ставим.
+                if (selectedChatIdRef.current !== chatId) return;
+
+                const shownImages = lastAppliedImagesRef.current;
+                if (!(skipIfShown && shownImages?.chatId === chatId && sameResponse(shownImages.images, chatData.images ?? []))) {
+                    setChatImages(toChatThumbnails(chatData.images));
+                    lastAppliedImagesRef.current = { chatId, images: chatData.images ?? [] };
+                }
+
+                const shownPage = lastAppliedPageRef.current;
+                if (skipIfShown && shownPage?.chatId === chatId && sameResponse(shownPage.page, responseData)) return;
+                lastAppliedPageRef.current = { chatId, page: responseData };
+
                 const { items: pageMessages, hasMore } = parsePagedResponse<ApiMessage>(responseData, 1, pageSize);
                 setMessagesPage(1);
                 setHasMoreMessages(hasMore);
 
                 // Reversed — the endpoint returns newest-first, the thread renders oldest→newest.
                 const serverItems: Message[] = pageMessages.map(mapApiMessageToView).reverse();
-
-                // Миниатюры для боковой панели — берём из плоского списка chatData.images
-                // (still present — `Chat.images` is unaffected by the `messages` field removal).
-                const allThumbnails: ChatImageThumbnail[] = (chatData.images || []).map(img => ({
-                    id: img.id,
-                    imageUrl: getImageUrl(img.image),
-                    source: toPhotoSource(img, 'uploads/chat_messages'),
-                    author: img.author,
-                    createdAt: img.createdAt || new Date().toISOString()
-                }));
-                allThumbnails.sort((a, b) =>
-                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                );
-                setChatImages(allThumbnails);
 
                 setMessages(prev => {
                     // Сохраняем только локальные pending/uploading сообщения
@@ -455,7 +484,7 @@ function Chat() {
         } catch (err) {
             console.error('Error fetching chat messages:', err);
         }
-    }, [currentUser, getImageUrl, mapApiMessageToView]);
+    }, [currentUser, mapApiMessageToView, toChatThumbnails]);
 
     /**
      * Pages further back in the same open chat — fetches the next-older page (§5: page 1 is
@@ -504,26 +533,42 @@ function Chat() {
     }, []);
 
     /**
+     * Мобильная сборка: переписка из кэша API — чат открывали раньше, или её догрузил фон (см.
+     * utils/nativeChatPrefetch.ts) — ставится на экран сразу, синхронно. false — показать нечего.
+     */
+    const showCachedChat = useCallback((chatId: string | number): boolean => {
+        if (!KEEP_ALIVE || !currentUserRef.current) return false;
+        const listChat = chatsRef.current.find(c => c.id === chatId);
+        const cachedPage = peekApi(chatFirstPageUrl(chatId), CHAT_MESSAGES_OPTIONS);
+        if (cachedPage === undefined) {
+            // В чате ещё нет ни одного сообщения (так говорит список) — ждать нечего.
+            if (!listChat || listChat.lastMessage) return false;
+            setMessages([]);
+            setChatImages([]);
+            return true;
+        }
+        const { items, hasMore } = parsePagedResponse<ApiMessage>(cachedPage, 1, getPageSize());
+        setMessages(items.map(mapApiMessageToView).reverse());
+        setHasMoreMessages(hasMore);
+        lastAppliedPageRef.current = { chatId, page: cachedPage };
+        const cachedChat = peekApi<ApiChat>(API_ROUTES.CHAT_BY_ID(chatId), { locale: false }) ?? listChat;
+        setChatImages(toChatThumbnails(cachedChat?.images));
+        lastAppliedImagesRef.current = { chatId, images: cachedChat?.images ?? [] };
+        return true;
+    }, [mapApiMessageToView, toChatThumbnails]);
+
+    /**
      * Loads initial messages and marks the chat as read.
      * Real-time delivery is handled by the shared inbox SSE — no per-chat EventSource needed.
      */
     const loadChatData = useCallback(async (chatId: string | number) => {
-        // Мобильная сборка: переписку уже открывали — показываем сохранённые сообщения сразу,
-        // без «Загрузка сообщений», а fetchChatMessages ниже тихо подменит их свежими.
-        const pageSize = getPageSize();
-        const cachedMessages = currentUserRef.current
-            ? peekApi(`${API_ROUTES.CHAT_MESSAGES(chatId)}?page=1&itemsPerPage=${pageSize}`, { locale: false })
-            : undefined;
-        if (cachedMessages) {
-            const { items } = parsePagedResponse<ApiMessage>(cachedMessages, 1, pageSize);
-            setMessages(items.map(mapApiMessageToView).reverse());
-        } else {
-            setIsChatLoading(true);
-        }
-        await fetchChatMessages(chatId);
+        const shown = showCachedChat(chatId);
+        setIsChatLoading(!shown);
+        await fetchChatMessages(chatId, shown);
+        // Лоадер — только пока нет переписки: отметку о прочтении он не ждёт.
+        if (selectedChatIdRef.current === chatId) setIsChatLoading(false);
         await markChatAsRead(chatId);
-        setIsChatLoading(false);
-    }, [fetchChatMessages, markChatAsRead, mapApiMessageToView]);
+    }, [showCachedChat, fetchChatMessages, markChatAsRead]);
 
     /**
      * Processes a Mercure real-time event for the currently open chat.
@@ -1214,6 +1259,8 @@ function Chat() {
             }
 
             setChatHasMore(fetchedHasMore);
+            // Мобильная сборка: переписки верхних чатов — в фоне в кэш, чтобы открывались мгновенно.
+            prefetchChatMessages(chatsData, selectedChatIdRef.current);
 
             // Если появились новые чаты — перезапускаем inbox SSE,
             // чтобы подписаться на их топики тоже.
@@ -1713,7 +1760,7 @@ function Chat() {
                                 />
                             )}
                             <div className={styles.chatMessages} ref={messagesContainerRef}>
-                                {messages.length === 0 ? (
+                                {messages.length === 0 ? (!isChatLoading &&
                                     <div className={styles.noMessages}>
                                         {currentChat?.isArchived ?
                                             t('chat.archivedChatNote') :

@@ -16,15 +16,17 @@ import { getAppealReasons, getDistricts, getLegalDocuments, getMyTechSupports } 
 import { getPageSize } from './pageSizeUtils';
 import { rememberApi, universalApiRequest, type ApiRequestOptions } from './apiUtils';
 import { APP_READY_EVENT } from './nativeSplash';
+import { prefetchChatMessages } from './nativeChatPrefetch';
 
 const START_DELAY_MS = 1500;
 
 /** GET в кэш; пустой /me-список бэкенд отдаёт 404 — запоминаем его как пустой, как это делают экраны. */
-const warm = async (endpoint: string, options: ApiRequestOptions = {}): Promise<void> => {
+const warm = async (endpoint: string, options: ApiRequestOptions = {}): Promise<unknown> => {
     try {
-        await universalApiRequest(endpoint, options);
+        return await universalApiRequest(endpoint, options);
     } catch (err) {
         if (err instanceof ApiError && err.http === 404) rememberApi(endpoint, options, []);
+        return undefined;
     }
 };
 
@@ -38,7 +40,10 @@ const prefetchAll = async (): Promise<void> => {
     }
     if (!getAuthToken()) return;
     const pageSize = getPageSize();
-    await warm(`${API_ROUTES.CHATS_ME}?page=1&itemsPerPage=${pageSize}`, { locale: false });
+    const chats = await warm(`${API_ROUTES.CHATS_ME}?page=1&itemsPerPage=${pageSize}`, { locale: false });
+    // Переписки верхних чатов — своим фоновым проходом (см. nativeChatPrefetch.ts), параллельно остальному.
+    const chatItems = Array.isArray(chats) ? chats : (chats as { 'hydra:member'?: unknown[] } | undefined)?.['hydra:member'];
+    if (Array.isArray(chatItems)) prefetchChatMessages(chatItems as Parameters<typeof prefetchChatMessages>[0]);
     await warm(`${API_ROUTES.FAVORITES_ME}?page=1&itemsPerPage=${pageSize}`);
     await warm(`${API_ROUTES.TICKETS_ME}?active=true&page=1&itemsPerPage=${pageSize}`);
     await warm(API_ROUTES.USERS_ME);

@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline, IoPersonOutline, IoHeadsetOutline, IoTrashOutline, IoCloseCircleOutline } from 'react-icons/io5';
 import styles from './TechSupportThread.module.scss';
 import { peekApi, universalApiRequest } from '../../../utils/apiUtils';
+import { sameResponse } from '../../../utils/apiCache';
 import { API_ROUTES } from '../../../app/routers/routes';
 import { resolveApiError } from '../../../utils/appMessagesUtils';
 import { getUserData, isAdmin } from '../../../utils/authUtils';
@@ -53,6 +54,14 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB — same cap as Chat's attach fl
 // response isn't guaranteed to keep insertion order once a row's been touched) the edited
 // message would jump to the bottom as if it were brand new. Chat.tsx sorts its own message
 // list by `createdAt` for the same reason — mirrored here.
+/** Обращение из сохранённого списка «Мои обращения» (getMyTechSupports) — только полное, с перепиской. */
+const findInCachedList = (ticketId: string | number): SupportTicket | undefined => {
+    const data = getMyTechSupports.peek();
+    const list = Array.isArray(data) ? data : (data as { 'hydra:member'?: unknown[] } | undefined)?.['hydra:member'];
+    const found = (list as SupportTicket[] | undefined)?.find(t => String(t.id) === String(ticketId));
+    return found && 'status' in found && 'messages' in found ? found : undefined;
+};
+
 const sortMessagesByCreatedAt = (messages: TechSupportMessage[]): TechSupportMessage[] =>
     [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
@@ -113,10 +122,15 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     const isAdminUser = isAdmin();
 
     // Мобильная сборка: обращение уже открывали — показываем сразу из кэша API, свежее приходит следом.
-    const [ticket, setTicket] = useState<SupportTicket | null>(() => {
-        const cached = peekApi<SupportTicket>(API_ROUTES.TECH_SUPPORT_BY_ID(ticketId));
-        return cached ? { ...cached, messages: sortMessagesByCreatedAt(cached.messages ?? []) } : null;
-    });
+    // Не открывали — берём из сохранённого списка «Мои обращения» (у элемента списка та же структура,
+    // что у GET /tech-supports/{id}): после перезапуска список в кэше есть раньше, чем его свежая
+    // загрузка разложит обращения по кэшу поштучно.
+    const [cachedTicket] = useState<SupportTicket | undefined>(() =>
+        peekApi<SupportTicket>(API_ROUTES.TECH_SUPPORT_BY_ID(ticketId)) ?? findInCachedList(ticketId));
+    const [ticket, setTicket] = useState<SupportTicket | null>(() =>
+        cachedTicket ? { ...cachedTicket, messages: sortMessagesByCreatedAt(cachedTicket.messages ?? []) } : null);
+    /** Сырой ответ, который сейчас на экране: совпавший с ним свежий ответ ничего не перерисовывает. */
+    const shownResponseRef = useRef<unknown>(cachedTicket);
     const [isLoading, setIsLoading] = useState(() => ticket === null);
     const [error, setError] = useState('');
     // `ticket.reason.title` comes embedded in the ticket response and doesn't seem to respect
@@ -176,11 +190,16 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         universalApiRequest(API_ROUTES.TECH_SUPPORT_READ(ticketId), { method: 'POST', locale: false }).catch(() => {});
     }, [ticketId]);
 
-    const fetchTicket = useCallback(async () => {
+    // skipIfShown — первая загрузка поверх кэша: сервер вернул то же, что на экране, — не трогаем.
+    // После правок/отправки и по событиям свежий ответ применяется всегда.
+    const fetchTicket = useCallback(async (skipIfShown = false) => {
         try {
             setError('');
             const data: SupportTicket = await universalApiRequest(API_ROUTES.TECH_SUPPORT_BY_ID(ticketId));
-            setTicket({ ...data, messages: sortMessagesByCreatedAt(data.messages ?? []) });
+            if (!(skipIfShown && sameResponse(shownResponseRef.current, data))) {
+                shownResponseRef.current = data;
+                setTicket({ ...data, messages: sortMessagesByCreatedAt(data.messages ?? []) });
+            }
             // Viewing the thread marks everything currently in it as read — clears the
             // "new messages" bubble on the tickets list for this ticket.
             markThreadRead();
@@ -214,7 +233,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     }, [isAdminUser]);
 
     useEffect(() => {
-        fetchTicket();
+        fetchTicket(true);
         fetchReasons();
         fetchSupportReasons();
     }, [fetchTicket, fetchReasons, fetchSupportReasons]);
@@ -227,7 +246,18 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         fetchSupportReasons();
     });
 
-    useEffect(() => {
+    // Первый показ переписки — сразу на последнем сообщении, до отрисовки и только внутри списка
+    // (как открывается чат); дальше новые сообщения — плавно, как раньше.
+    const messagesListRef = useRef<HTMLDivElement>(null);
+    const shownAtEndRef = useRef(false);
+    useLayoutEffect(() => {
+        const list = messagesListRef.current;
+        if (!list) return;
+        if (!shownAtEndRef.current) {
+            shownAtEndRef.current = true;
+            list.scrollTop = list.scrollHeight;
+            return;
+        }
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }, [ticket?.messages?.length]);
 
@@ -946,7 +976,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             ) : (
                 <>
                     <div className={styles.threadBody}>
-                    <div className={styles.messages}>
+                    <div className={styles.messages} ref={messagesListRef}>
                         <div className={styles.message}>
                             <div className={styles.messageHeader}>
                                 <span className={styles.messageAuthorName}>{t('thread.originalRequest')}</span>
