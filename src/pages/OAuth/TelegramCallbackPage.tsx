@@ -22,6 +22,7 @@ import { universalApiRequest } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
 import { getStorageItem, setStorageItem, removeStorageItem, getSessionItem, removeSessionItem } from '../../utils/storageUtils';
 import { finishMobileOAuthFlow, finishMobileOAuthLinkFlow } from '../../utils/mobileOAuth';
+import { handOffOAuthCode } from '../../utils/mobileOAuthHandoff';
 import { finishOAuthPopup } from '../../utils/oauthPopup';
 
 /**
@@ -270,6 +271,14 @@ const TelegramCallbackPage = () => {
                     authDate: telegramData.auth_date!,
                 };
                 if (savedRole) requestData.role = savedRole;
+
+                // Приложение (Capacitor): данные виджета уходят приложению, обмен выполняет оно
+                // само — иначе refresh-cookie останется в браузере (см. utils/mobileOAuthHandoff.ts).
+                if (handOffOAuthCode('telegram', requestData)) {
+                    setSuccess(true);
+                    setLoading(false);
+                    return;
+                }
 
                 const data: BackendAuthCallbackResponse = await universalApiRequest(API_ROUTES.AUTH_PROVIDER_CALLBACK('telegram'), {
                     method: 'POST',
