@@ -1,4 +1,4 @@
-import {useState, useEffect, useCallback} from 'react';
+import {useState, useEffect, useLayoutEffect, useCallback, useMemo} from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -45,7 +45,6 @@ function MyTickets() {
     const [currentUser, setCurrentUser] = useState<User | null>(() =>
         KEEP_ALIVE && getAuthToken() ? (getUserData() as unknown as User | null) : null);
     const [allTickets, setAllTickets] = useState<TicketView[]>([]);
-    const [displayedTickets, setDisplayedTickets] = useState<TicketView[]>([]);
     const [isLoading, setIsLoading] = useState(() => !(currentUser && peekApi(myTicketsUrl('active', 1))));
     const [isContentLoading, setIsContentLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
@@ -85,8 +84,9 @@ function MyTickets() {
         if (currentUser) fetchMyTickets();
     });
 
-    // Загрузка тикетов ТОЛЬКО ПОСЛЕ загрузки пользователя
-    useEffect(() => {
+    // Загрузка тикетов ТОЛЬКО ПОСЛЕ загрузки пользователя. Layout-эффект: в мобильной сборке список из
+    // кэша ставится до первой отрисовки — без кадра «объявлений нет» перед ним.
+    useLayoutEffect(() => {
         if (currentUser) {
             fetchMyTickets();
         }
@@ -104,12 +104,11 @@ function MyTickets() {
 
 
 
-    useEffect(() => {
-        const filtered = activeTab === 'active' 
-            ? allTickets.filter(t => t.active)
-            : allTickets.filter(t => !t.active);
-        setDisplayedTickets(filtered);
-    }, [activeTab, allTickets]);
+    // Производное, а не отдельное состояние через эффект: эффект срабатывал уже после отрисовки, и
+    // загруженный список на кадр показывался пустым.
+    const displayedTickets = useMemo(() => activeTab === 'active'
+        ? allTickets.filter(t => t.active)
+        : allTickets.filter(t => !t.active), [activeTab, allTickets]);
 
     // Сбрасываем страницу при смене вкладки
     useEffect(() => {

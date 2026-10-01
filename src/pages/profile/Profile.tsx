@@ -594,7 +594,9 @@ function Profile() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [navigate, readOnly, userId]);
 
-    useEffect(() => {
+    // Layout-эффект: отзывы и услуги из кэша (swrGet) ставятся до первой отрисовки профиля, а без кэша
+    // сразу виден спиннер — без кадра «отзывов нет» / «объявлений нет» перед ними.
+    useLayoutEffect(() => {
         if (profileData?.id) {
             console.log('Profile loaded, fetching reviews, services, and occupations');
             if (userRole === 'master') {

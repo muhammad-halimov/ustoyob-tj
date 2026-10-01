@@ -73,7 +73,8 @@ function TechSupport({ embedded = false }: TechSupportProps) {
         const data = getMyTechSupports.peek();
         return Array.isArray(data) ? data as SupportTicket[] : (data as { 'hydra:member'?: SupportTicket[] } | undefined)?.['hydra:member'] ?? [];
     });
-    const [loadingMyTickets, setLoadingMyTickets] = useState(false);
+    // Списка ещё нет (не сохранён) — первый кадр вкладки сразу со спиннером, а не «обращений нет».
+    const [loadingMyTickets, setLoadingMyTickets] = useState(() => isAuth && getMyTechSupports.peek() === undefined);
     const [myTicketsError, setMyTicketsError] = useState('');
 
     // My tickets — filters & sort (client-side, over the already-fetched list)

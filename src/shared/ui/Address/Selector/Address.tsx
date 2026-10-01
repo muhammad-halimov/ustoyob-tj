@@ -16,10 +16,12 @@ interface AddressSelectorProps {
 
 const Address = ({ value, onChange }: AddressSelectorProps) => {
     const { t } = useTranslation(['address', 'common']);
-    const [provinces, setProvinces] = useState<Province[]>([]);
-    const [cities, setCities] = useState<City[]>([]);
-    const [districts, setDistricts] = useState<District[]>([]);
-    const [isLocationLoading, setIsLocationLoading] = useState(true);
+    // Справочники уже сохранены (мобильная сборка, dataCacheUtils) — области с первого кадра, без спиннера;
+    // свежие подтягиваются следом.
+    const [provinces, setProvinces] = useState<Province[]>(() => getProvinces.peekStale() ?? []);
+    const [cities, setCities] = useState<City[]>(() => getCities.peekStale() ?? []);
+    const [districts, setDistricts] = useState<District[]>(() => getDistricts.peekStale() ?? []);
+    const [isLocationLoading, setIsLocationLoading] = useState(() => getProvinces.peekStale() === undefined);
     const [cityQuery, setCityQuery] = useState('');
     const [districtQuery, setDistrictQuery] = useState('');
     const [suburbQuery, setSuburbQuery] = useState('');
@@ -39,7 +41,7 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
 
     const fetchLocationData = async () => {
         try {
-            setIsLocationLoading(true);
+            if (getProvinces.peekStale() === undefined) setIsLocationLoading(true);
             const [provincesData, citiesData, districtsData] = await Promise.all([
                 getProvinces(),
                 getCities(),

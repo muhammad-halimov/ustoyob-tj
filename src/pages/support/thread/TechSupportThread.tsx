@@ -136,7 +136,9 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // `ticket.reason.title` comes embedded in the ticket response and doesn't seem to respect
     // ?locale= the way a direct GET /api/appeal-reasons?locale= does — look the title up by id
     // from that (correctly locale-fetched, cached) list instead, same fix as the tickets table.
-    const [reasonTitleById, setReasonTitleById] = useState<Map<string | number, string>>(new Map());
+    // Мобильная сборка: сохранённый список причин — подпись категории сразу на нужном языке, без подмены.
+    const [reasonTitleById, setReasonTitleById] = useState<Map<string | number, string>>(
+        () => new Map((getAppealReasons.peekStale() ?? []).map(r => [r.id, r.title])));
     // Scoped list for the admin edit dropdown — only `applicableTo=support` reasons are valid
     // choices when editing (same restriction as the create form's picker in TechSupport.tsx).
     // Separate from `reasonTitleById` above, which stays unscoped on purpose to resolve

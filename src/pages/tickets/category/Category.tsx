@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useLayoutEffect, useState} from 'react';
 import {useLocation, useNavigate, useParams} from 'react-router-dom';
 import {getAuthToken, getUserData, getUserRole} from '../../../utils/authUtils';
 import {useLanguageChange, useShowMore} from '../../../hooks';
@@ -50,6 +50,26 @@ import {resolveApiError} from '../../../utils/appMessagesUtils';
  * Reads the persisted filter/page state for a category from sessionStorage.
  * Used to restore state when navigating back to a category page.
  */
+
+/** Подкатегории одной категории, по priority (без priority — в конец). */
+const categoryOccupations = (all: Occupation[], categoryId: string | undefined): Occupation[] => {
+    const formatted: Occupation[] = all.filter((occ: Occupation) =>
+        occ.category?.id.toString() === categoryId
+    ).map((occ) => ({
+        id: occ.id,
+        title: occ.title,
+        image: occ.image,
+        priority: occ.priority,
+        category: occ.category ?? null
+    }));
+    formatted.sort((a, b) => {
+        const pa = a.priority ?? Infinity;
+        const pb = b.priority ?? Infinity;
+        return pa - pb;
+    });
+    return formatted;
+};
+
 function getCatSession(catId: string | undefined): Record<string, unknown> | null {
     return catId ? getSessionJSON(`cat-filters-${catId}`) : null;
 }
@@ -103,7 +123,8 @@ function Category() {
     });
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
     const currentUserId = getUserData()?.id;
-    const [occupations, setOccupations] = useState<Occupation[]>([]);
+    // Мобильная сборка: подкатегории из сохранённого справочника — плитки на месте с первого кадра.
+    const [occupations, setOccupations] = useState<Occupation[]>(() => categoryOccupations(getOccupations.peekStale() ?? [], id));
     const [subcategorySearchQuery, setSubcategorySearchQuery] = useState<string>('');
     // Filter & sort state — restored from sessionStorage on mount
     const [_catSession] = useState(() => getCatSession(id));
@@ -225,8 +246,10 @@ function Category() {
     // Перезагружаем данные при изменении роли или языка
     // (userRole больше не блокирует загрузку — он нужен только для отображения
     // на карточках, а не для самого запроса; см. handleReorderServices-подобный
-    // баг: ожидание userRole могло никогда не завершиться и запрос не уходил вовсе)
-    useEffect(() => {
+    // баг: ожидание userRole могло никогда не завершиться и запрос не уходил вовсе).
+    // Layout-эффект: сохранённый список (мобильная сборка) ставится до первой отрисовки — без кадра
+    // со спиннером перед ним.
+    useLayoutEffect(() => {
         if (skipTicketsFetchRef.current) {
             skipTicketsFetchRef.current = false;
             return;
@@ -255,25 +278,7 @@ function Category() {
     const fetchOccupations = async () => {
         try {
             const occupationsData = await getOccupations();
-            
-            const formatted: Occupation[] = occupationsData.filter((occ: Occupation) =>
-                occ.category?.id.toString() === id
-            ).map((occ) => ({
-                id: occ.id,
-                title: occ.title,
-                image: occ.image,
-                priority: occ.priority,
-                category: occ.category ?? null
-            }));
-
-            // Сортируем по priority (по возрастанию), элементы без priority — в конец
-            formatted.sort((a, b) => {
-                const pa = a.priority ?? Infinity;
-                const pb = b.priority ?? Infinity;
-                return pa - pb;
-            });
-
-            setOccupations(formatted);
+            setOccupations(categoryOccupations(occupationsData, id));
         } catch (error) {
             console.error('Error fetching occupations:', error);
         }

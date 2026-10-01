@@ -87,7 +87,9 @@ export function Ticket() {
 
     // States for reviews
     const [reviews, setReviews] = useState<ReviewType[]>([]);
-    const [reviewsLoading, setReviewsLoading] = useState(false);
+    // true до первого ответа (из кэша или сети): иначе блок отзывов на кадр показывал «отзывов нет» перед
+    // спиннером и самими отзывами.
+    const [reviewsLoading, setReviewsLoading] = useState(true);
     const { page: reviewsPage, skipFetchRef: skipReviewsFetchRef, applyFetch: applyReviewsFetch, showMoreProps: reviewsShowMoreProps } = useShowMore<ReviewType>(setReviews);
 
     const [reviewCount, setReviewCount] = useState<number>(0);
@@ -323,6 +325,9 @@ export function Ticket() {
             // Используем reviewsCount, responsesCount и viewsCount из API тикета если есть
             const reviewCountForUser = ticketData.reviewsCount || 0;
             setReviewCount(reviewCountForUser);
+            // Тикет сам знает, что отзывов на нём нет (Ticket.reviewsCount — счётчик его отзывов на бэкенде):
+            // блок отзывов сразу в окончательном виде, без спиннера на время запроса.
+            if (reviewCountForUser === 0) setReviewsLoading(false);
             setResponsesCount(ticketData.responsesCount || 0);
             setViewsCount(ticketData.viewsCount || 0);
 
@@ -746,8 +751,14 @@ export function Ticket() {
             
                 console.log('Transformed reviews:', transformedReviews);
                 applyReviewsFetch(transformedReviews, fetchedHasMore);
+                // Сохранённый ответ (в т.ч. «отзывов нет») — сразу окончательный вид, без спиннера.
+                setReviewsLoading(false);
             
-            }, () => { if (reviewsPage === 1) setReviews([]); setReviewsLoading(true); }, reviewsPage === 1);
+            }, () => {
+                if (reviewsPage === 1) setReviews([]);
+                // Отзывов у тикета нет (reviewCount из самого тикета) — ждать нечего, спиннер не нужен.
+                if (!(reviewsPage === 1 && reviewCount === 0)) setReviewsLoading(true);
+            }, reviewsPage === 1);
         } catch (error) {
             console.error('Error fetching reviews:', error);
             setReviews([]);
