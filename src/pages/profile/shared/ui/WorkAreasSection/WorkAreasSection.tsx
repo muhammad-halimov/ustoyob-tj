@@ -144,14 +144,14 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                 renderEditItem={() => (
                     <div className={styles.edit_form}>
                         <Address value={addressForm} onChange={setAddressForm} required={true} />
-                        <ConsentBanner action={t('profile:addressConsent')} />
+                        <ConsentBanner className={styles.consent} action={t('profile:addressConsent')} />
                         <EditActions onSave={handleSave} onCancel={onEditAddressCancel} />
                     </div>
                 )}
                 renderNewForm={() => (
                     <div className={styles.edit_form}>
                         <Address value={addressForm} onChange={setAddressForm} required={true} />
-                        <ConsentBanner action={t('profile:addressConsent')} />
+                        <ConsentBanner className={styles.consent} action={t('profile:addressConsent')} />
                         <EditActions onSave={handleSave} onCancel={onEditAddressCancel} />
                     </div>
                 )}
