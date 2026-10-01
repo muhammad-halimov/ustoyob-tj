@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline, IoPersonOutline, IoHeadsetOutline, IoTrashOutline, IoCloseCircleOutline } from 'react-icons/io5';
+import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline, IoPersonOutline, IoHeadsetOutline, IoTrashOutline, IoCloseCircleOutline, IoTimeOutline, IoAlertCircle } from 'react-icons/io5';
 import styles from './TechSupportThread.module.scss';
 import { peekApi, universalApiRequest } from '../../../utils/apiUtils';
 import { sameResponse } from '../../../utils/apiCache';
@@ -25,6 +25,8 @@ import type { PhotoSource } from '../../../entities';
 import { Markdown } from '../../../shared/ui/Text/Markdown';
 import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 import { EmptyState } from '../../../widgets/EmptyState';
+import { PageLoader } from '../../../widgets/PageLoader';
+import { animateMessageEnter, freshTailKeys, keepComposerFocus, useStickToBottom, warmImages } from '../../../utils/nativeChat';
 import {
     STATUS_ICONS,
     PRIORITY_ICONS,
@@ -64,6 +66,21 @@ const findInCachedList = (ticketId: string | number): SupportTicket | undefined 
 
 const sortMessagesByCreatedAt = (messages: TechSupportMessage[]): TechSupportMessage[] =>
     [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+/**
+ * Мобильная сборка: своё сообщение, показанное в переписке сразу, до ответа сервера (с локальными
+ * превью фото). `serverId` — когда сервер его создал; `sent` — доставлено целиком (с фото), дальше
+ * его показывает серверная версия.
+ */
+type OutgoingMessage = {
+    key: string;
+    text: string;
+    files: File[];
+    previews: string[];
+    createdAt: string;
+    status: 'pending' | 'sent' | 'error';
+    serverId?: string | number;
+};
 
 // §11/§14: `images` on every one of these Patch DTOs (`TechSupportPatchInput`,
 // `TechSupportMessagePatchInput`, and every other entity's) is documented as
@@ -152,7 +169,8 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
 
     const [message, setMessage] = useState('');
     const [photos, setPhotos] = useState<PhotoItem[]>([]);
-    const [isSending, setIsSending] = useState(false);
+    // Мобильная сборка: отправленное сразу в переписке (как в мессенджере), доставка — в фоне.
+    const [outbox, setOutbox] = useState<OutgoingMessage[]>([]);
     const [isMediaOpen, setIsMediaOpen] = useState(false);
     const composePreviewUrls = photos.filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new').map(p => p.previewUrl);
     const composeGallery = usePreview({ images: composePreviewUrls });
@@ -249,19 +267,47 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
 
     // Первый показ переписки — сразу на последнем сообщении, до отрисовки (как открывается чат); дальше
     // новые сообщения — плавно к самому низу. Прокручивается только сам список: scrollIntoView крутил
-    // ещё и страницу — после отправки она уезжала вверх, к шапке обращения.
+    // ещё и страницу — после отправки она уезжала вверх, к шапке обращения. Мобильная сборка: пришедшее
+    // не утаскивает вниз, пока пользователь читает историю (своё отправленное — всегда), новые сообщения
+    // в конце всплывают, а список «прилипает» к низу при открытии клавиатуры.
     const messagesListRef = useRef<HTMLDivElement>(null);
     const shownAtEndRef = useRef(false);
+    const atBottomRef = useRef(true);
+    const forceScrollRef = useRef(false);
+    const seenKeysRef = useRef(new Set<string | number>());
+    const enterArmedRef = useRef(false);
+    /** id с сервера → ключ отправленного отсюда сообщения: серверная версия занимает тот же узел. */
+    const clientKeyByIdRef = useRef(new Map<string | number, string>());
+    const messageKey = (id: string | number): string | number => clientKeyByIdRef.current.get(id) ?? id;
+    // Пока к своему сообщению грузятся фото, показываем его из outbox (с локальными превью), а не
+    // серверную версию без фото, пришедшую событием раньше.
+    const deliveringIds = new Set(outbox.filter(o => o.serverId !== undefined && o.status !== 'sent').map(o => o.serverId));
+    const serverMessages = (ticket?.messages ?? []).filter(m => !deliveringIds.has(m.id));
+    const serverIds = new Set(serverMessages.map(m => m.id));
+    const visibleOutbox = outbox.filter(o => o.serverId === undefined || !serverIds.has(o.serverId));
+    const renderedKeys = [...serverMessages.map(m => messageKey(m.id)), ...visibleOutbox.map(o => o.key)];
+    const renderedKeysSig = renderedKeys.join('|');
     useLayoutEffect(() => {
         const list = messagesListRef.current;
         if (!list) return;
+        const fresh = freshTailKeys(renderedKeys, seenKeysRef.current, enterArmedRef.current);
+        for (const key of fresh) {
+            const el = list.querySelector(`[data-msg-key="${CSS.escape(String(key))}"]`);
+            animateMessageEnter(el, el?.hasAttribute('data-msg-mine') ?? false);
+        }
         if (!shownAtEndRef.current) {
             shownAtEndRef.current = true;
             list.scrollTop = list.scrollHeight;
+            // Всё, что показано при открытии, — без анимации; дальше новые сообщения всплывают.
+            requestAnimationFrame(() => { enterArmedRef.current = true; });
             return;
         }
-        list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
-    }, [ticket?.messages?.length]);
+        const ownMessage = forceScrollRef.current;
+        forceScrollRef.current = false;
+        if (ownMessage || atBottomRef.current) list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [renderedKeysSig]);
+    useStickToBottom(messagesListRef, atBottomRef, [!!ticket]);
 
     // Mirrors every local ticket change straight back to the parent's tickets table (see
     // `onTicketChange` doc) — covers the initial load, admin edit-save, and the
@@ -362,23 +408,33 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         e.target.value = '';
     };
 
-    const handleSend = async () => {
-        const text = message.trim();
-        if ((!text && photos.length === 0) || isSending || !canReply) return;
-        setIsSending(true);
+    /**
+     * Доставка сообщения, уже показанного в переписке (outbox): текст → фото к нему → свежая переписка.
+     * Серверная версия с фото показывается, когда превью уже в кэше (без мигания заглушки), тем же
+     * узлом. Не вышло — сообщение помечается ошибкой, нажатие на значок — повторить.
+     */
+    const deliver = async (item: OutgoingMessage) => {
+        const update = (patch: Partial<OutgoingMessage>) => setOutbox(prev => prev.map(o => o.key === item.key ? { ...o, ...patch } : o));
+        update({ status: 'pending' });
         try {
-            const body: Record<string, string> = { techSupport: API_ROUTES.TECH_SUPPORT_BY_ID(ticketId) };
-            if (text) body.description = text;
+            let serverId = item.serverId;
+            if (serverId === undefined) {
+                const body: Record<string, string> = { techSupport: API_ROUTES.TECH_SUPPORT_BY_ID(ticketId) };
+                if (item.text) body.description = item.text;
+                const result: TechSupportMessage = await universalApiRequest(API_ROUTES.TECH_SUPPORT_MESSAGES_CREATE, {
+                    method: 'POST',
+                    body,
+                });
+                serverId = result?.id;
+                if (serverId !== undefined) {
+                    clientKeyByIdRef.current.set(serverId, item.key);
+                    update({ serverId });
+                }
+            }
 
-            const result: TechSupportMessage = await universalApiRequest(API_ROUTES.TECH_SUPPORT_MESSAGES_CREATE, {
-                method: 'POST',
-                body,
-            });
-
-            const newFiles = photos.filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new').map(p => p.file);
-            if (newFiles.length > 0 && result?.id) {
+            if (item.files.length > 0 && serverId !== undefined) {
                 try {
-                    await uploadPhotos('tech-support-messages', result.id, newFiles);
+                    await uploadPhotos('tech-support-messages', serverId, item.files);
                 } catch {
                     // Photo upload failures are non-critical
                 }
@@ -400,14 +456,38 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                 }
             }
 
-            setMessage('');
-            setPhotos([]);
-            await fetchTicket();
+            const data: SupportTicket = await universalApiRequest(API_ROUTES.TECH_SUPPORT_BY_ID(ticketId));
+            const sent = data.messages?.find(m => m.id === serverId);
+            await warmImages((sent?.images ?? []).map(img => toPhotoSource(img, 'uploads/tech_support_messages').thumbnail ?? formatTechSupportMessageImageUrl(img.image)));
+            shownResponseRef.current = data;
+            setTicket({ ...data, messages: sortMessagesByCreatedAt(data.messages ?? []) });
+            update({ status: 'sent' });
+            item.previews.forEach(url => URL.revokeObjectURL(url));
+            markThreadRead();
         } catch {
+            update({ status: 'error' });
             setError(t('thread.sendError'));
-        } finally {
-            setIsSending(false);
         }
+    };
+
+    const handleSend = () => {
+        const text = message.trim();
+        if ((!text && photos.length === 0) || !canReply) return;
+        const newPhotos = photos.filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new');
+        const item: OutgoingMessage = {
+            key: `local-${Date.now()}`,
+            text,
+            files: newPhotos.map(p => p.file),
+            previews: newPhotos.map(p => p.previewUrl),
+            createdAt: new Date().toISOString(),
+            status: 'pending',
+        };
+        forceScrollRef.current = true;
+        enterArmedRef.current = true;
+        setOutbox(prev => [...prev, item]);
+        setMessage('');
+        setPhotos([]);
+        void deliver(item);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -1026,7 +1106,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                             )}
                         </div>
 
-                        {(ticket.messages ?? []).map(msg => {
+                        {[...serverMessages.map(msg => {
                             const isMine = !!currentUserId && msg.author?.id === currentUserId;
                             const authorName = fullName(msg.author);
                             // Role by ticket membership (author/administrant id match), falling
@@ -1057,7 +1137,12 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                             const isDeletingThisMessage = deletingMessageId === msg.id;
 
                             return (
-                                <div key={msg.id} className={`${styles.message} ${isMine ? styles.messageMine : styles.messageSupport}`}>
+                                <div
+                                    key={messageKey(msg.id)}
+                                    data-msg-key={messageKey(msg.id)}
+                                    data-msg-mine={isMine ? '' : undefined}
+                                    className={`${styles.message} ${isMine ? styles.messageMine : styles.messageSupport}`}
+                                >
                                     <div className={styles.messageHeader}>
                                         <RoleIcon title={msgRole === 'admin' ? t('thread.executorRole') : t('thread.authorRole')} />
                                         <span className={styles.messageAuthorName}>
@@ -1155,9 +1240,59 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                     )}
                                 </div>
                             );
-                        })}
+                        }), ...visibleOutbox.map(item => {
+                            // Своё сообщение до ответа сервера: часики (или «повторить»), фото — локальные
+                            // превью с загрузкой прямо в сообщении.
+                            const ownRole = getMessageRole(currentUserId) ?? (isAdminUser ? 'admin' : 'author');
+                            const OwnRoleIcon = ownRole === 'admin' ? IoHeadsetOutline : IoPersonOutline;
+                            const ownTag = ownRole === 'admin' ? t('thread.youExecutor') : t('thread.youAuthor');
+                            return (
+                                <div
+                                    key={item.key}
+                                    data-msg-key={item.key}
+                                    data-msg-mine=""
+                                    className={`${styles.message} ${styles.messageMine}`}
+                                >
+                                    <div className={styles.messageHeader}>
+                                        <OwnRoleIcon />
+                                        <span className={styles.messageAuthorName}>
+                                            <Marquee text={myName ? `${myName} (${ownTag})` : ownTag} alwaysScroll threshold={16} />
+                                        </span>
+                                        <span className={styles.messageTime}>
+                                            {getFormattedDateTime(item.createdAt)}
+                                            {item.status === 'error' ? (
+                                                <button
+                                                    type="button"
+                                                    className={styles.outgoingRetry}
+                                                    onClick={() => void deliver(item)}
+                                                    aria-label={t('thread.sendError')}
+                                                    title={t('thread.sendError')}
+                                                >
+                                                    <IoAlertCircle />
+                                                </button>
+                                            ) : (
+                                                <IoTimeOutline className={styles.outgoingPending} />
+                                            )}
+                                        </span>
+                                    </div>
+                                    {item.text && <Markdown text={item.text} className={styles.messageBodyMd} />}
+                                    {item.previews.length > 0 && (
+                                        <div className={`${styles.messageImages} ${styles.outgoingImages}`}>
+                                            {item.previews.map((url, i) => (
+                                                <img key={i} src={url} alt="" className={styles.messageImage} />
+                                            ))}
+                                            {item.status === 'pending' && (
+                                                <div className={styles.outgoingProgress}>
+                                                    <PageLoader compact asSpan primary={false} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })]}
 
-                        {(ticket.messages ?? []).length === 0 && (
+                        {(ticket.messages ?? []).length === 0 && visibleOutbox.length === 0 && (
                             <div className={styles.noMessages}>{t('thread.noMessages')}</div>
                         )}
                     </div>
@@ -1201,7 +1336,6 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                     type="button"
                                     className={styles.attachButton}
                                     onClick={triggerFileInput}
-                                    disabled={isSending}
                                     aria-label={t('form.photosLabel')}
                                 >
                                     <IoAttach />
@@ -1217,14 +1351,15 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                     value={message}
                                     onChange={setMessage}
                                     onKeyDown={handleKeyDown}
-                                    disabled={isSending}
                                 />
 
                                 <button
                                     type="button"
                                     className={styles.sendBtn}
                                     onClick={handleSend}
-                                    disabled={isSending || (!message.trim() && photos.length === 0)}
+                                    // Отправка не закрывает клавиатуру: кнопка не забирает фокус у поля.
+                                    onMouseDown={keepComposerFocus}
+                                    disabled={!message.trim() && photos.length === 0}
                                     aria-label={t('thread.send')}
                                 >
                                     <IoSend />
@@ -1239,7 +1374,6 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                     onClickPhoto={index => composeGallery.openGallery(index)}
                                     inputId="ts-thread-compose-photos"
                                     photoAlt={t('form.photoAlt')}
-                                    disabled={isSending}
                                 />
                             )}
                         </>

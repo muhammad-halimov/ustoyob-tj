@@ -216,3 +216,66 @@ html.native {
   60%  { transform: scale(1.1); }
   100% { transform: none; }
 }
+
+// ── Обращение в ТП — экран переписки, как чат (обе платформы) ────────────────────────────────────
+// Открыто обращение (`?ticket=`): навигация по юридическим документам и подвал сайта здесь не нужны,
+// переписка занимает экран и прокручивается внутри себя, поле ввода — внизу над панелью, как в чатах
+// (высота — тем же приёмом, что у чата, см. Chat.module.scss). Раньше это был кусок длинной страницы:
+// лента в 60% экрана, поле ввода за краем, прокручивалась вся страница.
+html.native body:has([class*='_threadBody_']) {
+  footer[class^='_footer_'] {
+    display: none;
+  }
+
+  main > div:has([class*='_threadBody_']) {
+    padding-top: 12px;
+    padding-bottom: 0;
+
+    > div:not(:has([class*='_threadBody_'])) {
+      display: none;
+    }
+  }
+
+  [class*='_thread_']:has(> [class*='_threadBody_']) {
+    height: calc(100dvh - 195px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  [class*='_threadBody_'] {
+    flex: 1;
+    min-height: 0;
+
+    > [class*='_messages_'] {
+      max-height: none;
+    }
+  }
+}
+
+// Android: поле сообщения в фокусе (открыта клавиатура) — нижняя панель прячется, как в мессенджерах:
+// поле ввода прямо над клавиатурой, а освободившееся место отдаётся переписке. У обращения в ТП ещё
+// сворачиваются подробности шапки (остаётся тема) — иначе ленте оставалась одна строка. Высоты — до
+// самой клавиатуры: от начала переписки (шапки + отступ страницы) и без места под панель.
+html.native-android body:has([class*='_chatInput_'] :is(textarea, input):focus) {
+  // !important — у панели в общих стилях `display: block !important` (Header.module.scss).
+  [class*='_mobile_header_'] {
+    display: none !important;
+  }
+
+  [class*='_thread_']:has(> [class*='_threadBody_']) {
+    height: calc(100dvh - 133px);
+  }
+
+  [class*='_threadMeta_'] {
+    display: none;
+  }
+
+  // Чат начинается на 157px (шапки + отступ страницы) — до самой клавиатуры, с зазором в пару пикселей.
+  div:has(> [class*='_chatArea_']),
+  [class*='_chatArea_'] {
+    height: calc(100dvh - 161px);
+    min-height: calc(100dvh - 161px);
+    max-height: calc(100dvh - 161px);
+  }
+}

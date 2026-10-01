@@ -501,3 +501,38 @@
   .messages { max-height: 50vh; }
   .messageImage { width: 72px; height: 72px; }
 }
+
+// Мобильная сборка: своё сообщение до ответа сервера — часики, не ушло — значок «повторить»; фото —
+// локальные превью с загрузкой прямо в сообщении.
+.outgoingPending {
+  margin-left: 4px;
+  vertical-align: -2px;
+}
+
+.outgoingRetry {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #ef5350;
+  font-size: 16px;
+  vertical-align: -4px;
+  cursor: pointer;
+}
+
+.outgoingImages {
+  position: relative;
+  width: fit-content;
+}
+
+.outgoingProgress {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: map.get(vars.$border-radius, base);
+  background: rgba(0, 0, 0, 0.28);
+}
