@@ -41,6 +41,7 @@ import {formatTicketImageUrl, toPhotoSource, resolveAvatar} from '../../../../ut
 import {fetchAllPages} from '../../../../utils/paginationUtils';
 import {getSessionJSON, getStorageItem, removeSessionItem, setSessionJSON} from '../../../../utils/storageUtils';
 import {resolveApiError} from '../../../../utils/appMessagesUtils';
+import { runNativeTransition } from '../../../../utils/nativeMotion';
 
 /** Intermediate type: raw API ticket enriched with computed display fields for filtering/sorting */
 type TicketWithMeta = ApiTicket & { type: UserRole; userRating: number; userReviewCount: number };
@@ -949,8 +950,11 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     }, [respondedTickets, respondingTicketId, t]);
 
     const handleFilterToggle = useCallback((isVisible: boolean) => {
-        setShowFilters(isVisible);
-        onFilterToggle(isVisible);
+        // Мобильная сборка: раскрытие/скрытие фильтров — растворением, а не скачком (utils/nativeMotion.ts).
+        runNativeTransition('fade', () => {
+            setShowFilters(isVisible);
+            onFilterToggle(isVisible);
+        });
     }, [onFilterToggle]);
 
     const handleResetFilters = useCallback(() => {

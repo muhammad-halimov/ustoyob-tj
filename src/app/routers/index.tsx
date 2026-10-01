@@ -19,6 +19,7 @@ import NotFound from "../../pages/notFound/NotFound";
 import RouteErrorBoundary from "../../pages/errorBoundary/RouteErrorBoundary";
 import { ROUTE_PATTERNS } from './routes';
 import { tabElement } from '../layouts/keepAliveTabs';
+import { installNativePageTransitions } from '../../utils/nativeMotion';
 
 /**
  * Application router.
@@ -129,6 +130,9 @@ const router = createBrowserRouter([
         errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
     },
 ]);
+
+// Мобильная сборка: анимированные переходы между экранами (utils/nativeMotion.ts).
+installNativePageTransitions(router);
 
 export const AppRouter = () => {
     return <RouterProvider router={router} />;

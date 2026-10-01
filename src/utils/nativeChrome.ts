@@ -66,6 +66,8 @@ export function initNativeChrome(): void {
 
     // Общий для обеих платформ класс — «нативные» правила поведения (см. `html.native` в native.scss).
     document.documentElement.classList.add('native');
+    // Анимации — по платформе (app/styles/native-motion.scss): Material на Android, UIKit на iOS.
+    if (platform === 'android') document.documentElement.classList.add('native-android');
 
     if (platform !== 'ios') return;
     addViewportDirective('viewport-fit=cover');

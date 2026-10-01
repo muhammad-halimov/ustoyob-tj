@@ -1,0 +1,182 @@
+// Анимации мобильной сборки (подключается из app/main.tsx, на `front` этого файла нет). Активны только
+// под `html.native` (+ `native-android` / `native-ios`, их ставит utils/nativeChrome.ts); когда и в какую
+// сторону запускать переходы — utils/nativeMotion.ts.
+//
+// Движение — по платформе, как в нативных приложениях: Android — Material 3 (shared axis для переходов,
+// fade through для вкладок, диалоги с лёгким масштабом), iOS — как в UIKit (пуш со сдвигом подложки,
+// алерты «из чуть большего»).
+//
+// Селекторы по подстроке хешированных классов (`[class*='_имя_']`) — см. предупреждение в native.scss.
+// В keyframes для живых элементов — отдельные свойства `scale`/`translate`, а не `transform`: они
+// складываются с собственным transform элемента, а не затирают его.
+
+$md-emphasized: cubic-bezier(0.2, 0, 0, 1);
+$md-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+$md-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+$ios-ease: cubic-bezier(0.32, 0.72, 0, 1);
+
+// ── Переходы между экранами (View Transitions) ───────────────────────────────────────────────────
+html.native {
+  // Нижняя панель в переходе не участвует: своя группа без анимации, сразу живое новое состояние
+  // (подсветка активной вкладки при этом плавно переезжает своими transition).
+  [class*='_mobile_header_'] { view-transition-name: native-bottom-nav; }
+  &::view-transition-group(native-bottom-nav) { animation: none; }
+  &::view-transition-old(native-bottom-nav) { display: none; }
+  &::view-transition-new(native-bottom-nav) { animation: none; }
+  // Плавающий баннер cookie — тоже на месте, а не уезжает вместе со страницей.
+  [class*='_cookieBanner_'] { view-transition-name: native-cookie-banner; }
+  &::view-transition-group(native-cookie-banner) { animation: none; }
+  &::view-transition-old(native-cookie-banner) { display: none; }
+  &::view-transition-new(native-cookie-banner) { animation: none; }
+}
+
+html.native-android {
+  // Material 3 shared axis (X): старый экран уходит на 30px и гаснет в первой трети, новый приходит
+  // с 30px и проявляется в остальное время.
+  &.vt-forward::view-transition-old(root) { animation: 300ms $md-emphasized both native-axis-out-start; }
+  &.vt-forward::view-transition-new(root) { animation: 300ms $md-emphasized both native-axis-in-end; }
+  &.vt-back::view-transition-old(root) { animation: 300ms $md-emphasized both native-axis-out-end; }
+  &.vt-back::view-transition-new(root) { animation: 300ms $md-emphasized both native-axis-in-start; }
+  // Material fade through — смена вкладки нижней панели.
+  &.vt-tab::view-transition-old(root) { animation: 90ms cubic-bezier(0.4, 0, 1, 1) both native-fade-out; }
+  &.vt-tab::view-transition-new(root) { animation: 210ms $md-decelerate 90ms both native-fade-through-in; }
+}
+
+html.native-ios {
+  // UIKit push: новый экран въезжает справа на всю ширину, старый уходит на треть влево и темнеет.
+  &.vt-forward::view-transition-old(root) { animation: 420ms $ios-ease both native-ios-push-out; }
+  &.vt-forward::view-transition-new(root) { animation: 420ms $ios-ease both native-ios-push-in; box-shadow: -10px 0 28px rgba(0, 0, 0, 0.14); }
+  // Pop: верхний (уходящий) экран — поверх.
+  &.vt-back::view-transition-old(root) { z-index: 2; animation: 420ms $ios-ease both native-ios-pop-out; box-shadow: -10px 0 28px rgba(0, 0, 0, 0.14); }
+  &.vt-back::view-transition-new(root) { animation: 420ms $ios-ease both native-ios-pop-in; }
+  // Вкладки на iOS переключаются почти мгновенно — короткое растворение.
+  &.vt-tab::view-transition-old(root) { animation: 150ms ease both native-fade-out; }
+  &.vt-tab::view-transition-new(root) { animation: 150ms ease both native-fade-in; }
+}
+
+// Смена вида внутри экрана (вкладки, раскрытие фильтров) — короткое перекрёстное растворение.
+html.native {
+  &.vt-fade::view-transition-old(root) { animation: 160ms ease-out both native-fade-out; }
+  &.vt-fade::view-transition-new(root) { animation: 220ms $md-decelerate 40ms both native-fade-in; }
+}
+
+// ── Модалки, галерея, меню, выпадающие списки, баннер cookie ────────────────────────────────────
+html.native {
+  [data-native-ghost] { pointer-events: none !important; }
+
+  // Диалоги (у всех модалок приложения подложка — `modalOverlay`, панель — её первый ребёнок).
+  [class*='_modalOverlay_']:not([data-native-ghost]) { animation: 200ms ease-out both native-fade-in; }
+  [class*='_modalOverlay_']:not([data-native-ghost]) > :first-child { animation: 280ms $md-decelerate both native-dialog-in; }
+  [data-native-ghost='dialog'] { animation: 190ms ease-in both native-fade-out; }
+  [data-native-ghost='dialog'] > :first-child { animation: 190ms $md-accelerate both native-dialog-out; }
+
+  // Галерея фото: подложка проявляется, снимок «приближается».
+  [class*='_photo_modal_overlay_']:not([data-native-ghost]),
+  [class*='_photoModalOverlay_']:not([data-native-ghost]) { animation: 220ms ease-out both native-fade-in; }
+  [class*='_photo_modal_content_'] { animation: 280ms $md-decelerate both native-zoom-in; }
+  [data-native-ghost='gallery'] { animation: 200ms ease-in both native-fade-out; }
+
+  // Меню «⋮» и выпадающие списки — раскрываются от своего угла.
+  [data-actions-dropdown-portal]:not([data-native-ghost]) {
+    transform-origin: top right;
+    animation: 180ms $md-decelerate both native-menu-in;
+  }
+  [class*='_dropdown_'][role='listbox']:not([data-native-ghost]) {
+    transform-origin: top center;
+    animation: 180ms $md-decelerate both native-menu-in;
+  }
+  [data-native-ghost='menu'],
+  [data-native-ghost='listbox'] { animation: 140ms ease-in both native-menu-out; }
+
+  // Баннер cookie выезжает снизу, а не возникает.
+  [class*='_cookieBanner_'] { animation: 380ms $md-decelerate 300ms both native-rise-in; }
+
+  // Лоадер показывается, только если ждать действительно приходится: короткая загрузка (из кэша,
+  // быстрая сеть) не мелькает спиннером, длинная — плавно его проявляет.
+  [data-page-loader] { animation: 220ms ease 120ms both native-fade-in; }
+}
+
+// iOS-алерт появляется «из чуть большего».
+html.native-ios [class*='_modalOverlay_']:not([data-native-ghost]) > :first-child {
+  animation: 300ms $ios-ease both native-ios-alert-in;
+}
+
+// ── Нижняя панель на Android: индикатор Material 3 ───────────────────────────────────────────────
+// Под активной иконкой — «таблетка», которая раскрывается из центра при выборе вкладки; при нажатии на
+// любую вкладку таблетка проступает как отклик (state layer). На iOS у панели своя анимация (native.scss).
+html.native-android [class*='_mobile_header_'] > [class*='_bottomHeader_navList_'] {
+  > li > [class*='_navLink_'] {
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: 50%;
+      width: 56px;
+      height: 32px;
+      margin-left: -28px;
+      border-radius: 16px;
+      background: rgba(58, 84, 218, 0.16);
+      background: color-mix(in srgb, var(--color-actual-blue) 18%, transparent);
+      transform: scaleX(0.35);
+      opacity: 0;
+      transition: transform 320ms $md-emphasized, opacity 180ms ease;
+      pointer-events: none;
+    }
+
+    &:active::before { transform: scaleX(1); opacity: 0.55; transition-duration: 120ms; }
+
+    > svg,
+    > [class*='_navIconWrap_'],
+    > p { position: relative; }
+  }
+
+  > li[class*='_active_'] > [class*='_navLink_'] {
+    &::before { transform: scaleX(1); opacity: 1; }
+    svg { animation: 400ms $md-emphasized native-nav-icon-pop; }
+  }
+}
+
+// ── Ключевые кадры ───────────────────────────────────────────────────────────────────────────────
+@keyframes native-axis-out-start { 0% { transform: none; opacity: 1; } 30% { opacity: 0; } 100% { transform: translateX(-30px); opacity: 0; } }
+@keyframes native-axis-in-end    { 0% { transform: translateX(30px); opacity: 0; } 30% { opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes native-axis-out-end   { 0% { transform: none; opacity: 1; } 30% { opacity: 0; } 100% { transform: translateX(30px); opacity: 0; } }
+@keyframes native-axis-in-start  { 0% { transform: translateX(-30px); opacity: 0; } 30% { opacity: 0; } 100% { transform: none; opacity: 1; } }
+
+@keyframes native-ios-push-out { to { transform: translateX(-30%); filter: brightness(0.9); } }
+@keyframes native-ios-push-in  { from { transform: translateX(100%); } }
+@keyframes native-ios-pop-out  { to { transform: translateX(100%); } }
+@keyframes native-ios-pop-in   { from { transform: translateX(-30%); filter: brightness(0.9); } }
+
+@keyframes native-fade-in  { from { opacity: 0; } }
+@keyframes native-fade-out { to { opacity: 0; } }
+@keyframes native-fade-through-in { from { opacity: 0; transform: scale(0.92); } }
+
+@keyframes native-dialog-in  { from { opacity: 0; scale: 0.9; } }
+@keyframes native-dialog-out { to { opacity: 0; scale: 0.95; } }
+@keyframes native-ios-alert-in { from { opacity: 0; scale: 1.12; } }
+@keyframes native-zoom-in { from { opacity: 0; scale: 0.94; } }
+@keyframes native-menu-in  { from { opacity: 0; scale: 0.9; } }
+@keyframes native-menu-out { to { opacity: 0; scale: 0.96; } }
+@keyframes native-rise-in { from { opacity: 0; translate: 0 24px; } }
+@keyframes native-nav-icon-pop { 0% { scale: 0.8; } 60% { scale: 1.08; } 100% { scale: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html.native::view-transition-group(*),
+  html.native::view-transition-old(*),
+  html.native::view-transition-new(*) { animation: none !important; }
+
+  html.native {
+    [class*='_modalOverlay_'],
+    [class*='_modalOverlay_'] > :first-child,
+    [class*='_photo_modal_overlay_'],
+    [class*='_photoModalOverlay_'],
+    [class*='_photo_modal_content_'],
+    [data-actions-dropdown-portal],
+    [class*='_dropdown_'][role='listbox'],
+    [class*='_cookieBanner_'],
+    [data-page-loader],
+    [class*='_mobile_header_'] svg { animation: none !important; }
+  }
+}

@@ -36,6 +36,7 @@ import type { ChatImageView as ChatImageThumbnail, ChatMessageView as Message } 
 import { API_BASE_URL } from '../../utils/configUtils';
 import { sameResponse } from '../../utils/apiCache';
 import { CHAT_MESSAGES_OPTIONS, chatFirstPageUrl, prefetchChatMessages } from '../../utils/nativeChatPrefetch';
+import { runNativeTransition } from '../../utils/nativeMotion';
 
 // Backend physically rejects PATCH /chat-messages/{id} past this window (`edit_window_expired`,
 // 403) — 15 minutes from the message's own `createdAt`. Hiding the pencil once it's expired
@@ -1423,17 +1424,26 @@ function Chat() {
 
     const handleChatSelect = useCallback((chatId: string | number) => {
         console.log('Selecting chat:', chatId);
-        setSelectedChat(chatId);
-        if (window.innerWidth <= 960) {
-            setIsMobileChatActive(true);
-        }
+        const isPhone = window.innerWidth <= 960;
+        const select = () => {
+            setSelectedChat(chatId);
+            if (isPhone) setIsMobileChatActive(true);
+        };
+        // Телефон: список и переписка — один экран; мобильная сборка анимирует переход, как в
+        // мессенджерах (переписка «въезжает»). На сайте и на широком экране — как раньше.
+        if (isPhone) runNativeTransition('forward', select);
+        else select();
     }, []);
 
     const handleBackToChatList = useCallback(() => {
-        setIsMobileChatActive(false);
-        setSelectedChat(null);
-        setSelectedPhotoItems([]);
-        setChatImages([]);
+        const back = () => {
+            setIsMobileChatActive(false);
+            setSelectedChat(null);
+            setSelectedPhotoItems([]);
+            setChatImages([]);
+        };
+        if (window.innerWidth <= 960 && selectedChatIdRef.current !== null) runNativeTransition('back', back);
+        else back();
     }, []);
 
     // Закрываем активный чат при нажатии на кнопку чатов в хедере

@@ -1,6 +1,7 @@
 import React from 'react';
 import styles from './Tabs.module.scss';
 import { Marquee } from '../Text/Marquee';
+import { runNativeTransition } from '../../../utils/nativeMotion';
 
 export interface TabItem<T extends string = string> {
     key: T;
@@ -46,7 +47,8 @@ export function Tabs<T extends string = string>({
                     key={tab.key}
                     type="button"
                     className={`${styles.tab}${activeTab === tab.key ? ` ${styles.active}` : ''}`}
-                    onClick={() => onChange(tab.key)}
+                    // Мобильная сборка: содержимое вкладок сменяется растворением (utils/nativeMotion.ts).
+                    onClick={() => (tab.key === activeTab ? onChange(tab.key) : runNativeTransition('fade', () => onChange(tab.key)))}
                 >
                     {(tab.icon || typeof tab.label === 'string') ? (
                         <span className={styles.tab_content}>

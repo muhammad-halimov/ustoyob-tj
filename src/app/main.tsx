@@ -30,7 +30,9 @@ import { initNativeSplash } from '../utils/nativeSplash';
 import { initNativePrefetch } from '../utils/nativePrefetch';
 import { initNativeSession } from '../utils/nativeSession';
 import { loadNativeSnapshot } from '../utils/nativeSnapshot';
+import { initNativeMotion } from '../utils/nativeMotion';
 import './styles/native.scss';
+import './styles/native-motion.scss';
 
 // Мобильное приложение: истёкший за время перерыва JWT обновляем до первых запросов — они
 // дождутся нового токена (см. utils/nativeSession.ts). Поэтому раньше preloadData.
@@ -55,6 +57,7 @@ if (isNativePlatform()) initNativeOAuthDeepLinks();
 initNativeSplash();
 initNativePrefetch();
 initNativeChrome();
+initNativeMotion();
 
 // Мобильное приложение, самый первый запуск: сначала встроенный снимок данных (utils/nativeSnapshot.ts),
 // потом прогрев справочников и первый рендер — главная сразу с данными, без ожидания сети. На сайте и

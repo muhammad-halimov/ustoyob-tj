@@ -25,7 +25,7 @@ const PageLoader = ({ text, fullPage = true, overlay = false, compact = false, a
 
     if (asSpan) {
         return (
-            <span className={className}>
+            <span className={className} data-page-loader>
                 <span className={spinnerClassName} />
                 {text && <span className={styles.text}>{text}</span>}
             </span>
@@ -33,7 +33,7 @@ const PageLoader = ({ text, fullPage = true, overlay = false, compact = false, a
     }
 
     return (
-        <div className={className}>
+        <div className={className} data-page-loader>
             <div className={spinnerClassName} />
             {text && <p className={styles.text}>{text}</p>}
         </div>
