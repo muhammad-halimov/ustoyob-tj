@@ -188,6 +188,11 @@
   &:last-child {
     border-bottom: none;
   }
+
+  // Под выбором адреса (последний блок — список районов) баннер согласия стоял вплотную.
+  .consent {
+    margin-top: 16px;
+  }
 }
 
 .form_actions {
