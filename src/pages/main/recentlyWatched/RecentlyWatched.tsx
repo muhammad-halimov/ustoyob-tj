@@ -6,6 +6,7 @@ import type { Swiper as SwiperType } from 'swiper';
 import { IoChevronBack, IoChevronForward } from 'react-icons/io5';
 import 'swiper/css';
 import styles from './RecentlyWatched.module.scss';
+import carouselStyles from '../../../shared/ui/Photo/Carousel/Carousel.module.scss';
 import { Card } from '../../../shared/ui/Ticket/Card/Card';
 import { ROUTES } from '../../../app/routers/routes';
 import { getUserRole } from '../../../utils/authUtils';
@@ -99,6 +100,9 @@ function RecentlyWatched() {
                 slidesPerView="auto"
                 spaceBetween={16}
                 grabCursor
+                // Свайп по фото карточки листает её фото, а не всю ленту: иначе одним жестом
+                // переключалось фото и дёргался слайдер карточек.
+                noSwipingSelector={`.${carouselStyles.main_wrap}, .${carouselStyles.thumbnail_row}`}
                 onSwiper={(swiper) => { swiperRef.current = swiper; syncArrows(swiper); }}
                 onSlideChange={syncArrows}
                 onReachBeginning={syncArrows}
