@@ -254,9 +254,11 @@ export function animateLayoutChange(origin: Element | null | undefined, update?:
             node.setAttribute('data-native-ghost', 'layout');
             node.setAttribute('aria-hidden', 'true');
             node.inert = true;
+            // transition: none — у многих блоков (карточка) `transition: all`: иначе left/top «доезжали»
+            // из угла контейнера, и призрак пролетал через полэкрана.
             Object.assign(node.style, {
                 position: 'absolute', left: '0px', top: '0px', margin: '0', boxSizing: 'border-box',
-                width: `${was.width}px`, height: `${was.height}px`, transform: 'none', pointerEvents: 'none',
+                width: `${was.width}px`, height: `${was.height}px`, transform: 'none', pointerEvents: 'none', transition: 'none',
             });
             host.appendChild(node);
             ghosts.push(node);
