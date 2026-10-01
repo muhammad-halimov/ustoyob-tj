@@ -82,3 +82,7 @@ ios/App/App.xcworkspace/xcuserdata/
 # (раскомментируй, если так и есть у тебя в workflow)
 # ios/App/App/public/
 # android/app/src/main/assets/public/
+
+# Снимок данных для первого запуска мобильного приложения — генерируется перед сборкой
+# (scripts/build-mobile-snapshot.mjs), в git не храним
+public/snapshot/

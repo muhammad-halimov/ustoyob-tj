@@ -128,7 +128,26 @@ const seedUsersFromTicket = (ticket: object, token: string | null): void => {
 export const peekApi = <T = any>(endpoint: string, options: ApiRequestOptions = {}): T | undefined => {
     if (!isCacheableGet(options)) return undefined;
     const token = options.requiresAuth !== false ? getAuthToken() : null;
-    return peekByKey(apiCacheKey(buildRequestUrl(endpoint, options), token)) as T | undefined;
+    const url = buildRequestUrl(endpoint, options);
+    const own = peekByKey(apiCacheKey(url, token));
+    if (own !== undefined || !token) return own as T | undefined;
+    // Сразу после входа своего кэша ещё нет, а тот же запрос гостем уже был (лента, отзывы, тикет,
+    // чужой профиль) — показываем гостевой ответ, пока идёт свой. Личных данных (…/me) у гостя нет.
+    return peekByKey(apiCacheKey(url, null)) as T | undefined;
+};
+
+/**
+ * Мобильная сборка, первый запуск: ответ из встроенного снимка (utils/nativeSnapshot.ts) — только в
+ * память и только если своего ещё нет; тикеты и авторы из списка раскладываются так же, как для
+ * свежего ответа, чтобы их страницы тоже открывались сразу.
+ */
+export const seedApi = (endpoint: string, options: ApiRequestOptions, data: unknown): void => {
+    if (!isCacheableGet(options)) return;
+    const token = options.requiresAuth !== false ? getAuthToken() : null;
+    const key = apiCacheKey(buildRequestUrl(endpoint, options), token);
+    if (peekByKey(key) !== undefined) return;
+    seedMemoryByKey(key, data);
+    seedTicketsFromList(endpoint, options, data, token);
 };
 
 /**

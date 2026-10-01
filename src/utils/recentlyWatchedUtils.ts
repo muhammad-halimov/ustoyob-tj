@@ -1,4 +1,4 @@
-import { universalApiRequest } from './apiUtils';
+import { peekApi, universalApiRequest } from './apiUtils';
 import { getAuthToken } from './authUtils';
 import { getStorageJSON, setStorageJSON, removeStorageItem } from './storageUtils';
 import { API_ROUTES } from '../app/routers/routes';
@@ -54,13 +54,18 @@ export const recordRecentlyWatched = (ticketId: TicketId): void => {
  * GET /api/recently-watched — новые первыми. Пустой список бэк отдаёт как 404
  * resource_not_found (как /chats/me), а не 200 + [] — это "просмотров ещё нет", не ошибка.
  */
+const serverHistoryUrl = (itemsPerPage: number): string => `${API_ROUTES.RECENTLY_WATCHED}?page=1&itemsPerPage=${itemsPerPage}`;
+
+const serverHistoryTickets = (data: unknown): Ticket[] => {
+    const items: RecentlyWatched[] = Array.isArray(data)
+        ? data
+        : (data as HydraResponse<RecentlyWatched> | null)?.['hydra:member'] ?? [];
+    return items.map(item => item.ticket).filter(Boolean);
+};
+
 const fetchServerHistory = async (itemsPerPage: number): Promise<Ticket[]> => {
     try {
-        const data = await universalApiRequest(`${API_ROUTES.RECENTLY_WATCHED}?page=1&itemsPerPage=${itemsPerPage}`);
-        const items: RecentlyWatched[] = Array.isArray(data)
-            ? data
-            : (data as HydraResponse<RecentlyWatched> | null)?.['hydra:member'] ?? [];
-        return items.map(item => item.ticket).filter(Boolean);
+        return serverHistoryTickets(await universalApiRequest(serverHistoryUrl(itemsPerPage)));
     } catch (e: any) {
         if (e?.http === 404 || e?.status === 404) return [];
         throw e;
@@ -97,6 +102,25 @@ const fetchGuestHistory = async (limit: number): Promise<Ticket[]> => {
 };
 
 /** История просмотров для блока на главной — тикеты, новые первыми (сервер или localStorage). */
+/**
+ * Мобильная сборка: последний известный список без сети (кэш API) — блок на главной стоит на месте с
+ * первого кадра, а не появляется после загрузки. undefined — показать нечего: список ещё не
+ * загружался или (у гостя) не все его тикеты есть в кэше — тогда ждём сеть, как раньше.
+ */
+export const peekRecentlyWatchedTickets = (limit = 10): Ticket[] | undefined => {
+    if (getAuthToken()) {
+        const data = peekApi(serverHistoryUrl(limit));
+        return data === undefined ? undefined : serverHistoryTickets(data);
+    }
+    const tickets: Ticket[] = [];
+    for (const id of getGuestIds().slice(0, limit)) {
+        const ticket = peekApi<Ticket>(API_ROUTES.TICKET_BY_ID(id), { requiresAuth: false });
+        if (!ticket) return undefined;
+        tickets.push(ticket);
+    }
+    return tickets;
+};
+
 export const getRecentlyWatchedTickets = async (limit = 10): Promise<Ticket[]> => {
     if (getAuthToken()) {
         if (getGuestIds().length > 0) await syncGuestHistoryToServer();

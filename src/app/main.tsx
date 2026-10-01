@@ -29,6 +29,7 @@ import { initNativeChrome } from '../utils/nativeChrome';
 import { initNativeSplash } from '../utils/nativeSplash';
 import { initNativePrefetch } from '../utils/nativePrefetch';
 import { initNativeSession } from '../utils/nativeSession';
+import { loadNativeSnapshot } from '../utils/nativeSnapshot';
 import './styles/native.scss';
 
 // Мобильное приложение: истёкший за время перерыва JWT обновляем до первых запросов — они
@@ -43,8 +44,6 @@ window.addEventListener('languageChanged', () => {
     setTimeout(() => { preloadData(); loadAppMessages(undefined, true); }, 100);
 });
 
-preloadData();
-
 loadAppMessages();
 
 // Мобильное приложение: OAuth возвращается диплинком из in-app browser — слушаем его всегда,
@@ -57,16 +56,23 @@ initNativeSplash();
 initNativePrefetch();
 initNativeChrome();
 
-createRoot(document.getElementById('root')!).render(
-    // <React.StrictMode> // Временно отключено для тестирования дубликатов
-        <Provider store={store}>
-            <ThemeProvider>
-                <NetworkProvider>
-                    <OfflineGate>
-                        <AppRouter />
-                    </OfflineGate>
-                </NetworkProvider>
-            </ThemeProvider>
-        </Provider>
-    // </React.StrictMode>
-)
+// Мобильное приложение, самый первый запуск: сначала встроенный снимок данных (utils/nativeSnapshot.ts),
+// потом прогрев справочников и первый рендер — главная сразу с данными, без ожидания сети. На сайте и
+// при повторных запусках снимок не читается, и ждать нечего.
+void loadNativeSnapshot().finally(() => {
+    preloadData();
+
+    createRoot(document.getElementById('root')!).render(
+        // <React.StrictMode> // Временно отключено для тестирования дубликатов
+            <Provider store={store}>
+                <ThemeProvider>
+                    <NetworkProvider>
+                        <OfflineGate>
+                            <AppRouter />
+                        </OfflineGate>
+                    </NetworkProvider>
+                </ThemeProvider>
+            </Provider>
+        // </React.StrictMode>
+    )
+});

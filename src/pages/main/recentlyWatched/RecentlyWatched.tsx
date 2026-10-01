@@ -9,11 +9,12 @@ import styles from './RecentlyWatched.module.scss';
 import { Card } from '../../../shared/ui/Ticket/Card/Card';
 import { ROUTES } from '../../../app/routers/routes';
 import { getUserRole } from '../../../utils/authUtils';
-import { getRecentlyWatchedTickets } from '../../../utils/recentlyWatchedUtils';
+import { getRecentlyWatchedTickets, peekRecentlyWatchedTickets } from '../../../utils/recentlyWatchedUtils';
+import { sameResponse } from '../../../utils/apiCache';
 import { ticketToTicketView } from '../../../utils/apiUtils';
 import { textHelper } from '../../../utils/textUtils';
 import { useLanguageChange } from '../../../hooks';
-import type { TicketView } from '../../../entities';
+import type { Ticket, TicketView } from '../../../entities';
 
 const RECENTLY_WATCHED_LIMIT = 10;
 
@@ -25,7 +26,11 @@ const RECENTLY_WATCHED_LIMIT = 10;
  * empty/loading, so it never leaves a blank titled section behind.
  */
 function RecentlyWatched() {
-    const [tickets, setTickets] = useState<TicketView[]>([]);
+    // Мобильная сборка: список с прошлого раза — блок на месте с первого кадра, свежий приходит следом.
+    const [shownTickets] = useState(() => peekRecentlyWatchedTickets(RECENTLY_WATCHED_LIMIT));
+    const [tickets, setTickets] = useState<TicketView[]>(() => (shownTickets ?? []).map(ticketToTicketView));
+    /** Список, который сейчас на экране: совпавший с ним свежий ничего не перерисовывает. */
+    const shownRef = useRef<Ticket[] | undefined>(shownTickets);
     const navigate = useNavigate();
     const { t } = useTranslation(['components', 'common']);
     const userRole = getUserRole();
@@ -33,6 +38,8 @@ function RecentlyWatched() {
     const load = useCallback(async () => {
         try {
             const items = await getRecentlyWatchedTickets(RECENTLY_WATCHED_LIMIT);
+            if (shownRef.current && sameResponse(shownRef.current, items)) return;
+            shownRef.current = items;
             setTickets(items.map(ticketToTicketView));
         } catch (error) {
             // Не критично для главной — блок просто не показываем.

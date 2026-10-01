@@ -20,6 +20,7 @@
  * работает: `getCachedImage` всегда отдаёт `null`, иконки идут только через обычный `<img src>`.
  * `mode: 'no-cors'` не заменяет заголовок — WebView отдаёт opaque-ответ с телом 0 байт.
  */
+import { Capacitor } from '@capacitor/core';
 import { API_BASE_URL } from './configUtils';
 
 interface Entry {
@@ -32,6 +33,19 @@ const CACHE_DURATION = 30 * 60 * 1000;      // 30 мин, как STATIC_CACHE_DU
 const MAX_ENTRIES = 200;
 const MAX_BYTES = 20 * 1024 * 1024;          // потолок по памяти: иконки/аватары небольшие
 const REVOKE_DELAY = 60 * 1000;              // blob: URL освобождаем с запасом — вдруг ещё отображается
+// Мобильная сборка: файлы по этим адресам не меняются (хэш в имени), поэтому копия с диска
+// (IndexedDB) годится месяц, а не 30 минут — иначе каждый холодный запуск после получаса
+// заново тянул иконки из сети, и главная ждала их за сплэшем.
+const IDB_DURATION = Capacitor.isNativePlatform() ? 30 * 24 * 60 * 60 * 1000 : CACHE_DURATION;
+
+/**
+ * Мобильная сборка: иконки, положенные в саму сборку (встроенный снимок, utils/nativeSnapshot.ts):
+ * адрес на сервере → путь к файлу в сборке. При самом первом запуске берутся оттуда, без сети.
+ */
+const bundledImages = new Map<string, string>();
+export const registerBundledImages = (images: Record<string, string>): void => {
+    for (const [url, localPath] of Object.entries(images)) bundledImages.set(url, localPath);
+};
 
 const cache = new Map<string, Entry>();      // порядок вставки = порядок «свежести» (LRU)
 const inFlight = new Map<string, Promise<string | null>>();
@@ -132,22 +146,23 @@ const isCacheable = (url: string): boolean => {
     }
 };
 
-const drop = (url: string): void => {
+const drop = (url: string, keepOnDisk = false): void => {
     const entry = cache.get(url);
     if (!entry) return;
     cache.delete(url);
     totalBytes -= entry.size;
     setTimeout(() => URL.revokeObjectURL(entry.objectUrl), REVOKE_DELAY);
     // Не просто in-memory промах — сама картинка оказалась битой/не загрузилась, не даём IndexedDB
-    // подсовывать её снова на следующей перезагрузке/визите.
-    void idbDelete(url);
+    // подсовывать её снова на следующей перезагрузке/визите. Вытеснение из памяти по сроку/лимиту
+    // (keepOnDisk) копию на диске не трогает, если она живёт дольше памяти (мобильная сборка).
+    if (!(keepOnDisk && IDB_DURATION > CACHE_DURATION)) void idbDelete(url);
 };
 
 const enforceLimits = (): void => {
     while (cache.size > MAX_ENTRIES || totalBytes > MAX_BYTES) {
         const oldest = cache.keys().next().value;
         if (oldest === undefined) break;
-        drop(oldest);
+        drop(oldest, true);
     }
 };
 
@@ -165,7 +180,7 @@ export const peekCachedImage = (url: string): string | undefined => {
     const entry = cache.get(url);
     if (!entry) return undefined;
     if (Date.now() - entry.timestamp >= CACHE_DURATION) {
-        drop(url);
+        drop(url, true);
         return undefined;
     }
     // LRU: недавно использованное — в конец очереди на вытеснение
@@ -188,8 +203,21 @@ export const getCachedImage = (url: string): Promise<string | null> => {
             // IndexedDB — раньше сети: если Blob уже лежал на диске с прошлой сессии/визита,
             // не тратим сетевой запрос заново.
             const idbHit = await idbGet(url);
-            if (idbHit && Date.now() - idbHit.timestamp < CACHE_DURATION) {
-                return registerBlob(url, idbHit.blob, idbHit.timestamp);
+            if (idbHit && Date.now() - idbHit.timestamp < IDB_DURATION) {
+                // Срок в памяти — с момента загрузки в память; иначе месячная копия с диска считалась бы
+                // протухшей в памяти сразу же.
+                return registerBlob(url, idbHit.blob, IDB_DURATION > CACHE_DURATION ? Date.now() : idbHit.timestamp);
+            }
+
+            const bundled = bundledImages.get(url);
+            if (bundled) {
+                const local = await fetch(`/${bundled}`).catch(() => null);
+                if (local?.ok && (local.headers.get('content-type') ?? '').startsWith('image/')) {
+                    const blob = await local.blob();
+                    const timestamp = Date.now();
+                    void idbPut({ url, blob, timestamp });
+                    return registerBlob(url, blob, timestamp);
+                }
             }
 
             // Падение обычного fetch здесь — почти всегда ответ из HTTP-кэша WebView, сохранённый ещё
@@ -235,6 +263,6 @@ export const preloadImages = async (urls: string[], timeoutMs = 3000): Promise<v
 export const evictCachedImage = (url: string): void => drop(url);
 
 export const clearImageCache = (): void => {
-    [...cache.keys()].forEach(drop);
+    [...cache.keys()].forEach(url => drop(url));
     inFlight.clear();
 };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ROUTES, API_ROUTES } from '../../../app/routers/routes';
+import { ROUTES } from '../../../app/routers/routes';
 import { smartNameTranslator } from '../../../utils/textUtils';
 import { Swiper, SwiperSlide } from "swiper/react";
 import styles from './MainReviewsSection.module.scss';
@@ -15,6 +15,7 @@ import { IoWarningOutline } from 'react-icons/io5';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { getPageSize } from '../../../utils/pageSizeUtils';
+import { homeReviewsEndpoint } from '../../../utils/nativeSnapshotManifest';
 import { parsePagedResponse, peekApi, swrGet } from '../../../utils/apiUtils';
 import { useShowMore } from '../../../hooks';
 
@@ -22,7 +23,8 @@ interface MainReviewsSectionProps {
     className?: string;
 }
 
-const reviewsUrl = (page: number) => `${API_ROUTES.REVIEWS}?page=${page}&itemsPerPage=${getPageSize()}`;
+// Тот же адрес кладётся во встроенный снимок мобильной сборки (nativeSnapshotManifest).
+const reviewsUrl = (page: number) => homeReviewsEndpoint(page, getPageSize());
 
 const sortByNewest = (items: any[]) => [...items].sort((a: any, b: any) =>
     new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());

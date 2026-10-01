@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {getAuthToken, getUserData, getUserRole} from '../../../utils/authUtils';
 import {getStorageItem} from '../../../utils/storageUtils';
@@ -6,7 +6,7 @@ import {useLanguageChange} from '../../../hooks';
 import {Card} from '../../../shared/ui/Ticket/Card/Card';
 import styles from './Recommendations.module.scss';
 import {useTranslation} from 'react-i18next';
-import {API_ROUTES, ROUTES} from '../../../app/routers/routes';
+import {ROUTES} from '../../../app/routers/routes';
 import {
     createChatWithAuthor,
     getChatsMe,
@@ -20,11 +20,43 @@ import {EmptyState} from '../../../widgets/EmptyState';
 import {ShowMore} from '../../../shared/ui/Button/ShowMore/ShowMore';
 import type {Ticket} from '../../../entities';
 import {formatTicketImageUrl, toPhotoSource, resolveAvatar} from '../../../utils/imageUtils';
-import {getTicketFullAddress, universalApiRequest} from '../../../utils/apiUtils';
+import {getTicketFullAddress, peekApi, universalApiRequest} from '../../../utils/apiUtils';
+import {sameResponse} from '../../../utils/apiCache';
+import {HOME_FEED_PAGE_SIZE, homeFeedEndpoint} from '../../../utils/nativeSnapshotManifest';
 import {resolveApiError} from '../../../utils/appMessagesUtils';
 
 const RECS_INITIAL_SIZE = 6;
-const RECS_PAGE_SIZE = 12;
+const RECS_PAGE_SIZE = HOME_FEED_PAGE_SIZE;
+
+const feedItems = (raw: unknown): Ticket[] =>
+    Array.isArray(raw) ? raw as Ticket[] : ((raw as { 'hydra:member'?: Ticket[] } | null)?.['hydra:member'] ?? []);
+
+/** Сначала тикеты из выбранного города. */
+const sortBySelectedCity = (data: Ticket[]): Ticket[] => {
+    const selectedCity = getStorageItem('selectedCity') || '';
+    if (!selectedCity) return data;
+    return data.sort((a, b) => {
+        const aMatchesCity = a.addresses?.some(addr => addr.city?.title === selectedCity) ?? false;
+        const bMatchesCity = b.addresses?.some(addr => addr.city?.title === selectedCity) ?? false;
+        if (aMatchesCity !== bMatchesCity) return aMatchesCity ? -1 : 1;
+        return 0;
+    });
+};
+
+/**
+ * Мобильная сборка: лента с прошлого раза (или из встроенного снимка при самом первом запуске) —
+ * главная открывается с ней сразу. Сразу после входа своей ленты в кэше ещё нет — показываем
+ * гостевую без своих объявлений, пока идёт запрос. `raw` — ответ, с которым сравнивается свежий.
+ */
+const peekFeed = (): { raw: unknown; items: Ticket[] } | undefined => {
+    const userId = getUserData()?.id ?? null;
+    const own = peekApi(homeFeedEndpoint(userId));
+    if (own !== undefined) return { raw: own, items: feedItems(own) };
+    if (!userId) return undefined;
+    const guest = peekApi(homeFeedEndpoint(null), { requiresAuth: false });
+    if (guest === undefined) return undefined;
+    return { raw: undefined, items: feedItems(guest).filter(t => t.author?.id !== userId && t.master?.id !== userId) };
+};
 
 /** Props for the Recommendations section. */
 interface RecommendationsProps {
@@ -49,17 +81,22 @@ function Recommendations({
     initialLimit = 3,
     onItemClick
 }: RecommendationsProps = {}) {
-    const [announcements, setAnnouncements] = useState<Ticket[]>([]);
+    const [feedSeed] = useState(() => (customData ? undefined : peekFeed()));
+    const [announcements, setAnnouncements] = useState<Ticket[]>(() => sortBySelectedCity(feedSeed?.items ?? []));
     const [visibleCount, setVisibleCount] = useState(customData ? initialLimit : RECS_INITIAL_SIZE);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(() => !feedSeed);
+    /** Ответ, который сейчас на экране: совпавший с ним свежий ничего не перерисовывает. */
+    const shownFeedRef = useRef<unknown>(feedSeed?.raw);
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(getUserRole());
     const navigate = useNavigate();
     const { t, i18n } = useTranslation(['components', 'common']);
     const locale = i18n.language;
     
-    // Reset visibleCount when initialLimit or customData changes
+    // Reset visibleCount when initialLimit or customData changes — только для customData: своя лента
+    // стартует с RECS_INITIAL_SIZE, и сброс к initialLimit при монтировании дёргал показанную из кэша
+    // ленту 6 → 3 → 6 карточек.
     useEffect(() => {
-        setVisibleCount(initialLimit);
+        if (customData) setVisibleCount(initialLimit);
     }, [initialLimit, customData]);
 
     // Use custom data if provided
@@ -127,31 +164,15 @@ function Recommendations({
             console.log('Recommendations - Current user ID:', currentUserId);
             console.log('Recommendations - Token exists:', !!token);
             
-            const params = new URLSearchParams({ active: 'true', page: '1', itemsPerPage: String(RECS_PAGE_SIZE) });
-            if (currentUserId) {
-                params.set('author.id[ne]', String(currentUserId));
-                params.set('master.id[ne]', String(currentUserId));
-            }
-            const endpoint = `${API_ROUTES.TICKETS}?${params.toString()}`;
+            const endpoint = homeFeedEndpoint(currentUserId);
 
             const responseData = await universalApiRequest(endpoint);
-            let data: Ticket[];
-
-            data = Array.isArray(responseData) ? responseData as Ticket[]
-                : (responseData?.['hydra:member'] as Ticket[] | undefined) ?? [];
+            // На экране ровно это (из кэша) — не перерисовываем.
+            if (shownFeedRef.current !== undefined && sameResponse(shownFeedRef.current, responseData)) return;
+            shownFeedRef.current = responseData;
 
             // Сортируем: сначала тикеты из выбранного города
-            const selectedCity = getStorageItem('selectedCity') || '';
-            if (selectedCity) {
-                data = data.sort((a, b) => {
-                    const aMatchesCity = a.addresses?.some(addr => addr.city?.title === selectedCity) ?? false;
-                    const bMatchesCity = b.addresses?.some(addr => addr.city?.title === selectedCity) ?? false;
-                    if (aMatchesCity !== bMatchesCity) return aMatchesCity ? -1 : 1;
-                    return 0;
-                });
-            }
-
-            setAnnouncements(data);
+            setAnnouncements(sortBySelectedCity(feedItems(responseData)));
             setVisibleCount(RECS_INITIAL_SIZE);
         } catch (error) {
             console.error('Error fetching announcements:', error);

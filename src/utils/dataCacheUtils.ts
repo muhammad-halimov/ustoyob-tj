@@ -131,6 +131,18 @@ function createCachedFetcher<T>(
     }
 
     fetcher.clearCache = (): void => { cache.clear(); inFlight.clear(); };
+    /**
+     * Мобильная сборка, первый запуск: данные из встроенного снимка (utils/nativeSnapshot.ts) — только
+     * в память и только если своих ещё нет. С timestamp 0 запись сразу протухшая: экран получает её
+     * мгновенно (stale-while-revalidate), а свежие данные загрузчик тянет следом и сохраняет.
+     */
+    fetcher.seed = (locale: string, data: T[], timestamp: number): void => {
+        const targetLocale = opts.locale !== undefined
+            ? (opts.locale === false ? 'fixed' : opts.locale)
+            : normalizeLocale(locale);
+        if (readEntry(targetLocale)) return;
+        cache.set(targetLocale, { data, locale: targetLocale, timestamp });
+    };
     // Синхронный аналог peekCachedImage (imageCacheUtils) — отдаёт уже закэшированные данные без
     // await, если они есть и не протухли. Нужен там, где начальный `loading:true` иначе на каждый
     // маунт мелькает спиннером на один кадр, даже когда данные уже лежат в памяти (см. Category.tsx).
