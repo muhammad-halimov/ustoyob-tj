@@ -124,7 +124,6 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // Separate from `reasonTitleById` above, which stays unscoped on purpose to resolve
     // *display* titles for tickets that may carry a non-support reason from elsewhere.
     const [supportReasons, setSupportReasons] = useState<AppealReason[]>([]);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     /** A 'created' SSE event for the other side's message can arrive before their images are
      *  attached (images upload separately, after the message itself is created) — this
@@ -223,8 +222,12 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         fetchSupportReasons();
     });
 
+    // Новые сообщения — плавно к самому низу, прокручивая только сам список: scrollIntoView крутил ещё
+    // и страницу — после отправки она уезжала (на телефоне — вверх, к шапке обращения).
+    const messagesListRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        const list = messagesListRef.current;
+        list?.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
     }, [ticket?.messages?.length]);
 
     // Mirrors every local ticket change straight back to the parent's tickets table (see
@@ -942,7 +945,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             ) : (
                 <>
                     <div className={styles.threadBody}>
-                    <div className={styles.messages}>
+                    <div className={styles.messages} ref={messagesListRef}>
                         <div className={styles.message}>
                             <div className={styles.messageHeader}>
                                 <span className={styles.messageAuthorName}>{t('thread.originalRequest')}</span>
@@ -1124,7 +1127,6 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                         {(ticket.messages ?? []).length === 0 && (
                             <div className={styles.noMessages}>{t('thread.noMessages')}</div>
                         )}
-                        <div ref={messagesEndRef} />
                     </div>
 
                     <MediaSidebar
