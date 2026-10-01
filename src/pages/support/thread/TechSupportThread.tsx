@@ -144,7 +144,6 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // Separate from `reasonTitleById` above, which stays unscoped on purpose to resolve
     // *display* titles for tickets that may carry a non-support reason from elsewhere.
     const [supportReasons, setSupportReasons] = useState<AppealReason[]>([]);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     /** A 'created' SSE event for the other side's message can arrive before their images are
      *  attached (images upload separately, after the message itself is created) — this
@@ -248,8 +247,9 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         fetchSupportReasons();
     });
 
-    // Первый показ переписки — сразу на последнем сообщении, до отрисовки и только внутри списка
-    // (как открывается чат); дальше новые сообщения — плавно, как раньше.
+    // Первый показ переписки — сразу на последнем сообщении, до отрисовки (как открывается чат); дальше
+    // новые сообщения — плавно к самому низу. Прокручивается только сам список: scrollIntoView крутил
+    // ещё и страницу — после отправки она уезжала вверх, к шапке обращения.
     const messagesListRef = useRef<HTMLDivElement>(null);
     const shownAtEndRef = useRef(false);
     useLayoutEffect(() => {
@@ -260,7 +260,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             list.scrollTop = list.scrollHeight;
             return;
         }
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
     }, [ticket?.messages?.length]);
 
     // Mirrors every local ticket change straight back to the parent's tickets table (see
@@ -1160,7 +1160,6 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                         {(ticket.messages ?? []).length === 0 && (
                             <div className={styles.noMessages}>{t('thread.noMessages')}</div>
                         )}
-                        <div ref={messagesEndRef} />
                     </div>
 
                     <MediaSidebar
