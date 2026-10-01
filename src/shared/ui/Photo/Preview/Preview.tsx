@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Clear } from '../../Button/Clear/Clear';
 import styles from './Preview.module.scss';
+import { runNativeTransition } from '../../../../utils/nativeMotion';
 
 interface PhotoGalleryProps {
     isOpen: boolean;
@@ -37,6 +38,13 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
     onSelectImage,
     fallbackImage = '/img/icons/misc/fonTest5.png'
 }) => {
+    // Мобильная сборка: листание — снимок уезжает в сторону листания (utils/nativeMotion.ts); на сайте — как раньше.
+    const showNext = () => runNativeTransition('gallery-next', onNext);
+    const showPrevious = () => runNativeTransition('gallery-prev', onPrevious);
+    const showImage = (index: number) => runNativeTransition(
+        index > currentIndex ? 'gallery-next' : index < currentIndex ? 'gallery-prev' : 'none',
+        () => onSelectImage(index),
+    );
     // Обработчик нажатия клавиш
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -47,16 +55,17 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
                     onClose();
                     break;
                 case 'ArrowLeft':
-                    onPrevious();
+                    showPrevious();
                     break;
                 case 'ArrowRight':
-                    onNext();
+                    showNext();
                     break;
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, onClose, onNext, onPrevious]);
 
     // Блокировка скролла страницы при открытии модального окна
@@ -91,8 +100,8 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
         swipeTouchStart.current = null;
         // Минимум 50px по горизонтали и меньше 80px по вертикали
         if (Math.abs(dx) < 50 || dy > 80) return;
-        if (dx < 0) onNext();
-        else onPrevious();
+        if (dx < 0) showNext();
+        else showPrevious();
     };
 
     const handleThumbTouchStart = (e: React.TouchEvent) => {
@@ -111,7 +120,7 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
         if (thumbScrolled.current) return;
         e.preventDefault(); // suppress the synthetic click the browser fires after touchend
         e.stopPropagation();
-        onSelectImage(index);
+        showImage(index);
     };
 
     // Progressive: полное фото качаем в фоне (new Image) и подменяем превью только когда оно
@@ -184,8 +193,8 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
                         <button
                             className={styles.photo_modal_nav}
                             onClick={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); onPrevious(); }}
-                            onMouseUp={() => onPrevious()}
+                            onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); showPrevious(); }}
+                            onMouseUp={() => showPrevious()}
                             aria-label="Предыдущее фото"
                         >
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -219,8 +228,8 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
                         <button
                             className={styles.photo_modal_nav}
                             onClick={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); onNext(); }}
-                            onMouseUp={() => onNext()}
+                            onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); showNext(); }}
+                            onMouseUp={() => showNext()}
                             aria-label="Следующее фото"
                         >
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -246,7 +255,7 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
                                     onTouchStart={handleThumbTouchStart}
                                     onTouchMove={handleThumbTouchMove}
                                     onTouchEnd={(e) => handleThumbTouchEnd(e, index)}
-                                    onClick={(e) => { e.stopPropagation(); onSelectImage(index); }}
+                                    onClick={(e) => { e.stopPropagation(); showImage(index); }}
                                     onError={(e) => handleImageError(e, index)}
                                 />
                             ))}

@@ -4,6 +4,7 @@ import { Clear } from '../Clear/Clear';
 import { PageLoader } from '../../../../widgets/PageLoader';
 import { Marquee } from '../../Text/Marquee';
 import { usePersistedState } from '../../../../hooks';
+import { runNativeTransition } from '../../../../utils/nativeMotion';
 
 /**
  * Компонент ShowMore отображает компактный блок для разворачивания или
@@ -85,16 +86,22 @@ export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLes
 
     if (!resolvedCanLoadMore && !expanded) return null;
 
+    // Мобильная сборка: раскрытие/сворачивание — растворением (utils/nativeMotion.ts). Для списков, что
+    // догружают страницу с сервера, новые элементы плавно появляются уже по приходу (useShowMore).
     const handleShowMore = () => {
-        setClicked('more');
-        onShowMore();
+        runNativeTransition('fade', () => {
+            setClicked('more');
+            onShowMore();
+        });
     };
 
     const handleShowLess = () => {
         const wrapper = wrapperRef.current;
         const prevTop = wrapper?.getBoundingClientRect().top ?? 0;
-        setClicked('less');
-        onShowLess();
+        runNativeTransition('fade', () => {
+            setClicked('less');
+            onShowLess();
+        });
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 const newTop = wrapper?.getBoundingClientRect().top ?? 0;

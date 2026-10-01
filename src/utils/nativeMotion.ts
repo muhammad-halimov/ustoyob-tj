@@ -20,8 +20,12 @@ import { TAB_PATHS } from '../app/layouts/keepAliveTabs';
 
 type AppRouter = ReturnType<typeof createBrowserRouter>;
 type Place = { pathname: string; search: string };
-/** forward/back — переход между экранами, tab — смена вкладки нижней панели, fade — смена вида внутри экрана. */
-export type NativeMotion = 'forward' | 'back' | 'tab' | 'fade' | 'none';
+/**
+ * forward/back — переход между экранами, tab — смена вкладки нижней панели, fade — смена вида внутри
+ * экрана, gallery-next/gallery-prev — листание фото в галерее.
+ */
+export type NativeMotion = 'forward' | 'back' | 'tab' | 'fade' | 'gallery-next' | 'gallery-prev' | 'none';
+const MOTION_CLASSES = ['vt-forward', 'vt-back', 'vt-tab', 'vt-fade', 'vt-gallery-next', 'vt-gallery-prev'];
 
 const ENABLED = Capacitor.isNativePlatform();
 const VT_SUPPORTED = typeof document !== 'undefined' && typeof document.startViewTransition === 'function';
@@ -42,6 +46,11 @@ const pushMotion = (from: Place, to: Place): NativeMotion => {
     return isTab(to.pathname) ? 'tab' : 'forward';
 };
 
+// replace — обычно служебные перенаправления (без анимации), но переход на вкладку (логотип → главная)
+// — это смена вкладки.
+const replaceMotion = (from: Place, to: Place): NativeMotion =>
+    normalize(from.pathname) !== normalize(to.pathname) && isTab(to.pathname) ? 'tab' : 'none';
+
 const popMotion = (from: Place, to: Place): NativeMotion => {
     if (normalize(from.pathname) === normalize(to.pathname)) {
         return opensDetail(from.search) !== opensDetail(to.search) ? 'back' : 'none';
@@ -51,7 +60,7 @@ const popMotion = (from: Place, to: Place): NativeMotion => {
 
 export const setNativeMotion = (motion: NativeMotion): void => {
     const classes = document.documentElement.classList;
-    classes.remove('vt-forward', 'vt-back', 'vt-tab', 'vt-fade');
+    classes.remove(...MOTION_CLASSES);
     if (motion !== 'none') classes.add(`vt-${motion}`);
 };
 
@@ -91,7 +100,7 @@ export function installNativePageTransitions(router: AppRouter): void {
         const next: Place = { pathname: state.location.pathname, search: state.location.search };
         const motion: NativeMotion = reducedMotion() ? 'none'
             : state.historyAction === 'POP' ? popMotion(current, next)
-            : state.historyAction === 'REPLACE' ? 'none'
+            : state.historyAction === 'REPLACE' ? replaceMotion(current, next)
             : pushMotion(current, next);
         setNativeMotion(motion);
         current = next;
@@ -102,7 +111,7 @@ export function installNativePageTransitions(router: AppRouter): void {
     router.navigate = ((to: unknown, opts?: Record<string, unknown>) => {
         if (typeof to === 'number' || reducedMotion()) return navigate(to as never, opts as never);
         const target = resolvePlace(to, current);
-        const animate = !opts?.replace && target !== null && pushMotion(current, target) !== 'none';
+        const animate = target !== null && (opts?.replace ? replaceMotion(current, target) : pushMotion(current, target)) !== 'none';
         return navigate(to as never, (animate ? { ...opts, viewTransition: true } : opts) as never);
     }) as AppRouter['navigate'];
 }
@@ -111,13 +120,24 @@ export function installNativePageTransitions(router: AppRouter): void {
  * Анимированная смена вида без смены адреса (например, список чатов → переписка на телефоне):
  * тот же переход, что между экранами. Обновление применяется синхронно внутри перехода.
  */
+let applyingUpdate = false;
+
 export function runNativeTransition(motion: NativeMotion, update: () => void): void {
-    if (!ENABLED || !VT_SUPPORTED || motion === 'none' || reducedMotion()) {
+    // Вызов изнутри другого такого же обновления (например, «Показать меньше» → onShowLess) — это уже
+    // часть идущего перехода: применяем сразу, второй переход не начинаем.
+    if (applyingUpdate || !ENABLED || !VT_SUPPORTED || motion === 'none' || reducedMotion()) {
         update();
         return;
     }
     setNativeMotion(motion);
-    document.startViewTransition(() => { flushSync(update); });
+    document.startViewTransition(() => {
+        applyingUpdate = true;
+        try {
+            flushSync(update);
+        } finally {
+            applyingUpdate = false;
+        }
+    });
 }
 
 // ── Исчезновение модалок, меню, списков: «призраки» ─────────────────────────────────────────────
@@ -130,6 +150,7 @@ const GHOSTS: { selector: string; kind: GhostKind; ms: number; inPlace?: boolean
     // Выпадающий список позиционирован внутри своего поля — призрак остаётся там же, и только если
     // закрылся сам список, а не всё поле.
     { selector: '[class*="_dropdown_"][role="listbox"]', kind: 'listbox', ms: 140, inPlace: true },
+    { selector: '[class*="_language_dropdown_"]', kind: 'listbox', ms: 140, inPlace: true },
 ];
 
 const spawnGhost = (node: Element, kind: GhostKind, ms: number, parent: Node | null, before: Node | null): void => {
@@ -179,27 +200,27 @@ const NOT_PRESSABLE = 'input, textarea, select, [contenteditable="true"], [data-
 // Выше этих контейнеров не поднимаемся: подложка модалки или галереи — не кнопка, даже с cursor: pointer.
 const PRESS_BOUNDARY = '[class*="_modalOverlay_"], [class*="_photo_modal_overlay_"], [class*="_photoModalOverlay_"], main';
 
+/** Есть ли у узла обработчик нажатия React (onClick и т.п.) — так находим настоящий «кликабельный» элемент. */
+const hasReactPressHandler = (el: Element): boolean => {
+    const key = Object.keys(el).find((k) => k.startsWith('__reactProps$'));
+    const props = key ? (el as unknown as Record<string, Record<string, unknown> | undefined>)[key] : undefined;
+    return !!props && ['onClick', 'onPointerUp', 'onMouseUp', 'onTouchEnd'].some((name) => typeof props[name] === 'function');
+};
+
 /**
- * Что «вдавить» при касании: ближайшая кнопка/ссылка, иначе блок с cursor: pointer (карточки, строки,
- * плитки). cursor наследуется — поднимаемся до элемента, который его задал (у родителя он уже другой),
- * иначе вдавливался бы текст внутри карточки, а не сама карточка.
+ * Что «вдавить» при касании: ближайшая кнопка/ссылка или ближайший элемент с обработчиком нажатия
+ * (карточки, строки, плитки, пункты меню). Не «ближайший с cursor: pointer» — cursor наследуется, и
+ * вдавливался бы весь контейнер со своим выпадающим списком: под пальцем к отпусканию оказывался
+ * другой элемент, и нажатие уходило не туда.
  */
 const findPressable = (target: Element): HTMLElement | null => {
     if (target.closest(NOT_PRESSABLE)) return null;
-    const boundary = target.closest(PRESS_BOUNDARY);
-    let el: Element | null = target.closest(BUTTONISH);
-    if (el && boundary && !boundary.contains(el)) el = null;
-    if (!el) {
-        let cur: Element | null = target;
-        while (cur && cur !== boundary && cur !== document.body && getComputedStyle(cur).cursor !== 'pointer') cur = cur.parentElement;
-        if (!cur || cur === boundary || cur === document.body) return null;
-        let parent: Element | null = cur.parentElement;
-        while (parent && parent !== boundary && parent !== document.body && getComputedStyle(parent).cursor === 'pointer') {
-            cur = parent;
-            parent = cur.parentElement;
-        }
-        el = cur;
+    let el: Element | null = null;
+    for (let cur: Element | null = target, depth = 0; cur && cur !== document.body && depth < 12; depth++, cur = cur.parentElement) {
+        if (cur.matches(PRESS_BOUNDARY)) return null;
+        if (cur.matches(BUTTONISH) || hasReactPressHandler(cur)) { el = cur; break; }
     }
+    if (!el) return null;
     const disabled = (el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true';
     // Огромный кликабельный блок (полэкрана и больше) не «вдавливаем» — это уже не кнопка.
     const { width, height } = el.getBoundingClientRect();

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, Dispatch, SetStateAction } from 'react';
 import { getPageSize } from '../utils/pageSizeUtils';
+import { runNativeTransition } from '../utils/nativeMotion';
 
 export interface ShowMoreBindings {
     expanded: boolean;
@@ -31,31 +32,40 @@ export function useShowMore<T>(
         setPage(p => p + 1);
     }, []);
 
+    // Мобильная сборка: список сворачивается растворением (utils/nativeMotion.ts), на сайте — как раньше.
     const onShowLess = useCallback(() => {
         const pageSize = getPageSize();
         const prevPage = Math.max(1, page - 1);
-        skipFetchRef.current = true;
-        setPage(prevPage);
-        setItems(prev => prev.slice(0, prevPage * pageSize));
-        setHasMore(true);
+        runNativeTransition('fade', () => {
+            skipFetchRef.current = true;
+            setPage(prevPage);
+            setItems(prev => prev.slice(0, prevPage * pageSize));
+            setHasMore(true);
+        });
     }, [page, setItems]);
 
     const onClear = useCallback(() => {
         const pageSize = getPageSize();
-        skipFetchRef.current = true;
-        setPage(1);
-        setItems(prev => prev.slice(0, pageSize));
-        setHasMore(true);
+        runNativeTransition('fade', () => {
+            skipFetchRef.current = true;
+            setPage(1);
+            setItems(prev => prev.slice(0, pageSize));
+            setHasMore(true);
+        });
     }, [setItems]);
 
     /** Call after each fetch with the processed items and fetchedHasMore from parsePagedResponse. */
     const applyFetch = useCallback((newItems: T[], fetchedHasMore: boolean) => {
         if (appendRef.current) {
             appendRef.current = false;
-            setItems(prev => [...prev, ...newItems]);
-        } else {
-            setItems(newItems);
+            // «Показать ещё»: подгруженное появляется плавно, а не возникает (мобильная сборка).
+            runNativeTransition('fade', () => {
+                setItems(prev => [...prev, ...newItems]);
+                setHasMore(fetchedHasMore);
+            });
+            return;
         }
+        setItems(newItems);
         setHasMore(fetchedHasMore);
     }, [setItems]);
 

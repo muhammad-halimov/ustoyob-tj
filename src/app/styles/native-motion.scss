@@ -60,6 +60,24 @@ html.native {
   &.vt-fade::view-transition-new(root) { animation: 220ms $md-decelerate 40ms both native-fade-in; }
 }
 
+// Листание фото в галерее: снимок уезжает в сторону листания, следующий въезжает с другой; остальное
+// (счётчик, миниатюры) меняется сразу. Призрак закрывающейся галереи в переходах не участвует.
+html.native {
+  img[class*='_photo_modal_image_'] { view-transition-name: native-gallery-photo; }
+  [data-native-ghost] img { view-transition-name: none !important; }
+
+  &.vt-gallery-next,
+  &.vt-gallery-prev {
+    &::view-transition-old(root),
+    &::view-transition-new(root) { animation: none; }
+    &::view-transition-group(native-gallery-photo) { animation-duration: 280ms; animation-timing-function: $md-emphasized; }
+  }
+  &.vt-gallery-next::view-transition-old(native-gallery-photo) { animation: 280ms $md-emphasized both native-photo-out-start; }
+  &.vt-gallery-next::view-transition-new(native-gallery-photo) { animation: 280ms $md-emphasized both native-photo-in-end; }
+  &.vt-gallery-prev::view-transition-old(native-gallery-photo) { animation: 280ms $md-emphasized both native-photo-out-end; }
+  &.vt-gallery-prev::view-transition-new(native-gallery-photo) { animation: 280ms $md-emphasized both native-photo-in-start; }
+}
+
 // ── Модалки, галерея, меню, выпадающие списки, баннер cookie ────────────────────────────────────
 html.native {
   [data-native-ghost] { pointer-events: none !important; }
@@ -73,7 +91,7 @@ html.native {
   // Галерея фото: подложка проявляется, снимок «приближается».
   [class*='_photo_modal_overlay_']:not([data-native-ghost]),
   [class*='_photoModalOverlay_']:not([data-native-ghost]) { animation: 220ms ease-out both native-fade-in; }
-  [class*='_photo_modal_content_'] { animation: 280ms $md-decelerate both native-zoom-in; }
+  [class*='_photo_modal_overlay_']:not([data-native-ghost]) [class*='_photo_modal_content_'] { animation: 280ms $md-decelerate both native-zoom-in; }
   [data-native-ghost='gallery'] { animation: 200ms ease-in both native-fade-out; }
 
   // Меню «⋮» и выпадающие списки — раскрываются от своего угла.
@@ -83,6 +101,10 @@ html.native {
   }
   [class*='_dropdown_'][role='listbox']:not([data-native-ghost]) {
     transform-origin: top center;
+    animation: 180ms $md-decelerate both native-menu-in;
+  }
+  [class*='_language_dropdown_']:not([data-native-ghost]) {
+    transform-origin: top right;
     animation: 180ms $md-decelerate both native-menu-in;
   }
   [data-native-ghost='menu'],
@@ -108,15 +130,16 @@ html.native-android [class*='_mobile_header_'] > [class*='_bottomHeader_navList_
   > li > [class*='_navLink_'] {
     position: relative;
 
+    // Таблетка обрамляет вкладку целиком — и иконку, и подпись.
     &::before {
       content: '';
       position: absolute;
-      top: -4px;
-      left: 50%;
-      width: 56px;
-      height: 32px;
-      margin-left: -28px;
-      border-radius: 16px;
+      top: -5px;
+      bottom: -5px;
+      // Во всю ширину вкладки (и чуть шире): длинные подписи («Фаворитҳо») с запасом по краям.
+      left: -4px;
+      right: -4px;
+      border-radius: 18px;
       background: rgba(58, 84, 218, 0.16);
       background: color-mix(in srgb, var(--color-actual-blue) 18%, transparent);
       transform: scaleX(0.35);
@@ -160,6 +183,10 @@ html.native-android [class*='_mobile_header_'] > [class*='_bottomHeader_navList_
 @keyframes native-menu-in  { from { opacity: 0; scale: 0.9; } }
 @keyframes native-menu-out { to { opacity: 0; scale: 0.96; } }
 @keyframes native-rise-in { from { opacity: 0; translate: 0 24px; } }
+@keyframes native-photo-out-start { to { transform: translateX(-35%); opacity: 0; } }
+@keyframes native-photo-in-end    { from { transform: translateX(35%); opacity: 0; } }
+@keyframes native-photo-out-end   { to { transform: translateX(35%); opacity: 0; } }
+@keyframes native-photo-in-start  { from { transform: translateX(-35%); opacity: 0; } }
 @keyframes native-nav-icon-pop { 0% { scale: 0.8; } 60% { scale: 1.08; } 100% { scale: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
@@ -175,6 +202,7 @@ html.native-android [class*='_mobile_header_'] > [class*='_bottomHeader_navList_
     [class*='_photo_modal_content_'],
     [data-actions-dropdown-portal],
     [class*='_dropdown_'][role='listbox'],
+    [class*='_language_dropdown_'],
     [class*='_cookieBanner_'],
     [data-page-loader],
     [class*='_mobile_header_'] svg { animation: none !important; }

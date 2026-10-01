@@ -31,6 +31,7 @@ import { initNativePrefetch } from '../utils/nativePrefetch';
 import { initNativeSession } from '../utils/nativeSession';
 import { loadNativeSnapshot } from '../utils/nativeSnapshot';
 import { initNativeMotion } from '../utils/nativeMotion';
+import { initNativeBackButton } from '../utils/nativeBack';
 import './styles/native.scss';
 import './styles/native-motion.scss';
 
@@ -58,6 +59,7 @@ initNativeSplash();
 initNativePrefetch();
 initNativeChrome();
 initNativeMotion();
+initNativeBackButton();
 
 // Мобильное приложение, самый первый запуск: сначала встроенный снимок данных (utils/nativeSnapshot.ts),
 // потом прогрев справочников и первый рендер — главная сразу с данными, без ожидания сети. На сайте и
