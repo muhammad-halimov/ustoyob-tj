@@ -4,7 +4,7 @@ import { Clear } from '../Clear/Clear';
 import { PageLoader } from '../../../../widgets/PageLoader';
 import { Marquee } from '../../Text/Marquee';
 import { usePersistedState } from '../../../../hooks';
-import { runNativeTransition } from '../../../../utils/nativeMotion';
+import { animateLayoutChange } from '../../../../utils/nativeLayoutMotion';
 
 /**
  * Компонент ShowMore отображает компактный блок для разворачивания или
@@ -86,28 +86,28 @@ export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLes
 
     if (!resolvedCanLoadMore && !expanded) return null;
 
-    // Мобильная сборка: раскрытие/сворачивание — растворением (utils/nativeMotion.ts). Для списков, что
-    // догружают страницу с сервера, новые элементы плавно появляются уже по приходу (useShowMore).
+    // Мобильная сборка: список плавно раскрывается и сворачивается (utils/nativeLayoutMotion.ts), при
+    // сворачивании кнопка остаётся под пальцем. «Показать ещё» ждёт, пока новые элементы реально
+    // появятся: многие списки догружают страницу с сервера. На сайте — как раньше, без анимации.
     const handleShowMore = () => {
-        runNativeTransition('fade', () => {
+        const wrapper = wrapperRef.current;
+        animateLayoutChange(wrapper, () => {
             setClicked('more');
             onShowMore();
-        });
+        }, { ignore: wrapper, wait: true });
     };
 
     const handleShowLess = () => {
         const wrapper = wrapperRef.current;
-        const prevTop = wrapper?.getBoundingClientRect().top ?? 0;
-        runNativeTransition('fade', () => {
+        animateLayoutChange(wrapper, () => {
             setClicked('less');
             onShowLess();
-        });
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                const newTop = wrapper?.getBoundingClientRect().top ?? 0;
-                window.scrollBy({ top: newTop - prevTop, behavior: 'instant' });
-            });
-        });
+        }, { anchor: wrapper, ignore: wrapper });
+    };
+
+    const handleClear = () => {
+        const wrapper = wrapperRef.current;
+        animateLayoutChange(wrapper, onClear, { anchor: wrapper, ignore: wrapper });
     };
 
     const moreLoading = loading && clicked === 'more';
@@ -153,7 +153,7 @@ export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLes
                         </button>
                     )}
                 </div>
-                {clearBtn && expanded && <Clear onClick={onClear} />}
+                {clearBtn && expanded && <Clear onClick={handleClear} />}
             </div>
         </div>
     );

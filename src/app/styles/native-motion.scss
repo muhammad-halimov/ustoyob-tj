@@ -14,17 +14,22 @@ $md-emphasized: cubic-bezier(0.2, 0, 0, 1);
 $md-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
 $md-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
 $ios-ease: cubic-bezier(0.32, 0.72, 0, 1);
+$dialog-overlay: ":is([class*='_modalOverlay_'], [class*='_overlay_']:has(> [class*='_content_'] > [class*='_closeButton_']))";
 
 // ── Переходы между экранами (View Transitions) ───────────────────────────────────────────────────
-html.native {
-  // Нижняя панель в переходе не участвует: своя группа без анимации, сразу живое новое состояние
-  // (подсветка активной вкладки при этом плавно переезжает своими transition).
+// Нижняя панель в переходе между экранами не участвует: своя группа без анимации, сразу живое новое
+// состояние (подсветка активной вкладки при этом плавно переезжает своими transition). Плавающий
+// баннер cookie — тоже на месте, а не уезжает вместе со страницей. Только для смены экрана: своя
+// группа рисуется поверх всего, и при листании галереи панель на миг проступала над её затемнением.
+html.native:is(.vt-forward, .vt-back, .vt-tab) {
   [class*='_mobile_header_'] { view-transition-name: native-bottom-nav; }
+  [class*='_cookieBanner_'] { view-transition-name: native-cookie-banner; }
+}
+
+html.native {
   &::view-transition-group(native-bottom-nav) { animation: none; }
   &::view-transition-old(native-bottom-nav) { display: none; }
   &::view-transition-new(native-bottom-nav) { animation: none; }
-  // Плавающий баннер cookie — тоже на месте, а не уезжает вместе со страницей.
-  [class*='_cookieBanner_'] { view-transition-name: native-cookie-banner; }
   &::view-transition-group(native-cookie-banner) { animation: none; }
   &::view-transition-old(native-cookie-banner) { display: none; }
   &::view-transition-new(native-cookie-banner) { animation: none; }
@@ -54,12 +59,6 @@ html.native-ios {
   &.vt-tab::view-transition-new(root) { animation: 150ms ease both native-fade-in; }
 }
 
-// Смена вида внутри экрана (вкладки, раскрытие фильтров) — короткое перекрёстное растворение.
-html.native {
-  &.vt-fade::view-transition-old(root) { animation: 160ms ease-out both native-fade-out; }
-  &.vt-fade::view-transition-new(root) { animation: 220ms $md-decelerate 40ms both native-fade-in; }
-}
-
 // Листание фото в галерее: снимок уезжает в сторону листания, следующий въезжает с другой; остальное
 // (счётчик, миниатюры) меняется сразу. Призрак закрывающейся галереи в переходах не участвует.
 html.native {
@@ -82,9 +81,10 @@ html.native {
 html.native {
   [data-native-ghost] { pointer-events: none !important; }
 
-  // Диалоги (у всех модалок приложения подложка — `modalOverlay`, панель — её первый ребёнок).
-  [class*='_modalOverlay_']:not([data-native-ghost]) { animation: 200ms ease-out both native-fade-in; }
-  [class*='_modalOverlay_']:not([data-native-ghost]) > :first-child { animation: 280ms $md-decelerate both native-dialog-in; }
+  // Диалоги: подложка — `modalOverlay` (почти все модалки) или `overlay` InfoModal («Как это работает»,
+  // с панелью `content` и крестиком), панель — её первый ребёнок. Тот же список — DIALOG_OVERLAY в nativeMotion.ts.
+  #{$dialog-overlay}:not([data-native-ghost]) { animation: 200ms ease-out both native-fade-in; }
+  #{$dialog-overlay}:not([data-native-ghost]) > :first-child { animation: 280ms $md-decelerate both native-dialog-in; }
   [data-native-ghost='dialog'] { animation: 190ms ease-in both native-fade-out; }
   [data-native-ghost='dialog'] > :first-child { animation: 190ms $md-accelerate both native-dialog-out; }
 
@@ -119,7 +119,7 @@ html.native {
 }
 
 // iOS-алерт появляется «из чуть большего».
-html.native-ios [class*='_modalOverlay_']:not([data-native-ghost]) > :first-child {
+html.native-ios #{$dialog-overlay}:not([data-native-ghost]) > :first-child {
   animation: 300ms $ios-ease both native-ios-alert-in;
 }
 
@@ -195,8 +195,8 @@ html.native-android [class*='_mobile_header_'] > [class*='_bottomHeader_navList_
   html.native::view-transition-new(*) { animation: none !important; }
 
   html.native {
-    [class*='_modalOverlay_'],
-    [class*='_modalOverlay_'] > :first-child,
+    #{$dialog-overlay},
+    #{$dialog-overlay} > :first-child,
     [class*='_photo_modal_overlay_'],
     [class*='_photoModalOverlay_'],
     [class*='_photo_modal_content_'],

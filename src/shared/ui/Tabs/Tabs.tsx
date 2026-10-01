@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import styles from './Tabs.module.scss';
 import { Marquee } from '../Text/Marquee';
-import { runNativeTransition } from '../../../utils/nativeMotion';
+import { animateLayoutChange } from '../../../utils/nativeLayoutMotion';
 
 export interface TabItem<T extends string = string> {
     key: T;
@@ -31,8 +31,20 @@ export function Tabs<T extends string = string>({
     altMode = false,
     className,
 }: TabsProps<T>) {
+    const rootRef = useRef<HTMLDivElement>(null);
+    // Мобильная сборка: содержимое вкладки сменяется плавно — старое растворяется, новое проявляется,
+    // высота блока доезжает (utils/nativeLayoutMotion.ts). На сайте — сразу, как раньше.
+    const select = (key: T) => {
+        if (key === activeTab) {
+            onChange(key);
+            return;
+        }
+        animateLayoutChange(rootRef.current, () => onChange(key), { ignore: rootRef.current });
+    };
+
     return (
         <div
+            ref={rootRef}
             className={[
                 styles.tabs,
                 variant === 'pill' ? styles.tabs_pill : styles.tabs_underline,
@@ -47,8 +59,7 @@ export function Tabs<T extends string = string>({
                     key={tab.key}
                     type="button"
                     className={`${styles.tab}${activeTab === tab.key ? ` ${styles.active}` : ''}`}
-                    // Мобильная сборка: содержимое вкладок сменяется растворением (utils/nativeMotion.ts).
-                    onClick={() => (tab.key === activeTab ? onChange(tab.key) : runNativeTransition('fade', () => onChange(tab.key)))}
+                    onClick={() => select(tab.key)}
                 >
                     {(tab.icon || typeof tab.label === 'string') ? (
                         <span className={styles.tab_content}>

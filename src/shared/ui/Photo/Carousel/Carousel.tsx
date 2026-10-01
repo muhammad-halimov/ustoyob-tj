@@ -3,6 +3,7 @@ import type * as React from 'react';
 import styles from './Carousel.module.scss';
 import { Preview } from '../Preview';
 import { Img } from '../Img';
+import { slidePhoto } from '../../../../utils/nativeMotion';
 import type { PhotoSource } from '../../../../entities';
 
 const THUMB_PER_PAGE = 4;
@@ -31,6 +32,18 @@ export function Carousel({ photos, sources, variant = 'medium', className, prior
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [thumbOffset, setThumbOffset] = useState(0);
   const touchState = useRef<{ x: number; y: number; dx: number; scrolled: boolean } | null>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
+
+  // Мобильная сборка: фото листается сдвигом в сторону листания, а не сменяется скачком
+  // (utils/nativeMotion.ts); на сайте — как раньше.
+  const step = (direction: 1 | -1) => {
+    if (photos.length < 2) return;
+    slidePhoto(mainRef.current, direction, () => setCurrentIndex(i => (i + direction + photos.length) % photos.length));
+  };
+  const select = (index: number) => {
+    if (index === currentIndex) return;
+    slidePhoto(mainRef.current, index > currentIndex ? 1 : -1, () => setCurrentIndex(index));
+  };
 
   // sources используем только если они строго параллельны photos (вызывающий мог отфильтровать пустые URL).
   const usableSources = sources && sources.length === photos.length ? sources : undefined;
@@ -103,11 +116,7 @@ export function Carousel({ photos, sources, variant = 'medium', className, prior
     if (state && Math.abs(state.dx) >= SWIPE_THRESHOLD) {
       e.stopPropagation();
       e.preventDefault();
-      if (state.dx < 0) {
-        setCurrentIndex(i => (i + 1) % photos.length);
-      } else {
-        setCurrentIndex(i => (i - 1 + photos.length) % photos.length);
-      }
+      step(state.dx < 0 ? 1 : -1);
       return;
     }
 
@@ -131,12 +140,13 @@ export function Carousel({ photos, sources, variant = 'medium', className, prior
     touchState.current = null;
     e.stopPropagation();
     e.preventDefault();
-    setCurrentIndex(realIdx);
+    select(realIdx);
   };
 
   return (
     <div className={`${styles.slider} ${className || ''}`}>
       <div
+        ref={mainRef}
         className={styles.main_wrap}
         onClick={(e) => openGallery(currentIndex, e)}
         onTouchStart={handleTouchStart}
@@ -159,8 +169,8 @@ export function Carousel({ photos, sources, variant = 'medium', className, prior
           <>
             <button
               className={styles.arrow_btn}
-              onClick={(e) => { e.stopPropagation(); e.preventDefault(); setCurrentIndex(i => (i - 1 + photos.length) % photos.length); }}
-              onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setCurrentIndex(i => (i - 1 + photos.length) % photos.length); }}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); step(-1); }}
+              onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); step(-1); }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -168,8 +178,8 @@ export function Carousel({ photos, sources, variant = 'medium', className, prior
             </button>
             <button
               className={styles.arrow_btn}
-              onClick={(e) => { e.stopPropagation(); e.preventDefault(); setCurrentIndex(i => (i + 1) % photos.length); }}
-              onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setCurrentIndex(i => (i + 1) % photos.length); }}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); step(1); }}
+              onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); step(1); }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -202,7 +212,7 @@ export function Carousel({ photos, sources, variant = 'medium', className, prior
                   fallbacks={src(realIdx)?.thumbnail ? [photo] : undefined}
                   placeholder="/img/icons/misc/fonTest5.png"
                   className={`${styles.thumbnail} ${realIdx === currentIndex ? styles.thumbnail_active : ''}`}
-                  onClick={(e) => { e.stopPropagation(); setCurrentIndex(realIdx); }}
+                  onClick={(e) => { e.stopPropagation(); select(realIdx); }}
                   onTouchStart={handleTouchStart}
                   onTouchMove={handleTouchMove}
                   onTouchEnd={(e) => handleThumbTouchEnd(realIdx, e)}

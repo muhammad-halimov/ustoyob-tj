@@ -168,6 +168,16 @@ function TechSupport({ embedded = false }: TechSupportProps) {
         fetchMyTickets();
     }, [activeTab, isAuth, fetchMyTickets]);
 
+    // Мобильная сборка: свои обращения греем сразу, как только пользователь вошёл (часто — прямо здесь,
+    // кнопкой «Войти»), не дожидаясь вкладки: иначе «Мои заявки» после входа открывались со спиннером.
+    useEffect(() => {
+        if (!isAuth) return;
+        getMyTechSupports().then((data) => {
+            setMyTickets(Array.isArray(data) ? data as SupportTicket[] : (data as { 'hydra:member'?: SupportTicket[] })?.['hydra:member'] ?? []);
+            setLoadingMyTickets(false);
+        }).catch(() => {});
+    }, [isAuth]);
+
     // Real-time — one Mercure connection covering every ticket the user is party to
     // (as author or administrant, §11), so new replies land in `myTickets` instantly:
     // updates "last activity" sort and feeds the unread bubble, without polling.

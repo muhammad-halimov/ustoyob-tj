@@ -11,7 +11,9 @@
  *    узел, который React уже удалил, клонируется и доигрывает анимацию ухода. Компоненты не меняются.
  *  - Нажатие: элемент слегка «вдавливается» и тускнеет (Web Animations — не CSS transition, чтобы не
  *    перебивать собственные transition компонентов), с короткой задержкой и отменой при прокрутке,
- *    как в нативных списках.
+ *    как в нативных списках. Кроме фото и элементов, у которых свой `:active` со сжатием.
+ *  - Листание фото в карусели карточки — сдвигом (slidePhoto). Перестройка блока на месте («Показать
+ *    ещё», вкладки, фильтры) — живыми элементами, utils/nativeLayoutMotion.ts.
  */
 import { Capacitor } from '@capacitor/core';
 import { flushSync } from 'react-dom';
@@ -21,15 +23,26 @@ import { TAB_PATHS } from '../app/layouts/keepAliveTabs';
 type AppRouter = ReturnType<typeof createBrowserRouter>;
 type Place = { pathname: string; search: string };
 /**
- * forward/back — переход между экранами, tab — смена вкладки нижней панели, fade — смена вида внутри
- * экрана, gallery-next/gallery-prev — листание фото в галерее.
+ * forward/back — переход между экранами, tab — смена вкладки нижней панели, gallery-next/gallery-prev —
+ * листание фото в галерее. Смена вида внутри экрана — не здесь, а живыми элементами (nativeLayoutMotion.ts):
+ * переход снимком всей страницы «моргал» ею целиком.
  */
-export type NativeMotion = 'forward' | 'back' | 'tab' | 'fade' | 'gallery-next' | 'gallery-prev' | 'none';
-const MOTION_CLASSES = ['vt-forward', 'vt-back', 'vt-tab', 'vt-fade', 'vt-gallery-next', 'vt-gallery-prev'];
+export type NativeMotion = 'forward' | 'back' | 'tab' | 'gallery-next' | 'gallery-prev' | 'none';
+const MOTION_CLASSES = ['vt-forward', 'vt-back', 'vt-tab', 'vt-gallery-next', 'vt-gallery-prev'];
 
 const ENABLED = Capacitor.isNativePlatform();
 const VT_SUPPORTED = typeof document !== 'undefined' && typeof document.startViewTransition === 'function';
 const reducedMotion = (): boolean => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
+/** Анимации мобильной сборки включены: приложение (Capacitor) и в системе не включено «Убрать анимацию». */
+export const isNativeMotionEnabled = (): boolean => ENABLED && !reducedMotion();
+
+/**
+ * Подложки диалогов: у большинства модалок — `modalOverlay`, у InfoModal («Как это работает») —
+ * `overlay` с панелью `content` и крестиком внутри (просто `_overlay_` — это ещё и лоадер, и экран
+ * «нет сети»).
+ */
+export const DIALOG_OVERLAY = '[class*="_modalOverlay_"], [class*="_overlay_"]:has(> [class*="_content_"] > [class*="_closeButton_"])';
 
 const normalize = (pathname: string): string => (pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname);
 const isTab = (pathname: string): boolean => TAB_PATHS.includes(normalize(pathname));
@@ -123,8 +136,8 @@ export function installNativePageTransitions(router: AppRouter): void {
 let applyingUpdate = false;
 
 export function runNativeTransition(motion: NativeMotion, update: () => void): void {
-    // Вызов изнутри другого такого же обновления (например, «Показать меньше» → onShowLess) — это уже
-    // часть идущего перехода: применяем сразу, второй переход не начинаем.
+    // Вызов изнутри другого такого же обновления — это уже часть идущего перехода: применяем сразу,
+    // второй переход не начинаем.
     if (applyingUpdate || !ENABLED || !VT_SUPPORTED || motion === 'none' || reducedMotion()) {
         update();
         return;
@@ -140,11 +153,41 @@ export function runNativeTransition(motion: NativeMotion, update: () => void): v
     });
 }
 
+// ── Листание фото на месте (карусель в карточке) ────────────────────────────────────────────────
+
+/**
+ * Смена фото в рамке `frame` (карусель карточки — без полноэкранной галереи): старое уезжает в сторону
+ * листания, новое въезжает следом, как в нативных каруселях. Обновление применяется синхронно.
+ */
+export function slidePhoto(frame: HTMLElement | null, direction: 1 | -1, update: () => void): void {
+    const img = frame?.querySelector<HTMLImageElement>(':scope > img');
+    if (!isNativeMotionEnabled() || !frame || !img) {
+        update();
+        return;
+    }
+    // Предыдущее листание ещё едет — доводим его сразу.
+    frame.querySelectorAll('[data-native-ghost="slide"]').forEach((g) => g.remove());
+    img.getAnimations().forEach((a) => a.finish());
+    const ghost = img.cloneNode(true) as HTMLImageElement;
+    ghost.setAttribute('data-native-ghost', 'slide');
+    ghost.setAttribute('aria-hidden', 'true');
+    ghost.loading = 'eager';
+    Object.assign(ghost.style, { position: 'absolute', inset: '0', width: '100%', height: '100%', pointerEvents: 'none' });
+    flushSync(update);
+    if (!img.isConnected) return;
+    // Над новым фото, но под стрелками (у них свой z-index).
+    img.after(ghost);
+    const timing: KeyframeAnimationOptions = { duration: 280, easing: 'cubic-bezier(0.2, 0, 0, 1)' };
+    const remove = (): void => ghost.remove();
+    ghost.animate([{ translate: '0 0' }, { translate: `${-direction * 100}% 0` }], { ...timing, fill: 'forwards' }).finished.then(remove, remove);
+    img.animate([{ translate: `${direction * 100}% 0` }, { translate: '0 0' }], timing);
+}
+
 // ── Исчезновение модалок, меню, списков: «призраки» ─────────────────────────────────────────────
 
 type GhostKind = 'dialog' | 'gallery' | 'menu' | 'listbox';
 const GHOSTS: { selector: string; kind: GhostKind; ms: number; inPlace?: boolean }[] = [
-    { selector: '[class*="_modalOverlay_"]', kind: 'dialog', ms: 190 },
+    { selector: DIALOG_OVERLAY, kind: 'dialog', ms: 190 },
     { selector: '[class*="_photo_modal_overlay_"], [class*="_photoModalOverlay_"]', kind: 'gallery', ms: 200 },
     { selector: '[data-actions-dropdown-portal]', kind: 'menu', ms: 150 },
     // Выпадающий список позиционирован внутри своего поля — призрак остаётся там же, и только если
@@ -198,7 +241,73 @@ const MOVE_CANCEL_PX = 10;
 const BUTTONISH = 'button, a[href], [role="button"], [role="tab"], [role="option"], label[for], summary';
 const NOT_PRESSABLE = 'input, textarea, select, [contenteditable="true"], [data-native-ghost], [class*="_mobile_header_"]';
 // Выше этих контейнеров не поднимаемся: подложка модалки или галереи — не кнопка, даже с cursor: pointer.
-const PRESS_BOUNDARY = '[class*="_modalOverlay_"], [class*="_photo_modal_overlay_"], [class*="_photoModalOverlay_"], main';
+const PRESS_BOUNDARY = `${DIALOG_OVERLAY}, [class*="_photo_modal_overlay_"], [class*="_photoModalOverlay_"], main`;
+const POPUP_CANDIDATES = '[role="listbox"], [role="menu"], [role="tooltip"], [class*="dropdown" i], [class*="popover" i], [class*="tooltip" i]';
+
+/** Выходит ли элемент за рамки `box` — то есть «выпадает» из своего владельца наружу. */
+const escapesBounds = (child: Element, box: DOMRect): boolean => {
+    const r = child.getBoundingClientRect();
+    return r.width > 0 && r.height > 0
+        && (r.top < box.top - 1 || r.bottom > box.bottom + 1 || r.left < box.left - 1 || r.right > box.right + 1);
+};
+
+/**
+ * Фото (сама картинка или рамка, которую она почти целиком занимает: карусель карточки, миниатюры,
+ * снимок в галерее) не «вдавливаем»: в нативных приложениях фото на касание не сжимается, а сжатие
+ * перед открытием галереи (у которой своё «приближение») выглядело как двойное нажатие.
+ */
+const isPhoto = (el: Element): boolean => {
+    if (el.tagName === 'IMG') return true;
+    const img = el.querySelector('img');
+    if (!img) return false;
+    const frame = el.getBoundingClientRect();
+    const pic = img.getBoundingClientRect();
+    return pic.width * pic.height >= 0.8 * frame.width * frame.height;
+};
+
+/**
+ * Селекторы элементов, у которых уже есть свой отклик на нажатие — `:active { transform/scale }` в их
+ * стилях (кнопки карточки, переключатель языка и т.п.). Наш поверх давал «двойное нажатие»: сначала
+ * срабатывал их CSS, через миг — наш. Собираем из таблиц стилей (без `:active`) и пересобираем, когда
+ * таблиц становится больше: стили экранов подгружаются по мере переходов.
+ */
+let ownPressSelectors: string[] = [];
+let scannedSheets = -1;
+const collectOwnPress = (): string[] => {
+    if (document.styleSheets.length === scannedSheets) return ownPressSelectors;
+    scannedSheets = document.styleSheets.length;
+    const found: string[] = [];
+    const walk = (rules: CSSRuleList): void => {
+        for (const rule of Array.from(rules)) {
+            if (rule instanceof CSSStyleRule) {
+                if (!rule.selectorText.includes(':active') || !(rule.style.transform || rule.style.scale)) continue;
+                for (const part of rule.selectorText.split(',')) {
+                    if (part.includes(':active') && !part.includes(':not(:active')) found.push(part.replace(/:active/g, '').trim());
+                }
+            } else if (rule instanceof CSSGroupingRule) {
+                walk(rule.cssRules);
+            }
+        }
+    };
+    for (const sheet of Array.from(document.styleSheets)) {
+        try { walk(sheet.cssRules); } catch { /* таблица с чужого домена — правил не видно */ }
+    }
+    ownPressSelectors = found;
+    return found;
+};
+const hasOwnPress = (el: Element): boolean => collectOwnPress().some((selector) => {
+    try { return el.matches(selector); } catch { return false; }
+});
+
+/**
+ * Открыто ли внутри элемента выпадающее наружу (список языков под кнопкой и т.п.). Пока элемент
+ * «вдавлен», он — отдельный слой (scale/opacity), и всё внутри рисуется в пределах этого слоя:
+ * список уходил ПОД соседние блоки (а с ним и касания). Такие элементы не «вдавливаем».
+ */
+const hasPopup = (el: Element): boolean => {
+    const box = el.getBoundingClientRect();
+    return Array.from(el.querySelectorAll(POPUP_CANDIDATES)).some((popup) => escapesBounds(popup, box));
+};
 
 /** Есть ли у узла обработчик нажатия React (onClick и т.п.) — так находим настоящий «кликабельный» элемент. */
 const hasReactPressHandler = (el: Element): boolean => {
@@ -216,8 +325,10 @@ const hasReactPressHandler = (el: Element): boolean => {
 const findPressable = (target: Element): HTMLElement | null => {
     if (target.closest(NOT_PRESSABLE)) return null;
     let el: Element | null = null;
+    const path: Element[] = [];
     for (let cur: Element | null = target, depth = 0; cur && cur !== document.body && depth < 12; depth++, cur = cur.parentElement) {
         if (cur.matches(PRESS_BOUNDARY)) return null;
+        path.push(cur);
         if (cur.matches(BUTTONISH) || hasReactPressHandler(cur)) { el = cur; break; }
     }
     if (!el) return null;
@@ -225,7 +336,7 @@ const findPressable = (target: Element): HTMLElement | null => {
     // Огромный кликабельный блок (полэкрана и больше) не «вдавливаем» — это уже не кнопка.
     const { width, height } = el.getBoundingClientRect();
     const huge = width * height > 0.5 * window.innerWidth * window.innerHeight;
-    return disabled || huge ? null : el as HTMLElement;
+    return disabled || huge || isPhoto(el) || hasPopup(el) || path.some(hasOwnPress) ? null : el as HTMLElement;
 };
 
 /** Насколько «вдавить»: примерно на 4px по большей стороне, не сильнее 6% для мелких кнопок. */
@@ -234,10 +345,32 @@ const pressScale = (el: HTMLElement): number => {
     return 1 - Math.min(0.06, 8 / Math.max(width, height, 1));
 };
 
-const initPressFeedback = (): void => {
-    let active: { el: HTMLElement; x: number; y: number; timer: number; anim: Animation | null } | null = null;
+type Press = { el: HTMLElement; x: number; y: number; timer: number; anim: Animation | null; watch: MutationObserver | null; dead: boolean };
 
-    const pressIn = (state: NonNullable<typeof active>): void => {
+const initPressFeedback = (): void => {
+    let active: Press | null = null;
+
+    // Отклик снят сразу и насовсем (без обратной анимации).
+    const kill = (state: Press): void => {
+        state.dead = true;
+        window.clearTimeout(state.timer);
+        state.anim?.cancel();
+        state.watch?.disconnect();
+        if (active === state) active = null;
+    };
+
+    // Это же нажатие может открыть выпадающее внутри элемента (список языков) — тогда отклик снимаем
+    // до первого кадра со списком, иначе он нарисовался бы под соседними блоками (см. hasPopup).
+    const watchForPopup = (state: Press): void => {
+        state.watch = new MutationObserver((records) => {
+            const box = state.el.getBoundingClientRect();
+            if (records.some((r) => Array.from(r.addedNodes).some((n) => n instanceof Element && escapesBounds(n, box)))) kill(state);
+        });
+        state.watch.observe(state.el, { childList: true, subtree: true });
+    };
+
+    const pressIn = (state: Press): void => {
+        if (state.dead) return;
         const s = pressScale(state.el);
         state.anim = state.el.animate(
             [{ scale: '1', opacity: 1 }, { scale: String(s), opacity: 0.82 }],
@@ -250,14 +383,19 @@ const initPressFeedback = (): void => {
         if (!state) return;
         active = null;
         window.clearTimeout(state.timer);
+        if (state.dead) return;
         // Быстрый тап (отпустили раньше задержки) — всё равно короткий отклик, как у нативных кнопок.
         if (!state.anim && !cancelled) pressIn(state);
         const anim = state.anim;
-        if (!anim) return;
+        if (!anim) {
+            state.watch?.disconnect();
+            return;
+        }
         const back = (): void => {
+            if (state.dead) return;
             anim.playbackRate = -0.5;
             anim.play();
-            anim.finished.then(() => anim.cancel(), () => {});
+            anim.finished.then(() => { anim.cancel(); state.watch?.disconnect(); }, () => {});
         };
         if (cancelled || anim.playState !== 'running') back();
         else anim.finished.then(back, () => {});
@@ -268,7 +406,8 @@ const initPressFeedback = (): void => {
         release(true);
         const el = findPressable(e.target);
         if (!el) return;
-        const state = { el, x: e.clientX, y: e.clientY, timer: 0, anim: null as Animation | null };
+        const state: Press = { el, x: e.clientX, y: e.clientY, timer: 0, anim: null, watch: null, dead: false };
+        watchForPopup(state);
         state.timer = window.setTimeout(() => { if (active === state) pressIn(state); }, PRESS_DELAY_MS);
         active = state;
     }, { capture: true, passive: true });

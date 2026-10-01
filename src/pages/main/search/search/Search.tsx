@@ -41,7 +41,7 @@ import {formatTicketImageUrl, toPhotoSource, resolveAvatar} from '../../../../ut
 import {fetchAllPages} from '../../../../utils/paginationUtils';
 import {getSessionJSON, getStorageItem, removeSessionItem, setSessionJSON} from '../../../../utils/storageUtils';
 import {resolveApiError} from '../../../../utils/appMessagesUtils';
-import { runNativeTransition } from '../../../../utils/nativeMotion';
+import { animateLayoutChange } from '../../../../utils/nativeLayoutMotion';
 
 /** Intermediate type: raw API ticket enriched with computed display fields for filtering/sorting */
 type TicketWithMeta = ApiTicket & { type: UserRole; userRating: number; userReviewCount: number };
@@ -949,9 +949,11 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         }
     }, [respondedTickets, respondingTicketId, t]);
 
+    // Мобильная сборка: панель фильтров плавно раскрывается и сворачивается, а не возникает скачком
+    // (utils/nativeLayoutMotion.ts).
+    const containerRef = useRef<HTMLDivElement>(null);
     const handleFilterToggle = useCallback((isVisible: boolean) => {
-        // Мобильная сборка: раскрытие/скрытие фильтров — растворением, а не скачком (utils/nativeMotion.ts).
-        runNativeTransition('fade', () => {
+        animateLayoutChange(containerRef.current, () => {
             setShowFilters(isVisible);
             onFilterToggle(isVisible);
         });
@@ -1249,7 +1251,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     }, [isLoading, showResults, showFilters, searchResults, userRole, handleCardClick, t, handleForceRefresh, handleRespondCard, respondedTickets, respondingTicketId]);
 
     return (
-        <div className={`${styles.container} ${showFilters ? styles.containerExpanded : ''}`}>
+        <div ref={containerRef} className={`${styles.container} ${showFilters ? styles.containerExpanded : ''}`}>
             <div className={styles.search_with_filters}>
                 <FilterPanel
                     key={filterResetCount}

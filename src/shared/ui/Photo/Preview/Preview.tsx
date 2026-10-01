@@ -39,8 +39,9 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
     fallbackImage = '/img/icons/misc/fonTest5.png'
 }) => {
     // Мобильная сборка: листание — снимок уезжает в сторону листания (utils/nativeMotion.ts); на сайте — как раньше.
-    const showNext = () => runNativeTransition('gallery-next', onNext);
-    const showPrevious = () => runNativeTransition('gallery-prev', onPrevious);
+    // Одно фото листать некуда: без этого свайп «перелистывал» его само на себя — с анимацией.
+    const showNext = () => { if (images.length > 1) runNativeTransition('gallery-next', onNext); };
+    const showPrevious = () => { if (images.length > 1) runNativeTransition('gallery-prev', onPrevious); };
     const showImage = (index: number) => runNativeTransition(
         index > currentIndex ? 'gallery-next' : index < currentIndex ? 'gallery-prev' : 'none',
         () => onSelectImage(index),
