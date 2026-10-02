@@ -2025,33 +2025,35 @@ function Chat() {
                                                                     if (count === 0) return null;
                                                                     const sizeClass = count === 1 ? styles.messageImages1 : count === 2 ? styles.messageImages2 : styles.messageImages3;
                                                                     const busy = msg.status === 'pending' || msg.status === 'uploading' || (local.length > 0 && server.length > 0);
+                                                                    const serverImgs = server.map((img) => (
+                                                                        <Img
+                                                                            key={img.id}
+                                                                            // Превью 480 px + BlurHash; оригинал — откат. Если не грузится ничего — скрыто (как раньше).
+                                                                            src={img.source?.thumbnail ?? img.url}
+                                                                            fallbacks={[img.url]}
+                                                                            blurhash={img.source?.blurhash}
+                                                                            alt=""
+                                                                            loading={local.length ? 'eager' : undefined}
+                                                                            className={styles.messageGridImage}
+                                                                            onLoad={local.length ? () => imageSettled(msg, img.id) : undefined}
+                                                                            onError={local.length ? () => imageSettled(msg, img.id) : undefined}
+                                                                            onClick={() => {
+                                                                                const galleryIdx = chatImages.findIndex(ci => ci.imageUrl === img.url);
+                                                                                photoGallery.openGallery(galleryIdx >= 0 ? galleryIdx : 0);
+                                                                            }}
+                                                                        />
+                                                                    ));
                                                                     return (
                                                                         <div className={`${styles.messageImagesGrid} ${sizeClass} ${local.length ? styles.localImages : ''}`}>
-                                                                            {server.map((img) => (
-                                                                                <Img
-                                                                                    key={img.id}
-                                                                                    // Превью 480 px + BlurHash; оригинал — откат. Если не грузится ничего — скрыто (как раньше).
-                                                                                    src={img.source?.thumbnail ?? img.url}
-                                                                                    fallbacks={[img.url]}
-                                                                                    blurhash={img.source?.blurhash}
-                                                                                    alt=""
-                                                                                    loading={local.length ? 'eager' : undefined}
-                                                                                    className={styles.messageGridImage}
-                                                                                    onLoad={local.length ? () => imageSettled(msg, img.id) : undefined}
-                                                                                    onError={local.length ? () => imageSettled(msg, img.id) : undefined}
-                                                                                    onClick={() => {
-                                                                                        const galleryIdx = chatImages.findIndex(ci => ci.imageUrl === img.url);
-                                                                                        photoGallery.openGallery(galleryIdx >= 0 ? galleryIdx : 0);
-                                                                                    }}
-                                                                                />
-                                                                            ))}
-                                                                            {local.length > 0 && (
-                                                                                <div className={`${styles.messageImagesGrid} ${sizeClass} ${server.length ? styles.localImagesCover : ''}`}>
+                                                                            {local.length > 0 ? (
+                                                                                <>
                                                                                     {local.map((url, i) => (
                                                                                         <img key={i} src={url} alt="" className={styles.messageGridImage} />
                                                                                     ))}
-                                                                                </div>
-                                                                            )}
+                                                                                    {/* Серверные фото грузятся невидимо, превью остаётся в потоке: высота не меняется. */}
+                                                                                    {server.length > 0 && <div className={styles.settleLayer} aria-hidden>{serverImgs}</div>}
+                                                                                </>
+                                                                            ) : serverImgs}
                                                                             {local.length > 0 && busy && (
                                                                                 <div className={styles.localImagesProgress}>
                                                                                     <PageLoader compact asSpan primary={false} />

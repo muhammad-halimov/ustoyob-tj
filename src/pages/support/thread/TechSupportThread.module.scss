@@ -537,13 +537,17 @@
   background: rgba(0, 0, 0, 0.28);
 }
 
-// Локальные превью поверх только что пришедших серверных фото — пока те не загрузятся.
-.outgoingCover {
+// Серверные фото невидимо догружаются, пока на их месте (в потоке) лежат локальные превью.
+.settleLayer {
   position: absolute;
-  inset: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: map.get(vars.$spacing, 1);
-  background: var(--color-background-primary);
-  z-index: 1;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+// Обычный (не удерживаемый) случай — обёртка не должна ломать flex-раскладку фото.
+.messageImagesInline {
+  display: contents;
 }
