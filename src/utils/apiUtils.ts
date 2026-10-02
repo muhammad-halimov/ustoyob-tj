@@ -1,4 +1,4 @@
-import { getAuthToken, handleUnauthorized } from './authUtils';
+import { getAuthToken, handleUnauthorized, waitForTokenRefresh } from './authUtils';
 import { ApiError } from './appMessagesUtils';
 import { getDefaultLocale } from './storageUtils';
 import i18n from 'i18next';
@@ -46,6 +46,9 @@ export const universalApiRequest = async (endpoint: string, options: ApiRequestO
     const locale = options.locale !== false ? (options.locale ?? getDefaultLocale()) : null;
 
     const executeRequest = async (): Promise<Response> => {
+        // Пока обновляется токен (его поймал 401 другой запрос), не отправляем запрос со старым — он
+        // всё равно вернулся бы 401 и затеял бы второе обновление.
+        if (options.requiresAuth !== false) await waitForTokenRefresh();
         const token = getAuthToken();
         const headers: Record<string, string> = {
             'Accept': 'application/json',
