@@ -86,9 +86,9 @@ export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLes
 
     if (!resolvedCanLoadMore && !expanded) return null;
 
-    // Мобильная сборка: список плавно раскрывается и сворачивается (utils/nativeLayoutMotion.ts), при
-    // сворачивании кнопка остаётся под пальцем. «Показать ещё» ждёт, пока новые элементы реально
-    // появятся: многие списки догружают страницу с сервера. На сайте — как раньше, без анимации.
+    // Мобильная сборка: список плавно раскрывается и сворачивается на месте (utils/nativeLayoutMotion.ts),
+    // экран при этом сам не прокручивается. «Показать ещё» ждёт, пока новые элементы реально появятся:
+    // многие списки догружают страницу с сервера. На сайте — как раньше, без анимации.
     const handleShowMore = () => {
         const wrapper = wrapperRef.current;
         animateLayoutChange(wrapper, () => {
@@ -102,12 +102,12 @@ export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLes
         animateLayoutChange(wrapper, () => {
             setClicked('less');
             onShowLess();
-        }, { anchor: wrapper, ignore: wrapper });
+        }, { ignore: wrapper });
     };
 
     const handleClear = () => {
         const wrapper = wrapperRef.current;
-        animateLayoutChange(wrapper, onClear, { anchor: wrapper, ignore: wrapper });
+        animateLayoutChange(wrapper, onClear, { ignore: wrapper });
     };
 
     const moreLoading = loading && clicked === 'more';

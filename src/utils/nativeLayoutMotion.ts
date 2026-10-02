@@ -15,9 +15,10 @@ import { DIALOG_OVERLAY, isNativeMotionEnabled } from './nativeMotion';
 type Box = { top: number; left: number; width: number; height: number };
 type Removal = { node: HTMLElement; parent: Node };
 
+// Страницу не докручиваем: блок меняется на месте, всё ниже съезжает следом, а экран не уезжает сам по себе.
+// Раньше при «Показать меньше» страница прокручивалась, чтобы кнопка осталась под пальцем — это выглядело
+// как самопроизвольная прокрутка, а в модалке (список городов) прокручивалась страница под ней.
 export interface LayoutChangeOptions {
-    /** Держать этот элемент на месте экрана, пока всё меняется (кнопка «Показать меньше» — под пальцем). */
-    anchor?: Element | null;
     /** Изменения внутри этого узла сами по себе ничего не запускают (спиннер на кнопке, сами вкладки). */
     ignore?: Element | null;
     /** Изменение придёт не сразу (данные догружаются с сервера): ждём его до 15 с. */
@@ -52,8 +53,8 @@ const boxOf = (el: Element): Box => {
 const isReactNode = (el: Element): boolean => Object.keys(el).some((k) => k.startsWith('__reactFiber$'));
 const SWIPER_OWNED = '[class*="swiper-"]';
 
-// На экране или рядом с ним (по вертикали — с запасом в экран: при сворачивании страница докручивается,
-// и соседнее заезжает в кадр). По горизонтали — строго: соседние страницы карусели лежат за краем.
+// На экране или рядом с ним (по вертикали — с запасом в экран: при сворачивании соседнее снизу заезжает в
+// кадр). По горизонтали — строго: соседние страницы карусели лежат за краем.
 const onScreen = (b: Box): boolean => {
     const top = b.top - window.scrollY;
     const left = b.left - window.scrollX;
@@ -62,15 +63,6 @@ const onScreen = (b: Box): boolean => {
         && left < window.innerWidth && left + b.width > 0;
 };
 
-/** Без анимации: применить и (как сайт) вернуть `anchor` на прежнее место экрана. */
-const applyPlain = (update: (() => void) | undefined, anchor: Element | null): void => {
-    const top = anchor?.getBoundingClientRect().top;
-    update?.();
-    if (!anchor || top === undefined) return;
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-        if (anchor.isConnected) window.scrollBy({ top: anchor.getBoundingClientRect().top - top, behavior: 'instant' });
-    }));
-};
 
 const lowestCommonAncestor = (nodes: Element[]): Element | null => {
     let lca: Element | null = null;
@@ -87,10 +79,10 @@ const lowestCommonAncestor = (nodes: Element[]): Element | null => {
  * блок — он сам или ближайший его предок, в котором случились изменения.
  */
 export function animateLayoutChange(origin: Element | null | undefined, update?: () => void, options: LayoutChangeOptions = {}): void {
-    const { anchor = null, ignore = null, wait = false } = options;
+    const { ignore = null, wait = false } = options;
     finishCurrent?.();
     if (!isNativeMotionEnabled() || !origin?.isConnected) {
-        applyPlain(update, anchor);
+        update?.();
         return;
     }
 
@@ -101,7 +93,7 @@ export function animateLayoutChange(origin: Element | null | undefined, update?:
     }
     const root = candidates[candidates.length - 1];
     if (!root) {
-        applyPlain(update, anchor);
+        update?.();
         return;
     }
 
@@ -123,7 +115,6 @@ export function animateLayoutChange(origin: Element | null | undefined, update?:
         }
     }
     candidates.forEach((c) => { if (!before.has(c)) before.set(c, boxOf(c)); });
-    const anchorTop = anchor?.getBoundingClientRect().top ?? null;
 
     let waiting = true;
     const stopWaiting = (): void => {
@@ -293,29 +284,14 @@ export function animateLayoutChange(origin: Element | null | undefined, update?:
         // Высота самого блока — плавно; лишнее на время прячем (иначе новое вылезло бы сразу целиком).
         if (Math.abs(scopeFinal.height - scopeBefore.height) >= 1) animateHeight(scope, scopeBefore.height, scopeFinal.height, true);
 
-        // Якорь остаётся на месте экрана: докручиваем страницу каждый кадр, пока всё едет.
         let finished = false;
-        let raf = 0;
-        const keepAnchor = (): void => {
-            if (!anchor?.isConnected || anchorTop === null) return;
-            const d = anchor.getBoundingClientRect().top - anchorTop;
-            if (Math.abs(d) >= 0.5) window.scrollBy({ top: d, behavior: 'instant' });
-        };
-        const tick = (): void => {
-            keepAnchor();
-            if (!finished) raf = requestAnimationFrame(tick);
-        };
-        if (anchor) raf = requestAnimationFrame(tick);
-
         const finish = (): void => {
             if (finished) return;
             finished = true;
             window.clearTimeout(fallback);
-            cancelAnimationFrame(raf);
             animations.forEach((a) => a.cancel());
             ghosts.forEach((g) => g.remove());
             undo.forEach((f) => f());
-            keepAnchor();
             if (finishCurrent === finish) finishCurrent = null;
         };
         // Конец — по самим анимациям (а не по таймеру): так и при замедленной отладке, и на медленном телефоне.
@@ -325,11 +301,8 @@ export function animateLayoutChange(origin: Element | null | undefined, update?:
     };
 
     observer.observe(root, { childList: true, subtree: true });
-    const timer = window.setTimeout(() => {
-        stopWaiting();
-        // Изменение так и не пришло (или пришло позже) — якорь всё равно на место, как без анимации.
-        if (anchor?.isConnected && anchorTop !== null) window.scrollBy({ top: anchor.getBoundingClientRect().top - anchorTop, behavior: 'instant' });
-    }, wait ? ASYNC_WAIT_MS : SYNC_WAIT_MS);
+    // Изменение так и не пришло (или пришло позже) — просто перестаём ждать.
+    const timer = window.setTimeout(stopWaiting, wait ? ASYNC_WAIT_MS : SYNC_WAIT_MS);
     finishCurrent = stopWaiting;
     update?.();
 }
