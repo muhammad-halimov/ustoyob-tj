@@ -14,6 +14,8 @@ export interface SelectOption<T = unknown> {
     label: string;
     /** Исходный объект данных (опционально) */
     data?: T;
+    /** Иконка перед текстом — в списке и в поле (опционально) */
+    icon?: React.ReactNode;
 }
 
 interface SelectSearchProps<T = unknown> {
@@ -334,7 +336,7 @@ export function SelectSearch<T = unknown>({
                 )}
                 <div className={`${styles.triggerLabel} ${!selectedOption ? styles.placeholder : ''}`}>
                     {selectedOption
-                        ? <Marquee text={selectedOption.label} alwaysScroll/>
+                        ? <>{selectedOption.icon && <span className={styles.optionIcon}>{selectedOption.icon}</span>}<Marquee text={selectedOption.label} alwaysScroll/></>
                         : resolvedPlaceholder
                     }
                 </div>
@@ -404,6 +406,7 @@ export function SelectSearch<T = unknown>({
                                     className={`${styles.item} ${option.value === value ? styles.itemActive : ''}`}
                                     onMouseDown={() => handleSelect(option)}
                                 >
+                                    {option.icon && <span className={styles.optionIcon}>{option.icon}</span>}
                                     <Marquee text={option.label} alwaysScroll/>
                                     {option.value === value && (
                                         <svg className={styles.checkIcon} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

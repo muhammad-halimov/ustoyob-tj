@@ -6,6 +6,7 @@ import { smartNameTranslator } from '../../utils/textUtils';
 import Auth from '../../shared/ui/Modal/Auth/Auth';
 import Feedback from '../../shared/ui/Modal/Feedback';
 import { PageLoader } from '../../widgets/PageLoader';
+import Status from '../../shared/ui/Modal/Status';
 import { EmptyState } from '../../widgets/EmptyState';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
@@ -1000,6 +1001,20 @@ function Chat() {
         await uploadPhotos('chat-messages', messageId, files, token);
     }, []);
 
+    /** Нажали на цитату в ответе — прокручиваем к исходному сообщению и коротко подсвечиваем его. */
+    const scrollToMessage = useCallback((id: string | number) => {
+        const container = messagesContainerRef.current;
+        const el = container?.querySelector<HTMLElement>(`[data-msg-key="${CSS.escape(String(id))}"]`);
+        if (!container || !el) return;
+        const top = el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop
+            - (container.clientHeight - el.offsetHeight) / 2;
+        container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+        el.animate(
+            [{ backgroundColor: 'rgba(58, 84, 218, 0.28)' }, { backgroundColor: 'rgba(58, 84, 218, 0)' }],
+            { duration: 1400, delay: 250, easing: 'ease-out' },
+        );
+    }, []);
+
     /**
      * Доставка своего сообщения, уже показанного в переписке (временного, `clientKey`): текст — на сервер,
      * затем фото — к созданному сообщению; готовое серверное сообщение сменяет временное тем же узлом.
@@ -1962,7 +1977,10 @@ function Chat() {
                                                         ) : (
                                                             <>
                                                                 {msg.replyTo && (
-                                                                    <div className={styles.replyQuote}>
+                                                                    <div
+                                                                        className={styles.replyQuote}
+                                                                        onClick={() => msg.replyTo && scrollToMessage(msg.replyTo.id)}
+                                                                    >
                                                                         <div className={styles.replyQuoteName}>{msg.replyTo.name}</div>
                                                                         <div className={styles.replyQuoteText}>
                                                                             {msg.replyTo.text.length > 80 ? msg.replyTo.text.substring(0, 80) + '…' : msg.replyTo.text}
@@ -2015,14 +2033,14 @@ function Chat() {
                                                                             <IoTimeOutline className={styles.tickPending} aria-label={t('chat.waiting')} />
                                                                         )}
                                                                         {msg.sender === 'me' && msg.isLocal && msg.status === 'error' && selectedChat && (
-                                                                            <button
+<button
                                                                                 type="button"
                                                                                 className={styles.retryBtn}
                                                                                 onClick={() => deliverMessage(msg, selectedChat)}
-                                                                                aria-label={t('chat.messageError')}
                                                                                 title={t('chat.messageError')}
                                                                             >
                                                                                 <IoAlertCircle />
+                                                                                <span>{t('chat.retry')}</span>
                                                                             </button>
                                                                         )}
                                                                     </div>
@@ -2224,12 +2242,12 @@ function Chat() {
                     </div>
                 )}
 
-                {error && (
-                    <div className={styles.error}>
-                        <span>{error}</span>
-                        <button onClick={() => setError(null)} className={styles.closeError}>×</button>
-                    </div>
-                )}
+                <Status
+                    type="error"
+                    isOpen={!!error}
+                    onClose={() => setError(null)}
+                    message={error ?? ''}
+                />
             </div>
 
             {/* Модальное окно для просмотра фото */}

@@ -278,7 +278,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                         <SelectSearch
                             options={getAvailableNetworks().map((availableNetwork: AvailableSocialNetwork) => {
                                 const config = SOCIAL_NETWORK_CONFIG[availableNetwork.network] || { label: availableNetwork.network, icon: '🌐' };
-                                return { value: availableNetwork.network, label: `${config.icon} ${config.label}` };
+                                return { value: availableNetwork.network, label: config.label, icon: renderSocialIcon(availableNetwork.network) };
                             })}
                             value={selectedNewNetwork}
                             onChange={setSelectedNewNetwork}

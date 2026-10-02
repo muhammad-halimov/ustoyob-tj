@@ -613,6 +613,7 @@
 
   /* === REPLY QUOTE внутри сообщения === */
   .replyQuote {
+    cursor: pointer;
     border-left: 3px solid #3A54DA;
     padding: 5px 10px;
     margin-bottom: 6px;
@@ -1427,49 +1428,6 @@
 }
 
 // Сообщения об ошибках
-.error {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #e53935;
-  color: white;
-  padding: 12px 20px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-width: 300px;
-  max-width: 500px;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-
-  @media (max-width: 480px) {
-    min-width: 250px;
-    max-width: 90%;
-    padding: 10px 16px;
-  }
-}
-
-.closeError {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 20px;
-  cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 10px;
-
-  &:hover {
-    opacity: 0.8;
-  }
-}
-
 .uploadingImage {
   position: relative;
   max-width: 300px;
@@ -2469,9 +2427,14 @@
   border: none;
   background: none;
   color: #ef5350;
-  font-size: 16px;
   vertical-align: -4px;
   cursor: pointer;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+
+  svg { font-size: 16px; }
 }
 
 .localImages {

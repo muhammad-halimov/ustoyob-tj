@@ -163,6 +163,7 @@
     "messageSuccess": "Сообщение успешно отправлено",
     "messageError": "Ошибка отправки сообщения",
     "noPhotoDescription": "Фото",
+    "retry": "Повторить",
     "waiting": "Ожидание...",
     "uploading": "Загрузка {{progress}}%",
     "prevPhoto": "Предыдущее фото",

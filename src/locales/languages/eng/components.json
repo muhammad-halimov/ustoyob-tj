@@ -163,6 +163,7 @@
     "messageSuccess": "Message sent successfully",
     "messageError": "Error sending message",
     "noPhotoDescription": "Photo",
+    "retry": "Retry",
     "waiting": "Waiting...",
     "uploading": "Uploading {{progress}}%",
     "prevPhoto": "Previous photo",
