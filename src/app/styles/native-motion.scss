@@ -138,16 +138,23 @@ html.native-android [class*='_mobile_header_'] > [class*='_bottomHeader_navList_
       // Во всю ширину вкладки (и чуть шире): длинные подписи («Фаворитҳо») с запасом по краям.
       left: -4px;
       right: -4px;
-      border-radius: 18px;
-      background: rgba(58, 84, 218, 0.16);
-      background: color-mix(in srgb, var(--color-actual-blue) 18%, transparent);
-      transform: scaleX(0.35);
+      border-radius: 20px;
+      // Мягкий градиент акцентного цвета, тонкое кольцо по контуру и лёгкое свечение — таблетка выглядит
+      // объёмной, а не плоской заливкой.
+      background: rgba(58, 84, 218, 0.18);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--color-actual-blue) 26%, transparent), color-mix(in srgb, var(--color-actual-blue) 12%, transparent));
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--color-actual-blue) 34%, transparent),
+        0 4px 14px -4px color-mix(in srgb, var(--color-actual-blue) 55%, transparent);
+      transform: scale(0.4, 0.8);
       opacity: 0;
-      transition: transform 320ms $md-emphasized, opacity 180ms ease;
+      // Раскрывается из центра с лёгким «пружинным» перелётом.
+      transition: transform 380ms cubic-bezier(0.34, 1.4, 0.64, 1), opacity 160ms ease;
       pointer-events: none;
     }
 
-    &:active::before { transform: scaleX(1); opacity: 0.55; transition-duration: 120ms; }
+    &:active::before { transform: scale(1); opacity: 0.6; transition-duration: 120ms; }
 
     > svg,
     > [class*='_navIconWrap_'],
@@ -155,7 +162,7 @@ html.native-android [class*='_mobile_header_'] > [class*='_bottomHeader_navList_
   }
 
   > li[class*='_active_'] > [class*='_navLink_'] {
-    &::before { transform: scaleX(1); opacity: 1; }
+    &::before { transform: scale(1); opacity: 1; }
     svg { animation: 400ms $md-emphasized native-nav-icon-pop; }
   }
 }
