@@ -272,7 +272,10 @@ export function animateLayoutChange(origin: Element | null | undefined, update?:
             const y = was.top - scopeBefore.top + scopeFirst.top - window.scrollY;
             node.style.left = `${x - zero[i].left}px`;
             node.style.top = `${y - zero[i].top}px`;
-            animations.push(node.animate([{ opacity: 1 }, { opacity: 0 }], { duration: EXIT_MS, easing: 'ease-out', fill: 'forwards' }));
+            // Растворение — фильтром, а не opacity: у части кнопок `opacity: 1 !important` на :hover/:active
+            // (крестик Clear в «Показать больше/меньше»), призрак после тапа так и остаётся «наведённым» —
+            // !important перебивал анимацию, и крестик висел непрозрачным, пока блок перестраивался.
+            animations.push(node.animate([{ filter: 'opacity(1)' }, { filter: 'opacity(0)' }], { duration: EXIT_MS, easing: 'ease-out', fill: 'forwards', composite: 'add' }));
         });
 
         // Появившиеся — проявляются и чуть всплывают; несколько в одном списке — лесенкой.
