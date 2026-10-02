@@ -20,6 +20,7 @@ import RouteErrorBoundary from "../../pages/errorBoundary/RouteErrorBoundary";
 import { ROUTE_PATTERNS } from './routes';
 import { tabElement } from '../layouts/keepAliveTabs';
 import { installNativePageTransitions } from '../../utils/nativeMotion';
+import { installNativeLinks } from '../../utils/nativeLinks';
 
 /**
  * Application router.
@@ -131,8 +132,10 @@ const router = createBrowserRouter([
     },
 ]);
 
-// Мобильная сборка: анимированные переходы между экранами (utils/nativeMotion.ts).
+// Мобильная сборка: анимированные переходы между экранами (utils/nativeMotion.ts) и ссылки «в новой
+// вкладке» (utils/nativeLinks.ts).
 installNativePageTransitions(router);
+installNativeLinks(router);
 
 export const AppRouter = () => {
     return <RouterProvider router={router} />;

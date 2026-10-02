@@ -21,7 +21,7 @@ $dialog-overlay: ":is([class*='_modalOverlay_'], [class*='_overlay_']:has(> [cla
 // состояние (подсветка активной вкладки при этом плавно переезжает своими transition). Плавающий
 // баннер cookie — тоже на месте, а не уезжает вместе со страницей. Только для смены экрана: своя
 // группа рисуется поверх всего, и при листании галереи панель на миг проступала над её затемнением.
-html.native:is(.vt-forward, .vt-back, .vt-tab) {
+html.native:is(.vt-forward, .vt-back) {
   [class*='_mobile_header_'] { view-transition-name: native-bottom-nav; }
   [class*='_cookieBanner_'] { view-transition-name: native-cookie-banner; }
 }
@@ -36,32 +36,26 @@ html.native {
 }
 
 html.native-android {
-  // Material 3 shared axis (X): старый экран уходит на 30px и гаснет в первой трети, новый приходит
-  // с 30px и проявляется в остальное время.
+  // Material 3 shared axis (X) — для всех экранов, вкладки нижней панели тоже: старый экран уходит на 30px
+  // и гаснет в первой трети, новый приходит с 30px и проявляется в остальное время.
   &.vt-forward::view-transition-old(root) { animation: 300ms $md-emphasized both native-axis-out-start; }
   &.vt-forward::view-transition-new(root) { animation: 300ms $md-emphasized both native-axis-in-end; }
   &.vt-back::view-transition-old(root) { animation: 300ms $md-emphasized both native-axis-out-end; }
   &.vt-back::view-transition-new(root) { animation: 300ms $md-emphasized both native-axis-in-start; }
-  // Material fade through — смена вкладки нижней панели.
-  &.vt-tab::view-transition-old(root) { animation: 90ms cubic-bezier(0.4, 0, 1, 1) both native-fade-out; }
-  &.vt-tab::view-transition-new(root) { animation: 210ms $md-decelerate 90ms both native-fade-through-in; }
 }
 
 html.native-ios {
-  // UIKit push: новый экран въезжает справа на всю ширину, старый уходит на треть влево и темнеет.
+  // UIKit push (и для вкладок нижней панели): новый экран въезжает справа на всю ширину, старый уходит
+  // на треть влево и темнеет.
   // Без box-shadow на снимках: на iPhone WebKit рисовал въезжающий экран со сдвигом на размер тени
   // (~40px влево и вверх) — он «улетал» и в конце перехода прыгал на место.
-  &.vt-forward::view-transition-old(root) { animation: 420ms $ios-ease both native-ios-push-out; }
-  &.vt-forward::view-transition-new(root) { animation: 420ms $ios-ease both native-ios-push-in; }
+  // Задержка в два кадра: если у нового экрана своя прокрутка (вкладка, «назад»), WebKit первый кадр
+  // перехода рисует его ещё с прежней — пока он за краем экрана или под старым, этого не видно.
+  &.vt-forward::view-transition-old(root) { animation: 420ms $ios-ease 34ms both native-ios-push-out; }
+  &.vt-forward::view-transition-new(root) { animation: 420ms $ios-ease 34ms both native-ios-push-in; }
   // Pop: верхний (уходящий) экран — поверх.
-  &.vt-back::view-transition-old(root) { z-index: 2; animation: 420ms $ios-ease both native-ios-pop-out; }
-  &.vt-back::view-transition-new(root) { animation: 420ms $ios-ease both native-ios-pop-in; }
-  // Вкладки на iOS — короткое перекрёстное растворение (было 150ms — на глаз «без анимации»). Старое и
-  // новое в сумме всегда 100% (plus-lighter, одинаковая кривая): одинаковое не тускнеет. Своя анимация
-  // снимает стандартное plus-lighter браузера — задаём его явно.
-  &.vt-tab::view-transition-image-pair(root) { isolation: isolate; }
-  &.vt-tab::view-transition-old(root) { animation: 240ms ease-in-out both native-fade-out; mix-blend-mode: plus-lighter; }
-  &.vt-tab::view-transition-new(root) { animation: 240ms ease-in-out both native-fade-in; mix-blend-mode: plus-lighter; }
+  &.vt-back::view-transition-old(root) { z-index: 2; animation: 420ms $ios-ease 34ms both native-ios-pop-out; }
+  &.vt-back::view-transition-new(root) { animation: 420ms $ios-ease 34ms both native-ios-pop-in; }
 }
 
 // Листание фото в галерее: снимок уезжает в сторону листания, следующий въезжает с другой; остальное
@@ -179,7 +173,6 @@ html.native-android [class*='_mobile_header_'] > [class*='_bottomHeader_navList_
 
 @keyframes native-fade-in  { from { opacity: 0; } }
 @keyframes native-fade-out { to { opacity: 0; } }
-@keyframes native-fade-through-in { from { opacity: 0; transform: scale(0.92); } }
 
 @keyframes native-dialog-in  { from { opacity: 0; scale: 0.9; } }
 @keyframes native-dialog-out { to { opacity: 0; scale: 0.95; } }

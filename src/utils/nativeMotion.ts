@@ -4,9 +4,10 @@
  * здесь — когда и в какую сторону их запускать:
  *
  *  - Переходы между экранами — View Transitions API: браузер снимает старый и новый экран и анимирует
- *    снимки, двух живых деревьев React не нужно. Вперёд/назад — горизонтально (Android: Material
- *    shared axis, iOS: «пуш» со сдвигом подложки), смена вкладки нижней панели — fade through.
- *    Направление — класс на <html> (vt-forward / vt-back / vt-tab). Нижняя панель в переходе стоит на месте.
+ *    снимки, двух живых деревьев React не нужно. Везде одно движение — горизонтальное (Android: Material
+ *    shared axis, iOS: «пуш» со сдвигом подложки): новый экран, в том числе вкладка нижней панели,
+ *    приходит справа, «назад» — слева. Направление — класс на <html> (vt-forward / vt-back). Нижняя
+ *    панель в переходе стоит на месте.
  *  - Модалки, меню, выпадающие списки, галерея: появление — CSS-анимацией; исчезновение — «призраком»:
  *    узел, который React уже удалил, клонируется и доигрывает анимацию ухода. Компоненты не меняются.
  *  - Нажатие: элемент слегка «вдавливается» и тускнеет (Web Animations — не CSS transition, чтобы не
@@ -23,12 +24,13 @@ import { TAB_PATHS } from '../app/layouts/keepAliveTabs';
 type AppRouter = ReturnType<typeof createBrowserRouter>;
 type Place = { pathname: string; search: string };
 /**
- * forward/back — переход между экранами, tab — смена вкладки нижней панели, gallery-next/gallery-prev —
- * листание фото в галерее. Смена вида внутри экрана — не здесь, а живыми элементами (nativeLayoutMotion.ts):
- * переход снимком всей страницы «моргал» ею целиком.
+ * forward/back — переход между экранами (и между вкладками нижней панели — тем же движением: отдельное
+ * растворение для вкладок выглядело как «экран просто появился»), gallery-next/gallery-prev — листание фото
+ * в галерее. Смена вида внутри экрана — не здесь, а живыми элементами (nativeLayoutMotion.ts): переход
+ * снимком всей страницы «моргал» ею целиком.
  */
-export type NativeMotion = 'forward' | 'back' | 'tab' | 'gallery-next' | 'gallery-prev' | 'none';
-const MOTION_CLASSES = ['vt-forward', 'vt-back', 'vt-tab', 'vt-gallery-next', 'vt-gallery-prev'];
+export type NativeMotion = 'forward' | 'back' | 'gallery-next' | 'gallery-prev' | 'none';
+const MOTION_CLASSES = ['vt-forward', 'vt-back', 'vt-gallery-next', 'vt-gallery-prev'];
 
 const ENABLED = Capacitor.isNativePlatform();
 const VT_SUPPORTED = typeof document !== 'undefined' && typeof document.startViewTransition === 'function';
@@ -56,21 +58,21 @@ const pushMotion = (from: Place, to: Place): NativeMotion => {
         if (opensDetail(from.search) && !opensDetail(to.search)) return 'back';
         return 'none';
     }
-    return isTab(to.pathname) ? 'tab' : 'forward';
+    return 'forward';
 };
 
 // replace — обычно служебные перенаправления (без анимации), но переход на вкладку (логотип → главная)
-// — смена вкладки, а из глубины (страница не из нижней панели) — «наверх», то есть назад.
+// — как нажатие на вкладку, а из глубины (страница не из нижней панели) — «наверх», то есть назад.
 const replaceMotion = (from: Place, to: Place): NativeMotion => {
     if (normalize(from.pathname) === normalize(to.pathname) || !isTab(to.pathname)) return 'none';
-    return isTab(from.pathname) ? 'tab' : 'back';
+    return isTab(from.pathname) ? 'forward' : 'back';
 };
 
 const popMotion = (from: Place, to: Place): NativeMotion => {
     if (normalize(from.pathname) === normalize(to.pathname)) {
         return opensDetail(from.search) !== opensDetail(to.search) ? 'back' : 'none';
     }
-    return isTab(from.pathname) && isTab(to.pathname) ? 'tab' : 'back';
+    return 'back';
 };
 
 export const setNativeMotion = (motion: NativeMotion): void => {
@@ -96,6 +98,41 @@ const resolvePlace = (to: unknown, current: Place): Place | null => {
 };
 
 /**
+ * Прокрутка окна, запрошенная во время обновления в переходе, — в самом конце обновления, перед снимком
+ * нового экрана. На iOS прокрутка посреди обновления сразу двигала ещё «замороженный» старый экран (вместе с
+ * нижней панелью) — до начала анимации он «улетал» вверх или вниз. Прокручивают при смене экрана Layout и
+ * TabKeepAlive (сброс наверх, восстановление позиции); пока идёт обновление, window.scrollTo только
+ * запоминает последнюю запрошенную позицию.
+ */
+const deferScrollDuringTransitionUpdates = (): void => {
+    const startViewTransition = document.startViewTransition.bind(document);
+    const scrollTo = window.scrollTo.bind(window) as (...args: unknown[]) => void;
+    let updating = 0;
+    let pending: unknown[] | null = null;
+    window.scrollTo = ((...args: unknown[]) => {
+        if (updating > 0) pending = args;
+        else scrollTo(...args);
+    }) as typeof window.scrollTo;
+    document.startViewTransition = ((arg?: ViewTransitionUpdateCallback | StartViewTransitionOptions) => {
+        const update = typeof arg === 'function' ? arg : arg?.update;
+        const deferred = async (): Promise<void> => {
+            updating++;
+            try {
+                await update?.();
+            } finally {
+                updating--;
+                if (updating === 0 && pending) {
+                    const args = pending;
+                    pending = null;
+                    scrollTo(...args);
+                }
+            }
+        };
+        return startViewTransition(typeof arg === 'object' && arg ? { ...arg, update: deferred } : deferred);
+    }) as typeof document.startViewTransition;
+};
+
+/**
  * Переходы между экранами для всего приложения: все навигации идут через router.navigate (Link,
  * useNavigate, setSearchParams), так что достаточно добавить им `viewTransition` здесь. Возврат
  * (системная «назад», navigate(-1)) react-router анимирует сам — туда, куда пришли с переходом;
@@ -106,6 +143,7 @@ export function installNativePageTransitions(router: AppRouter): void {
     // Прокрутку восстанавливает само приложение (TabKeepAlive, Layout). Браузерное восстановление на
     // «назад» прокручивало ещё СТАРЫЙ экран до снимка — в переходе мелькал не тот кусок страницы.
     window.history.scrollRestoration = 'manual';
+    deferScrollDuringTransitionUpdates();
     let current: Place = { pathname: router.state.location.pathname, search: router.state.location.search };
     let currentKey = router.state.location.key;
 

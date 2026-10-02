@@ -81,6 +81,12 @@ export function TabKeepAlive() {
         window.scrollTo({ top: scrollByTab.current.get(active) ?? 0, behavior: 'instant' });
     }, [active]);
 
+    // Открытая вкладка — атрибутом на <html> (`data-native-tab="/chats"`): стилям экрана, которым нужна
+    // именно видимая вкладка, — скрытые вкладки остаются в DOM (см. native.scss, переписка в чатах).
+    useLayoutEffect(() => {
+        if (KEEP_ALIVE) document.documentElement.dataset.nativeTab = active ?? '';
+    }, [active]);
+
     // Повторное нажатие на уже открытую вкладку в нижней панели (переход на тот же адрес — новый
     // location.key при том же пути и параметрах) — как в нативных приложениях: плавно наверх. И окно,
     // и собственные прокручиваемые блоки вкладки (например, список чатов со своим скроллом).
