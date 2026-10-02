@@ -536,3 +536,14 @@
   border-radius: map.get(vars.$border-radius, base);
   background: rgba(0, 0, 0, 0.28);
 }
+
+// Локальные превью поверх только что пришедших серверных фото — пока те не загрузятся.
+.outgoingCover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: map.get(vars.$spacing, 1);
+  background: var(--color-background-primary);
+  z-index: 1;
+}
