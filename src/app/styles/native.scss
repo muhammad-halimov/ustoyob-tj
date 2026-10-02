@@ -81,8 +81,13 @@ html.native-ios {
       left: 4px;
       width: calc((100% - 8px) / 5);
       border-radius: 999px;
-      background: rgba(58, 84, 218, 0.16);
-      background: color-mix(in srgb, var(--color-actual-blue) 18%, transparent);
+      // Как на Android: мягкий градиент акцентного цвета и тонкое кольцо по контуру (свечение наружу тут
+      // не видно — капсула обрезает содержимое, поэтому только внутреннее кольцо и блик сверху).
+      background: rgba(58, 84, 218, 0.18);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--color-actual-blue) 26%, transparent), color-mix(in srgb, var(--color-actual-blue) 12%, transparent));
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--color-actual-blue) 34%, transparent),
+        inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
       transform: translateX(calc(var(--nav-index) * 100%));
       opacity: 0;
       // Без «перелёта»: пружина (cubic-bezier с y > 1) выносила пузырь за край капсулы на крайних
