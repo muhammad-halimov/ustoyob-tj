@@ -171,6 +171,26 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     const [photos, setPhotos] = useState<PhotoItem[]>([]);
     // Мобильная сборка: отправленное сразу в переписке (как в мессенджере), доставка — в фоне.
     const [outbox, setOutbox] = useState<OutgoingMessage[]>([]);
+    // Локальные превью фото доставленного сообщения: лежат поверх серверных, пока те не загрузятся, —
+    // без «исчезло — появилось». Ключ — id сообщения на сервере.
+    const [heldPreviews, setHeldPreviews] = useState<Record<string, string[]>>({});
+    const loadedHeldRef = useRef(new Map<string, Set<string | number>>());
+    const releaseHeld = (serverId: string | number) => {
+        loadedHeldRef.current.delete(String(serverId));
+        setHeldPreviews(prev => {
+            const urls = prev[String(serverId)];
+            if (!urls) return prev;
+            urls.forEach(url => URL.revokeObjectURL(url));
+            const { [String(serverId)]: _drop, ...rest } = prev;
+            return rest;
+        });
+    };
+    const heldImageLoaded = (serverId: string | number, imageId: string | number, total: number) => {
+        const set = loadedHeldRef.current.get(String(serverId)) ?? new Set<string | number>();
+        set.add(imageId);
+        loadedHeldRef.current.set(String(serverId), set);
+        if (set.size >= total) releaseHeld(serverId);
+    };
     const [isMediaOpen, setIsMediaOpen] = useState(false);
     const composePreviewUrls = photos.filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new').map(p => p.previewUrl);
     const composeGallery = usePreview({ images: composePreviewUrls });
@@ -461,8 +481,14 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             await warmImages((sent?.images ?? []).map(img => toPhotoSource(img, 'uploads/tech_support_messages').thumbnail ?? formatTechSupportMessageImageUrl(img.image)));
             shownResponseRef.current = data;
             setTicket({ ...data, messages: sortMessagesByCreatedAt(data.messages ?? []) });
+            if (serverId !== undefined && (sent?.images ?? []).length > 0 && item.previews.length > 0) {
+                const heldId = serverId;
+                setHeldPreviews(prev => ({ ...prev, [String(heldId)]: item.previews }));
+                window.setTimeout(() => releaseHeld(heldId), 8000);
+            } else {
+                item.previews.forEach(url => URL.revokeObjectURL(url));
+            }
             update({ status: 'sent' });
-            item.previews.forEach(url => URL.revokeObjectURL(url));
             markThreadRead();
         } catch {
             update({ status: 'error' });
@@ -1217,11 +1243,14 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                     ) : (
                                         <>
                                             {msg.description && <Markdown text={decodeHtmlEntities(msg.description)} className={styles.messageBodyMd} />}
-                                            {(msg.images ?? []).length > 0 && (
-                                                <div className={styles.messageImages}>
+                                            {(msg.images ?? []).length > 0 && (() => {
+                                                const held = heldPreviews[String(msg.id)];
+                                                return (
+                                                <div className={`${styles.messageImages} ${held ? styles.outgoingImages : ''}`}>
                                                     {msg.images.map(img => {
                                                         const url = formatTechSupportMessageImageUrl(img.image);
                                                         const photo = toPhotoSource(img, 'uploads/tech_support_messages');
+                                                        const settle = held ? () => heldImageLoaded(msg.id, img.id, msg.images.length) : undefined;
                                                         return (
                                                             <Img
                                                                 key={img.id}
@@ -1229,13 +1258,25 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                                                 fallbacks={[url]}
                                                                 blurhash={photo.blurhash}
                                                                 alt=""
+                                                                loading={held ? 'eager' : undefined}
                                                                 className={styles.messageImage}
+                                                                onLoad={settle}
+                                                                onError={settle}
                                                                 onClick={() => openSentImage(url)}
                                                             />
                                                         );
                                                     })}
+                                                    {held && (
+                                                        <div className={styles.outgoingCover}>
+                                                            {held.map((url, i) => <img key={i} src={url} alt="" className={styles.messageImage} />)}
+                                                            <div className={styles.outgoingProgress}>
+                                                                <PageLoader compact asSpan primary={false} />
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
+                                                );
+                                            })()}
                                         </>
                                     )}
                                 </div>

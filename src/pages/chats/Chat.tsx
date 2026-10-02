@@ -516,7 +516,13 @@ function Chat() {
                         (msg.status === 'pending' || msg.status === 'uploading' || msg.status === 'error'));
                     const localIds = new Set(localMessages.map(msg => msg.id));
 
-                    const combined = [...localMessages, ...serverItems.filter(msg => !localIds.has(msg.id))];
+                    // Серверная версия своего сообщения, под которой ещё лежат локальные превью, их не теряет.
+                    const previews = new Map(prev.filter(m => m.localImages?.length && !m.isLocal).map(m => [m.id, m]));
+                    const withPreviews = (msg: Message): Message => {
+                        const held = previews.get(msg.id);
+                        return held ? { ...msg, clientKey: held.clientKey, localImages: held.localImages } : msg;
+                    };
+                    const combined = [...localMessages, ...serverItems.filter(msg => !localIds.has(msg.id)).map(withPreviews)];
                     combined.sort((a, b) => {
                         const timeA = a.createdAt ? new Date(a.createdAt).getTime() : (a.isLocal ? 0 : 0);
                         const timeB = b.createdAt ? new Date(b.createdAt).getTime() : (b.isLocal ? 0 : 0);
@@ -693,7 +699,7 @@ function Chat() {
             // все (иначе фото появлялись бы по одному, а спиннер пропадал раньше времени).
             setMessages(prev => prev.map(m => m.id !== msg.id ? m
                 : m.localImages?.length && (m.status === 'pending' || m.status === 'uploading') ? m
-                : { ...msg, clientKey: m.clientKey }));
+                : { ...msg, clientKey: m.clientKey, localImages: m.localImages }));
             const updThumbs: ChatImageThumbnail[] = (apiMsg.images || []).map(img => ({
                 id: img.id,
                 imageUrl: getImageUrl(img.image),
@@ -1001,6 +1007,24 @@ function Chat() {
         await uploadPhotos('chat-messages', messageId, files, token);
     }, []);
 
+    /** Серверные фото сообщения, под которыми ещё лежат локальные превью: какие уже показались. */
+    const settledRef = useRef(new Map<string | number, Set<string | number>>());
+    const finishSettle = useCallback((key: string | number) => {
+        settledRef.current.delete(key);
+        setMessages(prev => prev.map(m => {
+            if (m.clientKey !== key || !m.localImages?.length || !m.images?.length) return m;
+            m.localImages.forEach(url => URL.revokeObjectURL(url));
+            return { ...m, localImages: undefined };
+        }));
+    }, []);
+    const imageSettled = useCallback((msg: Message, imageId: string | number) => {
+        const key = msg.clientKey ?? msg.id;
+        const set = settledRef.current.get(key) ?? new Set<string | number>();
+        set.add(imageId);
+        settledRef.current.set(key, set);
+        if (set.size >= (msg.images?.length ?? 0)) finishSettle(key);
+    }, [finishSettle]);
+
     /** Нажали на цитату в ответе — прокручиваем к исходному сообщению и коротко подсвечиваем его. */
     const scrollToMessage = useCallback((id: string | number) => {
         const container = messagesContainerRef.current;
@@ -1055,9 +1079,13 @@ function Chat() {
             if (fetched?.author) {
                 const saved = mapApiMessageToView(fetched);
                 // Серверные превью — заранее, чтобы на месте локальных фото не мелькнула заглушка.
-                await warmImages((saved.images ?? []).map(img => img.source?.thumbnail ?? img.url));
-                setMessages(prev => prev.map(m => m.clientKey === key ? { ...saved, clientKey: key } : m));
-                temp.localImages?.forEach(url => URL.revokeObjectURL(url));
+                // Локальные превью остаются поверх, пока серверные фото не загрузятся (imageSettled), — без
+                // «исчезло — появилось». Страховка — через 8 с превью снимается в любом случае.
+                const keepPreviews = !!temp.localImages?.length && (saved.images ?? []).length > 0;
+                setMessages(prev => prev.map(m => m.clientKey === key
+                    ? { ...saved, clientKey: key, ...(keepPreviews ? { localImages: temp.localImages } : {}) } : m));
+                if (keepPreviews) window.setTimeout(() => finishSettle(key), 8000);
+                else temp.localImages?.forEach(url => URL.revokeObjectURL(url));
             } else {
                 // Свежую версию покажет загрузка переписки ниже (тем же узлом).
                 update({ status: undefined });
@@ -1068,7 +1096,7 @@ function Chat() {
             update({ status: 'error' });
             setError(resolveApiError(err, t('chat.messageError')));
         }
-    }, [sendMessageToServer, uploadFilesToMessage, mapApiMessageToView, fetchChatMessages, t]);
+    }, [sendMessageToServer, uploadFilesToMessage, mapApiMessageToView, fetchChatMessages, finishSettle, t]);
 
     const sendMessage = useCallback(async () => {
         const isEditMode = !!editingMessage;
@@ -1987,38 +2015,51 @@ function Chat() {
                                                                         </div>
                                                                     </div>
                                                                 )}
-                                                                {msg.localImages && msg.localImages.length > 0 && (
-                                                                    // Своё сообщение в пути: фото — локальные превью, загрузка — прямо в сообщении.
-                                                                    <div className={`${styles.messageImagesGrid} ${styles.localImages} ${msg.localImages.length === 1 ? styles.messageImages1 : msg.localImages.length === 2 ? styles.messageImages2 : styles.messageImages3}`}>
-                                                                        {msg.localImages.map((url, i) => (
-                                                                            <img key={i} src={url} alt="" className={styles.messageGridImage} />
-                                                                        ))}
-                                                                        {(msg.status === 'pending' || msg.status === 'uploading') && (
-                                                                            <div className={styles.localImagesProgress}>
-                                                                                <PageLoader compact asSpan primary={false} />
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                                {!msg.localImages?.length && msg.images && msg.images.length > 0 && (
-                                                                    <div className={`${styles.messageImagesGrid} ${msg.images.length === 1 ? styles.messageImages1 : msg.images.length === 2 ? styles.messageImages2 : styles.messageImages3}`}>
-                                                                        {msg.images.map((img) => (
-                                                                            <Img
-                                                                                key={img.id}
-                                                                                // Превью 480 px + BlurHash; оригинал — откат. Если не грузится ничего — скрыто (как раньше).
-                                                                                src={img.source?.thumbnail ?? img.url}
-                                                                                fallbacks={[img.url]}
-                                                                                blurhash={img.source?.blurhash}
-                                                                                alt=""
-                                                                                className={styles.messageGridImage}
-                                                                                onClick={() => {
-                                                                                    const galleryIdx = chatImages.findIndex(ci => ci.imageUrl === img.url);
-                                                                                    photoGallery.openGallery(galleryIdx >= 0 ? galleryIdx : 0);
-                                                                                }}
-                                                                            />
-                                                                        ))}
-                                                                    </div>
-                                                                )}
+                                                                {(() => {
+                                                                    // Фото сообщения. Своё сообщение в пути: локальные превью, загрузка — прямо в нём.
+                                                                    // Когда сервер уже отдал фото, они грузятся под превью, а превью снимается только
+                                                                    // после того, как все серверные фото реально показались: без «исчезло — появилось».
+                                                                    const local = msg.localImages ?? [];
+                                                                    const server = msg.images ?? [];
+                                                                    const count = local.length || server.length;
+                                                                    if (count === 0) return null;
+                                                                    const sizeClass = count === 1 ? styles.messageImages1 : count === 2 ? styles.messageImages2 : styles.messageImages3;
+                                                                    const busy = msg.status === 'pending' || msg.status === 'uploading' || (local.length > 0 && server.length > 0);
+                                                                    return (
+                                                                        <div className={`${styles.messageImagesGrid} ${sizeClass} ${local.length ? styles.localImages : ''}`}>
+                                                                            {server.map((img) => (
+                                                                                <Img
+                                                                                    key={img.id}
+                                                                                    // Превью 480 px + BlurHash; оригинал — откат. Если не грузится ничего — скрыто (как раньше).
+                                                                                    src={img.source?.thumbnail ?? img.url}
+                                                                                    fallbacks={[img.url]}
+                                                                                    blurhash={img.source?.blurhash}
+                                                                                    alt=""
+                                                                                    loading={local.length ? 'eager' : undefined}
+                                                                                    className={styles.messageGridImage}
+                                                                                    onLoad={local.length ? () => imageSettled(msg, img.id) : undefined}
+                                                                                    onError={local.length ? () => imageSettled(msg, img.id) : undefined}
+                                                                                    onClick={() => {
+                                                                                        const galleryIdx = chatImages.findIndex(ci => ci.imageUrl === img.url);
+                                                                                        photoGallery.openGallery(galleryIdx >= 0 ? galleryIdx : 0);
+                                                                                    }}
+                                                                                />
+                                                                            ))}
+                                                                            {local.length > 0 && (
+                                                                                <div className={`${styles.messageImagesGrid} ${sizeClass} ${server.length ? styles.localImagesCover : ''}`}>
+                                                                                    {local.map((url, i) => (
+                                                                                        <img key={i} src={url} alt="" className={styles.messageGridImage} />
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                            {local.length > 0 && busy && (
+                                                                                <div className={styles.localImagesProgress}>
+                                                                                    <PageLoader compact asSpan primary={false} />
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })()}
                                                                 <div className={styles.messageContent}>
                                                                     {msg.text && <div className={styles.messageText}>{msg.text}</div>}
                                                                     <div className={styles.messageTime}>
