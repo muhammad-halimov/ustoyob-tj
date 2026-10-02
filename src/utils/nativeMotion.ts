@@ -60,9 +60,11 @@ const pushMotion = (from: Place, to: Place): NativeMotion => {
 };
 
 // replace — обычно служебные перенаправления (без анимации), но переход на вкладку (логотип → главная)
-// — это смена вкладки.
-const replaceMotion = (from: Place, to: Place): NativeMotion =>
-    normalize(from.pathname) !== normalize(to.pathname) && isTab(to.pathname) ? 'tab' : 'none';
+// — смена вкладки, а из глубины (страница не из нижней панели) — «наверх», то есть назад.
+const replaceMotion = (from: Place, to: Place): NativeMotion => {
+    if (normalize(from.pathname) === normalize(to.pathname) || !isTab(to.pathname)) return 'none';
+    return isTab(from.pathname) ? 'tab' : 'back';
+};
 
 const popMotion = (from: Place, to: Place): NativeMotion => {
     if (normalize(from.pathname) === normalize(to.pathname)) {

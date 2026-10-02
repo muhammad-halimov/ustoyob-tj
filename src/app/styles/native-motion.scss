@@ -49,14 +49,19 @@ html.native-android {
 
 html.native-ios {
   // UIKit push: новый экран въезжает справа на всю ширину, старый уходит на треть влево и темнеет.
+  // Без box-shadow на снимках: на iPhone WebKit рисовал въезжающий экран со сдвигом на размер тени
+  // (~40px влево и вверх) — он «улетал» и в конце перехода прыгал на место.
   &.vt-forward::view-transition-old(root) { animation: 420ms $ios-ease both native-ios-push-out; }
-  &.vt-forward::view-transition-new(root) { animation: 420ms $ios-ease both native-ios-push-in; box-shadow: -10px 0 28px rgba(0, 0, 0, 0.14); }
+  &.vt-forward::view-transition-new(root) { animation: 420ms $ios-ease both native-ios-push-in; }
   // Pop: верхний (уходящий) экран — поверх.
-  &.vt-back::view-transition-old(root) { z-index: 2; animation: 420ms $ios-ease both native-ios-pop-out; box-shadow: -10px 0 28px rgba(0, 0, 0, 0.14); }
+  &.vt-back::view-transition-old(root) { z-index: 2; animation: 420ms $ios-ease both native-ios-pop-out; }
   &.vt-back::view-transition-new(root) { animation: 420ms $ios-ease both native-ios-pop-in; }
-  // Вкладки на iOS переключаются почти мгновенно — короткое растворение.
-  &.vt-tab::view-transition-old(root) { animation: 150ms ease both native-fade-out; }
-  &.vt-tab::view-transition-new(root) { animation: 150ms ease both native-fade-in; }
+  // Вкладки на iOS — короткое перекрёстное растворение (было 150ms — на глаз «без анимации»). Старое и
+  // новое в сумме всегда 100% (plus-lighter, одинаковая кривая): одинаковое не тускнеет. Своя анимация
+  // снимает стандартное plus-lighter браузера — задаём его явно.
+  &.vt-tab::view-transition-image-pair(root) { isolation: isolate; }
+  &.vt-tab::view-transition-old(root) { animation: 240ms ease-in-out both native-fade-out; mix-blend-mode: plus-lighter; }
+  &.vt-tab::view-transition-new(root) { animation: 240ms ease-in-out both native-fade-in; mix-blend-mode: plus-lighter; }
 }
 
 // Листание фото в галерее: снимок уезжает в сторону листания, следующий въезжает с другой; остальное
