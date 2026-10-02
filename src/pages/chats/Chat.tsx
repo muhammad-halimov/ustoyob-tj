@@ -645,14 +645,21 @@ function Chat() {
 
         if (type === 'created') {
             setMessages(prev => {
-                const isMyMsg = msg.sender === 'me';
-                // Своё временное сообщение сменяется этим (тот же узел — см. clientKeyByIdRef); пока к
-                // нему грузятся фото, остаётся временное — с локальными превью.
-                const filtered = isMyMsg
-                    ? prev.filter(m => !(m.isLocal && m.text === msg.text && m.status !== 'uploading'))
-                    : prev;
-                if (filtered.some(m => m.id === msg.id)) return filtered;
-                return [...filtered, msg].sort(
+                if (prev.some(m => m.id === msg.id)) return prev;
+                // Своё сообщение: событие часто приходит раньше ответа на сам запрос, пока временное ещё
+                // «в пути». Временное сменяется этим тем же узлом (см. clientKeyByIdRef), а пока к нему
+                // грузятся фото — остаётся как есть, с локальными превью и спиннером: в событии фото ещё
+                // нет. Раньше временное здесь удалялось, и сообщение с фото висело без фото и без спиннера.
+                const local = msg.sender === 'me'
+                    ? prev.find(m => m.isLocal && m.text === msg.text && (m.status === 'pending' || m.status === 'uploading'))
+                    : undefined;
+                if (local) {
+                    const key = local.clientKey ?? local.id;
+                    clientKeyByIdRef.current.set(msg.id, key);
+                    if (local.localImages?.length) return prev;
+                    return prev.map(m => m === local ? { ...msg, clientKey: key, replyTo: msg.replyTo ?? m.replyTo } : m);
+                }
+                return [...prev, msg].sort(
                     (a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()
                 );
             });
@@ -681,7 +688,11 @@ function Chat() {
                 });
             }
         } else if (type === 'updated') {
-            setMessages(prev => prev.map(m => m.id === msg.id ? msg : m));
+            // Своё сообщение, к которому ещё грузятся фото, не трогаем: его сменит доставка, когда загрузятся
+            // все (иначе фото появлялись бы по одному, а спиннер пропадал раньше времени).
+            setMessages(prev => prev.map(m => m.id !== msg.id ? m
+                : m.localImages?.length && (m.status === 'pending' || m.status === 'uploading') ? m
+                : { ...msg, clientKey: m.clientKey }));
             const updThumbs: ChatImageThumbnail[] = (apiMsg.images || []).map(img => ({
                 id: img.id,
                 imageUrl: getImageUrl(img.image),
