@@ -1210,31 +1210,32 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                                 const held = heldPreviews[String(msg.id)];
                                                 return (
                                                 <div className={`${styles.messageImages} ${held ? styles.outgoingImages : ''}`}>
-                                                    {msg.images.map(img => {
-                                                        const url = formatTechSupportMessageImageUrl(img.image);
-                                                        const photo = toPhotoSource(img, 'uploads/tech_support_messages');
-                                                        const settle = held ? () => heldImageLoaded(msg.id, img.id, msg.images.length) : undefined;
-                                                        return (
-                                                            <Img
-                                                                key={img.id}
-                                                                src={photo.thumbnail ?? url}
-                                                                fallbacks={[url]}
-                                                                blurhash={photo.blurhash}
-                                                                alt=""
-                                                                loading={held ? 'eager' : undefined}
-                                                                className={styles.messageImage}
-                                                                onLoad={settle}
-                                                                onError={settle}
-                                                                onClick={() => openSentImage(url)}
-                                                            />
-                                                        );
-                                                    })}
+                                                    {held && held.map((url, i) => <img key={i} src={url} alt="" className={styles.messageImage} />)}
+                                                    {/* Пока держим превью (в потоке — высота не меняется), серверные фото грузятся невидимо. */}
+                                                    <div className={held ? styles.settleLayer : styles.messageImagesInline}>
+                                                        {msg.images.map(img => {
+                                                            const url = formatTechSupportMessageImageUrl(img.image);
+                                                            const photo = toPhotoSource(img, 'uploads/tech_support_messages');
+                                                            const settle = held ? () => heldImageLoaded(msg.id, img.id, msg.images.length) : undefined;
+                                                            return (
+                                                                <Img
+                                                                    key={img.id}
+                                                                    src={photo.thumbnail ?? url}
+                                                                    fallbacks={[url]}
+                                                                    blurhash={photo.blurhash}
+                                                                    alt=""
+                                                                    loading={held ? 'eager' : undefined}
+                                                                    className={styles.messageImage}
+                                                                    onLoad={settle}
+                                                                    onError={settle}
+                                                                    onClick={() => openSentImage(url)}
+                                                                />
+                                                            );
+                                                        })}
+                                                    </div>
                                                     {held && (
-                                                        <div className={styles.outgoingCover}>
-                                                            {held.map((url, i) => <img key={i} src={url} alt="" className={styles.messageImage} />)}
-                                                            <div className={styles.outgoingProgress}>
-                                                                <PageLoader compact asSpan primary={false} />
-                                                            </div>
+                                                        <div className={styles.outgoingProgress}>
+                                                            <PageLoader compact asSpan primary={false} />
                                                         </div>
                                                     )}
                                                 </div>
