@@ -58,6 +58,17 @@ export const changeLanguage = (lang: Language) => {
     setStorageItem('i18nextLng', lang);
 };
 
+// Ссылка с явным языком (`?lang=ru`) — так страницы сайта открывает мобильное приложение (документы из
+// плашек согласия): во встроенном браузере своё хранилище, и без параметра страница открылась бы на языке
+// по умолчанию, а не на языке приложения. Параметр разовый — убираем его из адреса, иначе при перезагрузке
+// он перебивал бы язык, выбранный уже на самой странице.
+const urlLang = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('lang') : null;
+if (urlLang === 'tj' || urlLang === 'ru' || urlLang === 'eng') {
+    setStorageItem('i18nextLng', urlLang);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('lang');
+    window.history.replaceState(window.history.state, '', url);
+}
 
 i18n
     .use(LanguageDetector)
