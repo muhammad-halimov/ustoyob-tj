@@ -127,6 +127,12 @@ export function initNativeTouch(): void {
     }).observe(document.head, { childList: true, subtree: true, characterData: true });
     document.querySelectorAll('link[rel="stylesheet"]').forEach((link) => link.addEventListener('load', stripSheets, { once: true }));
 
+    // Долгое нажатие не открывает системное меню/предпросмотр ссылок и картинок (в тексте и полях — оставляем:
+    // там это «копировать/вставить»). iOS-предпросмотр ссылки отключён в capacitor.config.ts (allowsLinkPreview).
+    window.addEventListener('contextmenu', (e) => {
+        if (e.target instanceof Element && e.target.closest('a, img, svg, button, [role="button"], nav') && !e.target.closest(KEEPS_FOCUS)) e.preventDefault();
+    });
+
     // Фокус после тапа — последним обработчиком: если тап сам перевёл фокус (открыл поиск), он уже не на
     // кнопке. detail === 0 — «клик» с клавиатуры (Enter/пробел): там фокус нужен.
     window.addEventListener('click', (e) => {
