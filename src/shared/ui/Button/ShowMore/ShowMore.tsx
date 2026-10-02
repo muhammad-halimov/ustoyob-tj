@@ -6,6 +6,18 @@ import { Marquee } from '../../Text/Marquee';
 import { usePersistedState } from '../../../../hooks';
 
 /**
+ * Что прокручивать, чтобы кнопка осталась на месте: ближайший прокручиваемый предок (список городов в
+ * модалке) или слой с position: fixed (сама модалка — страницу под ней не трогаем); null — страница.
+ */
+const scrollContainerOf = (el: Element | null): HTMLElement | null => {
+    for (let p = el?.parentElement; p && p !== document.body; p = p.parentElement) {
+        const { overflowY, position } = getComputedStyle(p);
+        if (overflowY === 'auto' || overflowY === 'scroll' || position === 'fixed') return p;
+    }
+    return null;
+};
+
+/**
  * Компонент ShowMore отображает компактный блок для разворачивания или
  * сворачивания длинных списков с опциональной кнопкой очистки.
  *
@@ -93,12 +105,14 @@ export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLes
     const handleShowLess = () => {
         const wrapper = wrapperRef.current;
         const prevTop = wrapper?.getBoundingClientRect().top ?? 0;
+        // Внутри модалки докручиваем её список, а не страницу под ней (раньше страница под модалкой уезжала).
+        const scroller = scrollContainerOf(wrapper);
         setClicked('less');
         onShowLess();
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 const newTop = wrapper?.getBoundingClientRect().top ?? 0;
-                window.scrollBy({ top: newTop - prevTop, behavior: 'instant' });
+                (scroller ?? window).scrollBy({ top: newTop - prevTop, behavior: 'instant' });
             });
         });
     };
