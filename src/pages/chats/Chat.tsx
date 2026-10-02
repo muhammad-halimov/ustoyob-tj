@@ -9,7 +9,7 @@ import { PageLoader } from '../../widgets/PageLoader';
 import { EmptyState } from '../../widgets/EmptyState';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoBanOutline, IoTrashOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoChatbubblesOutline, IoChevronDown } from "react-icons/io5";
+import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoBanOutline, IoTrashOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoChatbubblesOutline, IoChevronDown, IoTimeOutline, IoAlertCircle } from "react-icons/io5";
 import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
 import { MediaSidebar } from '../../shared/ui/Photo/MediaSidebar/MediaSidebar';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
@@ -31,8 +31,17 @@ import { InfoBanner } from '../../widgets/Banners/InfoBanner/InfoBanner';
 import { Marquee } from '../../shared/ui/Text/Marquee';
 import type { User as ApiUser } from '../../entities/api/User';
 import type { Chat as ApiChat, ChatMessage as ApiMessage } from '../../entities/api/Chat';
-import type { ChatImageView as ChatImageThumbnail, ChatMessageView as Message } from '../../entities/view/Chat';
+import type { ChatImageView as ChatImageThumbnail, ChatMessageView } from '../../entities/view/Chat';
 import { API_BASE_URL } from '../../utils/configUtils';
+import { keepComposerFocus, useStickToBottom, warmImages } from '../../utils/chatThreadUtils';
+
+/**
+ * Сообщение на экране. Отправка — без ожидания сервера: своё сообщение сразу в переписке (`isLocal`,
+ * `status`), фото — локальными превью (`localImages`) с загрузкой прямо в нём. `clientKey` — постоянный
+ * ключ React: когда временное сообщение сменяется серверным, узел тот же (без мигания). `files` —
+ * чтобы повторить неотправленное.
+ */
+type Message = ChatMessageView & { clientKey?: string | number; localImages?: string[]; files?: File[] };
 
 // Backend physically rejects PATCH /chat-messages/{id} past this window (`edit_window_expired`,
 // 403) — 15 minutes from the message's own `createdAt`. Hiding the pencil once it's expired
@@ -73,7 +82,6 @@ function Chat() {
     const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
     const [isMobileChatActive, setIsMobileChatActive] = useState(false);
     const [selectedPhotoItems, setSelectedPhotoItems] = useState<PhotoItem[]>([]);
-    const [isUploading, setIsUploading] = useState(false);
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [isPhotoSidebarOpen, setIsPhotoSidebarOpen] = useState(false);
@@ -89,6 +97,14 @@ function Chat() {
     const [editingPhotoItems, setEditingPhotoItems] = useState<PhotoItem[]>([]);
 
     const messagesContainerRef = useRef<HTMLDivElement>(null);
+    /** Пользователь внизу переписки (по прокрутке, см. useStickToBottom). */
+    const atBottomRef = useRef(true);
+    /** Своё сообщение только что отправлено — к низу прокручиваем, даже если читали историю. */
+    const forceScrollRef = useRef(false);
+    /** id с сервера → ключ временного сообщения, которое его показывало (см. Message.clientKey). */
+    const clientKeyByIdRef = useRef(new Map<string | number, string | number>());
+    const messageKey = useCallback((msg: Message): string | number =>
+        msg.clientKey ?? clientKeyByIdRef.current.get(msg.id) ?? msg.id, []);
     /** Set by `loadOlderMessages` right before it prepends — tells the auto-scroll-to-bottom
      *  effect below to sit this one out, since `loadOlderMessages` restores scroll position
      *  itself (the viewer just asked to look at history, not jump back to the latest message). */
@@ -199,6 +215,7 @@ function Chat() {
     useEffect(() => {
         selectedChatIdRef.current = selectedChat;
         justSwitchedChatRef.current = true;
+        atBottomRef.current = true;
         // Stale pagination state from whichever chat was open before shouldn't leak into the
         // next one — loadChatData/fetchChatMessages below always (re)fetches page 1 anyway,
         // but resetting here keeps `hasMoreMessages` honest for the instant between selecting
@@ -274,8 +291,17 @@ function Chat() {
         }
         const isChatSwitch = justSwitchedChatRef.current;
         justSwitchedChatRef.current = false;
-        scrollToBottom(isChatSwitch ? 'instant' : 'smooth');
+        const ownMessage = forceScrollRef.current;
+        forceScrollRef.current = false;
+        // Пришедшее сообщение не утаскивает вниз, пока пользователь читает историю (для этого есть
+        // кнопка «вниз»); своё отправленное — всегда.
+        if (isChatSwitch || ownMessage || atBottomRef.current) {
+            scrollToBottom(isChatSwitch ? 'instant' : 'smooth');
+        }
     }, [messages, scrollToBottom]);
+
+    // Клавиатура, растущее поле ввода, догрузившиеся фото — переписка остаётся у низа.
+    useStickToBottom(messagesContainerRef, atBottomRef, [selectedChat]);
 
     // Указатель "прокрутить вниз" — показываем, когда пользователь читает историю
     // выше и не находится у самого низа переписки.
@@ -422,11 +448,13 @@ function Chat() {
                 setChatImages(allThumbnails);
 
                 setMessages(prev => {
-                    // Сохраняем только локальные pending/uploading сообщения
+                    // Сохраняем только локальные pending/uploading сообщения (и их же не дублируем
+                    // серверной версией, пока они не доставлены — например, правка в пути)
                     const localMessages = prev.filter(msg => msg.isLocal &&
-                        (msg.status === 'pending' || msg.status === 'uploading'));
+                        (msg.status === 'pending' || msg.status === 'uploading' || msg.status === 'error'));
+                    const localIds = new Set(localMessages.map(msg => msg.id));
 
-                    const combined = [...localMessages, ...serverItems];
+                    const combined = [...localMessages, ...serverItems.filter(msg => !localIds.has(msg.id))];
                     combined.sort((a, b) => {
                         const timeA = a.createdAt ? new Date(a.createdAt).getTime() : (a.isLocal ? 0 : 0);
                         const timeB = b.createdAt ? new Date(b.createdAt).getTime() : (b.isLocal ? 0 : 0);
@@ -527,12 +555,21 @@ function Chat() {
 
         if (type === 'created') {
             setMessages(prev => {
-                const isMyMsg = msg.sender === 'me';
-                const filtered = isMyMsg
-                    ? prev.filter(m => !(m.isLocal && m.text === msg.text))
-                    : prev;
-                if (filtered.some(m => m.id === msg.id)) return filtered;
-                return [...filtered, msg].sort(
+                if (prev.some(m => m.id === msg.id)) return prev;
+                // Своё сообщение: событие часто приходит раньше ответа на сам запрос, пока временное ещё
+                // «в пути». Временное сменяется этим тем же узлом (см. clientKeyByIdRef), а пока к нему
+                // грузятся фото — остаётся как есть, с локальными превью и спиннером: в событии фото ещё
+                // нет. Раньше временное здесь удалялось, и сообщение с фото висело без фото и без спиннера.
+                const local = msg.sender === 'me'
+                    ? prev.find(m => m.isLocal && m.text === msg.text && (m.status === 'pending' || m.status === 'uploading'))
+                    : undefined;
+                if (local) {
+                    const key = local.clientKey ?? local.id;
+                    clientKeyByIdRef.current.set(msg.id, key);
+                    if (local.localImages?.length) return prev;
+                    return prev.map(m => m === local ? { ...msg, clientKey: key, replyTo: msg.replyTo ?? m.replyTo } : m);
+                }
+                return [...prev, msg].sort(
                     (a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()
                 );
             });
@@ -561,7 +598,11 @@ function Chat() {
                 });
             }
         } else if (type === 'updated') {
-            setMessages(prev => prev.map(m => m.id === msg.id ? msg : m));
+            // Своё сообщение, к которому ещё грузятся фото, не трогаем: его сменит доставка, когда загрузятся
+            // все (иначе фото появлялись бы по одному, а спиннер пропадал раньше времени).
+            setMessages(prev => prev.map(m => m.id !== msg.id ? m
+                : m.localImages?.length && (m.status === 'pending' || m.status === 'uploading') ? m
+                : { ...msg, clientKey: m.clientKey }));
             const updThumbs: ChatImageThumbnail[] = (apiMsg.images || []).map(img => ({
                 id: img.id,
                 imageUrl: getImageUrl(img.image),
@@ -740,7 +781,7 @@ function Chat() {
         }
     }, [currentUser]);
 
-    const sendMessageToServer = useCallback(async (chatId: string | number, messageText: string, replyToId?: string | number): Promise<string | number | false> => {
+    const sendMessageToServer = useCallback(async (chatId: string | number, messageText: string, replyToId?: string | number): Promise<ApiMessage | false> => {
         try {
             const data: any = await universalApiRequest(API_ROUTES.CHAT_MESSAGES_CREATE, {
                 method: 'POST',
@@ -755,7 +796,7 @@ function Chat() {
             // id — UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md): прежняя проверка
             // typeof === 'number' для UUID давала false, и каждое отправленное сообщение
             // помечалось как ошибочное, а файлы к нему не загружались.
-            return data?.id ?? false;
+            return data?.id != null ? data as ApiMessage : false;
         } catch (err) {
             console.error(t('chat.messageError'), err);
             // Surfaces e.g. "user_blocked" (they've blocked you — asymmetric, §10) with the
@@ -869,6 +910,61 @@ function Chat() {
         await uploadPhotos('chat-messages', messageId, files, token);
     }, []);
 
+    /**
+     * Доставка своего сообщения, уже показанного в переписке (временного, `clientKey`): текст — на сервер,
+     * затем фото — к созданному сообщению; готовое серверное сообщение сменяет временное тем же узлом.
+     * Не вышло — сообщение помечается ошибкой (нажатие на значок — повторить).
+     */
+    const deliverMessage = useCallback(async (temp: Message, chatId: string | number) => {
+        const key = temp.clientKey ?? temp.id;
+        const files = temp.files ?? [];
+        const update = (patch: Partial<Message>) => setMessages(prev => prev.map(m => m.clientKey === key ? { ...m, ...patch } : m));
+        update({ status: 'pending' });
+
+        // Сообщение уже создано (повтор после сбоя загрузки фото — id с сервера) — второй раз не создаём.
+        let messageId = temp.id !== key ? temp.id : null;
+        if (messageId === null) {
+            const created = await sendMessageToServer(chatId, temp.text, temp.replyTo?.id);
+            if (created === false) {
+                update({ status: 'error' });
+                return;
+            }
+            messageId = created.id;
+            clientKeyByIdRef.current.set(messageId, key);
+            if (files.length === 0) {
+                // Ушло: показываем ответ сервера (галочка) тем же узлом, не дожидаясь события created.
+                if (created.author) {
+                    const sent = mapApiMessageToView(created);
+                    setMessages(prev => prev.map(m => m.clientKey === key ? { ...sent, clientKey: key, replyTo: sent.replyTo ?? m.replyTo } : m));
+                } else {
+                    update({ id: messageId, status: undefined });
+                }
+                return;
+            }
+        }
+
+        update({ id: messageId, status: 'uploading' });
+        try {
+            await uploadFilesToMessage(messageId, files);
+            const fetched = await universalApiRequest(API_ROUTES.CHAT_MESSAGE_BY_ID(messageId), { locale: false }) as ApiMessage;
+            if (fetched?.author) {
+                const saved = mapApiMessageToView(fetched);
+                // Серверные превью — заранее, чтобы на месте локальных фото не мелькнула заглушка.
+                await warmImages((saved.images ?? []).map(img => img.source?.thumbnail ?? img.url));
+                setMessages(prev => prev.map(m => m.clientKey === key ? { ...saved, clientKey: key } : m));
+                temp.localImages?.forEach(url => URL.revokeObjectURL(url));
+            } else {
+                // Свежую версию покажет загрузка переписки ниже (тем же узлом).
+                update({ status: undefined });
+            }
+            // Миниатюры чата (боковая панель) — с сервера.
+            if (selectedChatIdRef.current === chatId) fetchChatMessages(chatId);
+        } catch (err) {
+            update({ status: 'error' });
+            setError(resolveApiError(err, t('chat.messageError')));
+        }
+    }, [sendMessageToServer, uploadFilesToMessage, mapApiMessageToView, fetchChatMessages, t]);
+
     const sendMessage = useCallback(async () => {
         const isEditMode = !!editingMessage;
         const hasContent = isEditMode
@@ -878,6 +974,7 @@ function Chat() {
             console.log('Cannot send message');
             return;
         }
+        const chatId = selectedChat;
 
         // Если чат в архиве — разархивируем перед отправкой
         const chatToSend = chats.find(c => c.id === selectedChat);
@@ -895,73 +992,71 @@ function Chat() {
             }
         }
 
-        // Режим редактирования
+        // Режим редактирования: правка видна сразу (с часиками), сервер — в фоне;
+        // не вышло — сообщение возвращается как было. Поле ввода свободно сразу.
         if (editingMessage) {
-            setIsUploading(true);
+            const original = editingMessage;
+            const text = newMessage;
+            const photoItems = editingPhotoItems;
+            const localImages = photoItems.length > 0
+                ? photoItems.map(item => item.type === 'new' ? item.previewUrl : item.thumbnail ?? getImageUrl(item.image))
+                : undefined;
+            setMessages(prev => prev.map(m => m.id === original.id
+                ? { ...m, text, edited: true, isLocal: true, status: 'pending' as const, localImages, images: localImages ? [] : m.images }
+                : m));
+            setEditingMessage(null);
+            setEditingPhotoItems([]);
+            setNewMessage("");
             try {
-                await editMessageOnServer(editingMessage.id, newMessage, editingPhotoItems);
-                setEditingMessage(null);
-                setEditingPhotoItems([]);
-                setNewMessage("");
-                // Обновляем сообщение принудительно (SSE может не успеть с фото)
-                await fetchChatMessages(selectedChat);
+                await editMessageOnServer(original.id, text, photoItems);
+                const fetched = await universalApiRequest(API_ROUTES.CHAT_MESSAGE_BY_ID(original.id), { locale: false }) as ApiMessage;
+                if (fetched?.author) {
+                    const saved = mapApiMessageToView(fetched);
+                    await warmImages((saved.images ?? []).map(img => img.source?.thumbnail ?? img.url));
+                    setMessages(prev => prev.map(m => m.id === original.id ? saved : m));
+                } else {
+                    setMessages(prev => prev.map(m => m.id === original.id ? { ...m, status: undefined } : m));
+                }
+                // Миниатюры чата (боковая панель) — с сервера.
+                if (selectedChatIdRef.current === chatId) fetchChatMessages(chatId);
             } catch (err) {
+                setMessages(prev => prev.map(m => m.id === original.id ? original : m));
                 setError(resolveApiError(err, t('chat.messageError')));
-            } finally {
-                setIsUploading(false);
             }
             return;
         }
 
         const text = newMessage.trim();
-        const capturedReplyId = replyToMessage?.id;
-        const filesToUpload = selectedPhotoItems
-            .filter(p => p.type === 'new')
-            .map(p => (p as { type: 'new'; file: File; previewUrl: string }).file);
+        const newPhotos = selectedPhotoItems.filter(p => p.type === 'new') as Array<{ type: 'new'; file: File; previewUrl: string }>;
 
-        // Добавляем временное сообщение в UI
-        const tempMessageId = Date.now();
+        // Сообщение — сразу в переписке (фото — локальными превью), отправка — следом, в фоне.
+        const tempKey = `local-${Date.now()}`;
         const now = new Date();
         const tempMessage: Message = {
-            id: tempMessageId,
+            id: tempKey,
+            clientKey: tempKey,
             sender: "me" as const,
             name: getTranslatedFullName(currentUser),
             text: text || '',
             type: 'text' as const,
             time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isLocal: true,
+            status: 'pending',
             createdAt: now.toISOString(),
+            localImages: newPhotos.length > 0 ? newPhotos.map(p => p.previewUrl) : undefined,
+            files: newPhotos.map(p => p.file),
             replyTo: replyToMessage ? { id: replyToMessage.id, text: replyToMessage.text, name: replyToMessage.name } : undefined
         };
 
+        forceScrollRef.current = true;
         setMessages(prev => [...prev, tempMessage]);
         setNewMessage("");
         setReplyToMessage(null);
         setSelectedPhotoItems([]);
 
-        // Отправляем сообщение на сервер (даже если текст пустой — для файлов нужен ID)
-        const messageId = await sendMessageToServer(selectedChat, text, capturedReplyId);
-
-        if (messageId === false) {
-            setMessages(prev => prev.map(msg =>
-                msg.id === tempMessageId ? { ...msg, status: 'error' as const } : msg
-            ));
-            return;
-        }
-
-        // Если есть файлы — загружаем к только что созданному сообщению
-        if (filesToUpload.length > 0) {
-            setIsUploading(true);
-            try {
-                await uploadFilesToMessage(messageId, filesToUpload);
-                // После загрузки файлов освежаем чат чтобы синхронизировать thumbnail-панель
-                await fetchChatMessages(selectedChat);
-            } finally {
-                setIsUploading(false);
-            }
-        }
-        // SSE created-событие доставит итоговое сообщение (текст без файлов)
-    }, [newMessage, selectedPhotoItems, selectedChat, currentUser, sendMessageToServer, editingMessage, editMessageOnServer, editingPhotoItems, replyToMessage, getTranslatedFullName, uploadFilesToMessage, fetchChatMessages, chats]);
+        await deliverMessage(tempMessage, chatId);
+        // SSE created-событие доставит итоговое сообщение (тем же узлом — см. clientKeyByIdRef)
+    }, [newMessage, selectedPhotoItems, selectedChat, currentUser, editingMessage, editMessageOnServer, editingPhotoItems, replyToMessage, getTranslatedFullName, fetchChatMessages, chats, deliverMessage, getImageUrl, mapApiMessageToView, t]);
 
 
 
@@ -995,13 +1090,9 @@ function Chat() {
         if (typeof window === 'undefined') return;
 
         const handleResize = () => {
-            // Когда открывается клавиатура, прокручиваем к последнему сообщению
-            if (window.innerWidth <= 960 && selectedChat) {
-                // Небольшая задержка чтобы DOM успел обновиться
-                setTimeout(() => {
-                    scrollToBottom();
-                }, 100);
-            }
+            // Открылась клавиатура: последнее сообщение остаётся на виду, только если пользователь и был
+            // внизу (читает историю — не дёргаем), и сразу, без плавной прокрутки поверх клавиатуры.
+            if (selectedChat && atBottomRef.current) scrollToBottom('instant');
         };
 
         // Используем visualViewport API если доступен (лучше для мобильных)
@@ -1728,7 +1819,8 @@ function Chat() {
 
                                             return (
                                                 <div
-                                                    key={msg.id}
+                                                    key={messageKey(msg)}
+                                                    data-msg-key={messageKey(msg)}
                                                     className={`${styles.messageWrapper} ${msg.sender === "me" ? styles.myWrapper : ''}`}
                                                 >
                                                     <div className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}>
@@ -1750,7 +1842,20 @@ function Chat() {
                                                                         </div>
                                                                     </div>
                                                                 )}
-                                                                {msg.images && msg.images.length > 0 && (
+                                                                {msg.localImages && msg.localImages.length > 0 && (
+                                                                    // Своё сообщение в пути: фото — локальные превью, загрузка — прямо в сообщении.
+                                                                    <div className={`${styles.messageImagesGrid} ${styles.localImages} ${msg.localImages.length === 1 ? styles.messageImages1 : msg.localImages.length === 2 ? styles.messageImages2 : styles.messageImages3}`}>
+                                                                        {msg.localImages.map((url, i) => (
+                                                                            <img key={i} src={url} alt="" className={styles.messageGridImage} />
+                                                                        ))}
+                                                                        {(msg.status === 'pending' || msg.status === 'uploading') && (
+                                                                            <div className={styles.localImagesProgress}>
+                                                                                <PageLoader compact asSpan primary={false} />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                {!msg.localImages?.length && msg.images && msg.images.length > 0 && (
                                                                     <div className={`${styles.messageImagesGrid} ${msg.images.length === 1 ? styles.messageImages1 : msg.images.length === 2 ? styles.messageImages2 : styles.messageImages3}`}>
                                                                         {msg.images.map((img) => (
                                                                             <Img
@@ -1778,6 +1883,20 @@ function Chat() {
                                                                             <span className={msg.readAt ? styles.tickRead : styles.tickSent}>
                                                                                 {msg.readAt ? '✓✓' : '✓'}
                                                                             </span>
+                                                                        )}
+                                                                        {msg.sender === 'me' && msg.isLocal && msg.status !== 'error' && (
+                                                                            <IoTimeOutline className={styles.tickPending} aria-label={t('chat.waiting')} />
+                                                                        )}
+                                                                        {msg.sender === 'me' && msg.isLocal && msg.status === 'error' && selectedChat && (
+                                                                            <button
+                                                                                type="button"
+                                                                                className={styles.retryBtn}
+                                                                                onClick={() => deliverMessage(msg, selectedChat)}
+                                                                                aria-label={t('chat.messageError')}
+                                                                                title={t('chat.messageError')}
+                                                                            >
+                                                                                <IoAlertCircle />
+                                                                            </button>
                                                                         )}
                                                                     </div>
                                                                 </div>
@@ -1874,7 +1993,6 @@ function Chat() {
                                                     onClickPhoto={(idx) => editingGallery.openGallery(idx)}
                                                     inputId="chat-edit-photo-upload"
                                                     photoAlt="Photo"
-                                                    disabled={isUploading}
                                                 />
                                             </div>
                                         </>
@@ -1891,7 +2009,6 @@ function Chat() {
                                 <button
                                     className={styles.attachButton}
                                     onClick={triggerFileInput}
-                                    disabled={isUploading}
                                     aria-label={t('chat.attachFile')}
                                 >
                                     <IoAttach />
@@ -1906,7 +2023,6 @@ function Chat() {
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
                                 onKeyDown={handleKeyPress}
-                                disabled={isUploading}
                                 onFocus={() => {
                                     // Mobile-keyboard-only (matches this file's other window.innerWidth <= 960
                                     // checks) — this pins body in place while the on-screen keyboard is open so
@@ -1939,9 +2055,11 @@ function Chat() {
                             <button
                                 className={styles.sendButton}
                                 onClick={sendMessage}
-                                disabled={(editingMessage
+                                // Отправка не закрывает клавиатуру: кнопка не забирает фокус у поля.
+                                onMouseDown={keepComposerFocus}
+                                disabled={editingMessage
                                     ? (!newMessage.trim() && editingPhotoItems.length === 0)
-                                    : (!newMessage.trim() && selectedPhotoItems.length === 0)) || isUploading}
+                                    : (!newMessage.trim() && selectedPhotoItems.length === 0)}
                                 aria-label={t('chat.sendMessage')}
                             >
                                 <IoSend />
@@ -1956,17 +2074,17 @@ function Chat() {
                                 onClickPhoto={(idx) => selectedFilesGallery.openGallery(idx)}
                                 inputId="chat-photo-upload"
                                 photoAlt="Photo"
-                                disabled={isUploading}
                             />
                         )}
 
-                        {(isUploading || isChatLoading) && (
+                        {/* Отправка и правка фото идут в самом сообщении — экран ими не перекрываем. */}
+                        {isChatLoading && (
                             <div className={styles.uploadingOverlay}>
                                 <PageLoader
                                     compact
                                     asSpan
                                     primary
-                                    text={isChatLoading ? t('chat.loadingMessages') : t('chat.uploadingFiles')}
+                                    text={t('chat.loadingMessages')}
                                 />
                             </div>
                         )}
