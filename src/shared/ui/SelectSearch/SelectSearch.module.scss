@@ -330,3 +330,30 @@
   color: var(--color-text-placeholder);
   text-align: center;
 }
+
+// Иконка перед названием (соц. сети): единый размер, не сжимается, не мешает бегущей строке.
+.optionIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin-right: 10px;
+
+  svg {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+.item > .optionIcon + *,
+.triggerLabel > .optionIcon + * {
+  flex: 1;
+  min-width: 0;
+}
+
+.triggerLabel:has(> .optionIcon) {
+  display: flex;
+  align-items: center;
+}
