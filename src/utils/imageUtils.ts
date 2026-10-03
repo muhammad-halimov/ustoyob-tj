@@ -132,27 +132,46 @@ export const uploadPhotos = async (
     files: File[],
     guestToken?: string | null,
 ): Promise<any> => {
+    // Файл из системного выбора фото (Android) читается лениво, уже при отправке, и если доступ к нему
+    // успел пропасть, fetch падает без статуса — «Failed to fetch». Поэтому сначала забираем байты в память.
+    const inMemory = await Promise.all(files.map(async file => {
+        try {
+            return new File([await file.arrayBuffer()], file.name, { type: file.type, lastModified: file.lastModified });
+        } catch {
+            return file;
+        }
+    }));
+
     // Сжимаем до отправки (canvas) — см. imageCompressUtils; аватар (`users`) сильнее, он
     // показывается только маленьким. Сбой сжатия = отправляем оригинал, загрузка не ломается.
     const maxSide = endpoint === 'users' ? 1024 : 1920;
-    const prepared = await Promise.all(files.map(file => compressImageFile(file, { maxSide })));
-
-    const formData = new FormData();
-    for (const file of prepared) {
-        formData.append('imageFile[]', file);
-    }
+    const prepared = await Promise.all(inMemory.map(file => compressImageFile(file, { maxSide })));
 
     // Многие вызовы передают сюда обычный JWT — он уже уходит в Authorization. Лишний
     // X-Guest-Access-Token в нативном приложении (кросс-доменный запрос) провоцирует CORS-preflight,
     // а бэк этот заголовок в Access-Control-Allow-Headers не отдаёт → загрузка падает с 400.
     const sendGuestHeader = !!guestToken && guestToken !== getAuthToken();
 
-    return universalApiRequest(API_ROUTES.UPLOAD_IMAGES(endpoint, id), {
-        method: 'POST',
-        body: formData,
-        headers: sendGuestHeader ? { 'X-Guest-Access-Token': guestToken } : undefined,
-        locale: false, // upload endpoint doesn't use ?locale=, matches previous behavior
-    });
+    // Обрыв сети посреди загрузки (смена сети, засыпание соединения на мобильном) — TypeError без статуса.
+    // Повторяем сами, не показывая ошибку: тело формы собираем заново на каждую попытку.
+    const MAX_ATTEMPTS = 3;
+    for (let attempt = 1; ; attempt++) {
+        const formData = new FormData();
+        for (const file of prepared) {
+            formData.append('imageFile[]', file);
+        }
+        try {
+            return await universalApiRequest(API_ROUTES.UPLOAD_IMAGES(endpoint, id), {
+                method: 'POST',
+                body: formData,
+                headers: sendGuestHeader ? { 'X-Guest-Access-Token': guestToken } : undefined,
+                locale: false, // upload endpoint doesn't use ?locale=, matches previous behavior
+            });
+        } catch (err) {
+            if (!(err instanceof TypeError) || attempt >= MAX_ATTEMPTS) throw err;
+            await new Promise(resolve => setTimeout(resolve, 600 * attempt));
+        }
+    }
 };
 
 /**
