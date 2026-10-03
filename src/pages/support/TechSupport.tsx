@@ -8,6 +8,7 @@ import { API_ROUTES } from '../../app/routers/routes';
 import { getAppealReasons, getMyTechSupports } from '../../utils/dataCacheUtils';
 import { uploadPhotos, formatTechSupportImageUrl } from '../../utils/imageUtils';
 import { isAuthenticated, getUserData, isAdmin } from '../../utils/authUtils';
+import { PushPrompt } from '../../widgets/Banners/PushPrompt/PushPrompt';
 import { openMercureSource } from '../../utils/mercureUtils';
 import { textHelper } from '../../utils/textUtils';
 import { getFormattedDateTime } from '../../utils/timeUtils';
@@ -486,6 +487,8 @@ function TechSupport({ embedded = false }: TechSupportProps) {
 
                     {activeTab === 'my' ? (
                         <div className={styles.myTicketsSection}>
+                            {/* Браузер: предложить push-уведомления об ответах техподдержки (utils/webPush.ts). */}
+                            {isAuth && <PushPrompt className={styles.pushPrompt} />}
                             {myTickets.length > 0 && (
                                 <>
                                     <div className={styles.ticketsSearchBar}>

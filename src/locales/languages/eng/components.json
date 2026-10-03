@@ -164,7 +164,7 @@
     "messageError": "Error sending message",
     "noPhotoDescription": "Photo",
     "retry": "Retry",
-    "pushPrompt": "Turn on notifications — new messages and responses will reach you even when the site is closed",
+    "pushPrompt": "Turn on notifications — new messages, responses and support replies will reach you even when the site is closed",
     "pushPromptEnable": "Turn on",
     "pushPromptDismiss": "Hide",
     "waiting": "Waiting...",
