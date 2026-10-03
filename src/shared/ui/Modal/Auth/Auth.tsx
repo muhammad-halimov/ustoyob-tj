@@ -1164,7 +1164,9 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
                 <p className={styles.infoText}>
                     {t('auth.codeSentTo')}{' '}
-                    <strong>{resetTarget && 'phone' in resetTarget ? formatPhone(resetTarget.phone) : resetTarget?.email}</strong>
+                    {resetTarget && 'phone' in resetTarget
+                        ? <strong className={styles.phoneNumber}>{formatPhone(resetTarget.phone)}</strong>
+                        : <strong>{resetTarget?.email}</strong>}
                 </p>
 
                 <div className={styles.inputGroup}>
@@ -1712,7 +1714,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 <h2>{isLogin ? t('auth.smsCodeTitle') : t('auth.confirmPhoneTitle')}</h2>
 
                 <p className={styles.infoText}>
-                    {t('auth.smsCodeSentTo')} <strong>{formatPhone(smsPhone)}</strong>
+                    {t('auth.smsCodeSentTo')} <strong className={styles.phoneNumber}>{formatPhone(smsPhone)}</strong>
                 </p>
 
                 <div className={styles.inputGroup}>
