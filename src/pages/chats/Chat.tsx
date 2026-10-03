@@ -38,6 +38,7 @@ import { API_BASE_URL } from '../../utils/configUtils';
 import { sameResponse } from '../../utils/apiCache';
 import { CHAT_MESSAGES_OPTIONS, chatFirstPageUrl, prefetchChatMessages } from '../../utils/nativeChatPrefetch';
 import { runNativeTransition } from '../../utils/nativeMotion';
+import { isPageSeen, onPageSeen } from '../../utils/pageAttention';
 import { animateMessageEnter, freshTailKeys, keepComposerFocus, useStickToBottom } from '../../utils/nativeChat';
 
 /**
@@ -593,13 +594,26 @@ function Chat() {
         }
     }, [messagesPage, hasMoreMessages, isLoadingMoreMessages, mapApiMessageToView]);
 
+    // Отметка «прочитано» — только когда переписку действительно видят: открытый чат в фоновой вкладке или
+    // в свёрнутом приложении продолжает получать сообщения, но собеседник видел бы у себя «прочитано», хотя
+    // их никто не читал. Тогда отметка ждёт возвращения пользователя к этому чату (utils/pageAttention.ts).
+    const pendingReadRef = useRef(new Set<string | number>());
     const markChatAsRead = useCallback(async (chatId: string | number) => {
+        if (!isPageSeen() || selectedChatIdRef.current !== chatId) {
+            pendingReadRef.current.add(chatId);
+            return;
+        }
+        pendingReadRef.current.delete(chatId);
         try {
             await universalApiRequest(API_ROUTES.CHAT_READ(chatId), { method: 'POST', locale: false });
         } catch {
             // fire-and-forget — ошибка не критична
         }
     }, []);
+    useEffect(() => onPageSeen(() => {
+        const chatId = selectedChatIdRef.current;
+        if (chatId !== null && pendingReadRef.current.has(chatId)) void markChatAsRead(chatId);
+    }), [markChatAsRead]);
 
     /**
      * Мобильная сборка: переписка из кэша API — чат открывали раньше, или её догрузил фон (см.

@@ -27,6 +27,7 @@ import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 import { EmptyState } from '../../../widgets/EmptyState';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { animateMessageEnter, freshTailKeys, keepComposerFocus, useStickToBottom } from '../../../utils/nativeChat';
+import { isPageSeen, onPageSeen } from '../../../utils/pageAttention';
 import {
     STATUS_ICONS,
     PRIORITY_ICONS,
@@ -218,9 +219,20 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // Marks every unread reply on this ticket as read server-side (§11: `author != caller &&
     // readAt == null`). Fire-and-forget — a failure here just leaves the tickets-list bubble
     // stale until the next successful call, nothing in this view depends on the result.
+    // Только когда обращение действительно видят: открытое в фоновой вкладке или в свёрнутом приложении оно
+    // продолжает получать ответы, но «прочитано» им ставить нельзя — отметка ждёт возвращения пользователя.
+    const readPendingRef = useRef(false);
     const markThreadRead = useCallback(() => {
+        if (!isPageSeen()) {
+            readPendingRef.current = true;
+            return;
+        }
+        readPendingRef.current = false;
         universalApiRequest(API_ROUTES.TECH_SUPPORT_READ(ticketId), { method: 'POST', locale: false }).catch(() => {});
     }, [ticketId]);
+    useEffect(() => onPageSeen(() => {
+        if (readPendingRef.current) markThreadRead();
+    }), [markThreadRead]);
 
     // skipIfShown — первая загрузка поверх кэша: сервер вернул то же, что на экране, — не трогаем.
     // После правок/отправки и по событиям свежий ответ применяется всегда.
