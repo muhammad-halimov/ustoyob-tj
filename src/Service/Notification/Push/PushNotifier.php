@@ -14,8 +14,8 @@ use Symfony\Component\HttpKernel\KernelEvents;
 use Throwable;
 
 /**
- * Push-уведомления в мобильное приложение: новое сообщение в чате и новый
- * отклик на объявление (Chat с тикетом).
+ * Push-уведомления в мобильное приложение и в браузер (сайт): новое сообщение
+ * в чате и новый отклик на объявление (Chat с тикетом).
  *
  * Уведомления копятся за запрос и уходят на kernel.terminate — уже ПОСЛЕ
  * того, как ответ отдан клиенту (fastcgi_finish_request): отправка в FCM
@@ -105,7 +105,8 @@ class PushNotifier implements EventSubscriberInterface
             foreach ($queue as $item) {
                 foreach ($this->deviceTokenRepository->findBy(['user' => $item['user']]) as $device) {
                     [$title, $body] = ($item['texts'])($device->getLocale() ?? 'tj');
-                    $sent[] = [$device, $this->fcm->send((string) $device->getToken(), $title, $body, $item['data'], $item['group'])];
+                    $path = '/chats?chatId=' . rawurlencode($item['data']['chatId']);
+                    $sent[] = [$device, $this->fcm->send((string) $device->getToken(), $title, $body, $item['data'], $item['group'], $path)];
                 }
             }
 

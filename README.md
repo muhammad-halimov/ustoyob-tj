@@ -187,15 +187,15 @@ php -d variables_order=EGPCS -S 127.0.0.1:8001 -t public
 
 ### Push-уведомления
 
-Мобильное приложение (Capacitor, ветка `mobile`) получает push через **Firebase Cloud Messaging** — и на Android, и на iOS (на iOS Firebase сам доставляет через APNs).
+Мобильное приложение (Capacitor, ветка `mobile`) и сайт в браузере (ветка `front`) получают push через **Firebase Cloud Messaging** — Android, iOS (Firebase сам доставляет через APNs) и браузер (Web Push; нажатие открывает `FRONTEND_URL/chats?chatId=…`, поэтому `FRONTEND_URL` должен быть `https://…`).
 
-- Устройство регистрируется `POST /api/device-tokens` `{ token, platform: android|ios, locale }` (Bearer) — при запуске и после входа; выход — `POST /api/device-tokens/unregister` `{ token }` (без авторизации). Токены — сущность `DeviceToken`, мёртвые (приложение удалено) удаляются по ответу FCM.
+- Устройство регистрируется `POST /api/device-tokens` `{ token, platform: android|ios|web, locale }` (Bearer) — при запуске и после входа; выход — `POST /api/device-tokens/unregister` `{ token }` (без авторизации). Токены — сущность `DeviceToken`, мёртвые (приложение удалено) удаляются по ответу FCM.
 - Что шлётся (`Service/Notification/Push/PushNotifier`): **новое сообщение в чате** — собеседнику автора (сообщение только с фото — когда к нему прикрепились фото); **новый отклик** (чат по объявлению) — владельцу объявления. В `data` — `type` (`chat_message` / `chat_response`) и `chatId`; по нажатию приложение открывает этот чат.
 - Отправка — на `kernel.terminate`, после ответа клиенту: FCM не тормозит запросы чата. Текст — на языке приложения устройства.
 
 Настройка (один раз):
 
-1. [Firebase console](https://console.firebase.google.com) → создать проект → добавить приложения **Android** (package `tj.ustoyob.app`) и **iOS** (bundle id `tj.ustoyob.app`). Файлы `google-services.json` и `GoogleService-Info.plist` — в приложение (см. README ветки `mobile`).
+1. [Firebase console](https://console.firebase.google.com) → создать проект → добавить приложения **Android** (package `tj.ustoyob.app`), **iOS** (bundle id `tj.ustoyob.app`) и **Web**. Файлы `google-services.json` и `GoogleService-Info.plist` — в приложение (README ветки `mobile`), конфиг веб-приложения и ключ VAPID — в `.env` сайта (README ветки `front`).
 2. iOS: [Apple Developer](https://developer.apple.com/account/resources/authkeys/list) → Keys → «+» → Apple Push Notifications service (APNs) → скачать `.p8`; Firebase → Project settings → Cloud Messaging → Apple app configuration → загрузить ключ (Key ID, Team ID).
 3. Бэкенд: Firebase → Project settings → Service accounts → **Generate new private key** → положить JSON на сервер вне `public/` (например, `config/secrets/firebase.json` — в git не попадает) и указать путь в `.env.local`:
    ```

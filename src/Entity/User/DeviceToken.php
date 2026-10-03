@@ -14,17 +14,18 @@ use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Устройство (мобильное приложение), на которое шлются push-уведомления —
- * FCM registration token (Firebase Cloud Messaging; на iOS Firebase сам
- * доставляет через APNs, см. Service\Notification\Push\FcmClient).
+ * Устройство, на которое шлются push-уведомления: мобильное приложение
+ * (android/ios) или браузер с открывавшимся сайтом (web) — FCM registration
+ * token (Firebase Cloud Messaging; на iOS Firebase сам доставляет через APNs,
+ * в браузер — через Web Push, см. Service\Notification\Push\FcmClient).
  *
  * Одна строка = один токен: токен уникален глобально, повторная регистрация
  * того же устройства (в т.ч. под другим аккаунтом) не заводит вторую запись,
  * а перепривязывает её — см. ApiPostDeviceTokenController. Мёртвые токены
  * (приложение удалено) PushNotifier удаляет сам по ответу FCM.
  *
- * locale — язык приложения на устройстве (tj|ru|eng): на нём пишется текст
- * уведомления.
+ * locale — язык приложения/сайта на устройстве (tj|ru|eng): на нём пишется
+ * текст уведомления.
  */
 #[ORM\Entity(repositoryClass: DeviceTokenRepository::class)]
 #[ORM\Table(name: 'device_token')]
@@ -44,7 +45,7 @@ use Symfony\Component\Uid\Uuid;
 )]
 class DeviceToken
 {
-    public const array PLATFORMS = ['android', 'ios'];
+    public const array PLATFORMS = ['android', 'ios', 'web'];
 
     public function __toString(): string
     {

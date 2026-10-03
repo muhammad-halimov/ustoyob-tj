@@ -10,10 +10,10 @@ use App\Repository\User\DeviceTokenRepository;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 /**
- * POST /api/device-tokens — { token, platform: android|ios, locale?: tj|ru|eng }
+ * POST /api/device-tokens — { token, platform: android|ios|web, locale?: tj|ru|eng }
  *
- * Мобильное приложение регистрирует устройство для push-уведомлений (при
- * запуске и после входа). Upsert по токену: то же устройство под другим
+ * Мобильное приложение или сайт (браузер) регистрирует устройство для
+ * push-уведомлений (при запуске и после входа; сайт — после разрешения). Upsert по токену: то же устройство под другим
  * аккаунтом перепривязывается к текущему пользователю (из Bearer-токена).
  */
 class ApiPostDeviceTokenController extends AbstractApiHelperController

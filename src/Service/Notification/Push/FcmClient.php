@@ -12,9 +12,9 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 use Throwable;
 
 /**
- * Firebase Cloud Messaging, HTTP v1 API — push на Android и iOS (на iOS
- * Firebase сам доставляет через APNs, ключ APNs загружается в консоль
- * Firebase, бэкенду он не нужен).
+ * Firebase Cloud Messaging, HTTP v1 API — push на Android, iOS (Firebase сам
+ * доставляет через APNs, ключ APNs загружается в консоль Firebase, бэкенду он
+ * не нужен) и в браузер (Web Push).
  *
  * Ключ — JSON сервисного аккаунта Firebase (Project settings → Service
  * accounts → Generate new private key), путь к файлу — FIREBASE_CREDENTIALS
@@ -37,6 +37,8 @@ class FcmClient
         private readonly LoggerInterface     $logger,
         #[Autowire('%env(default::resolve:FIREBASE_CREDENTIALS)%')]
         private readonly ?string             $credentialsPath = null,
+        #[Autowire('%env(default::FRONTEND_URL)%')]
+        private readonly ?string             $frontendUrl = null,
     ) {}
 
     public function isConfigured(): bool
@@ -49,10 +51,12 @@ class FcmClient
      * устройств уходят параллельно, статус смотрит isDeadToken().
      *
      * @param array<string, string> $data
+     * @param string                $path Страница сайта, которую открывает нажатие на уведомление в браузере.
      */
-    public function send(string $token, string $title, string $body, array $data, string $group): ResponseInterface
+    public function send(string $token, string $title, string $body, array $data, string $group, string $path): ResponseInterface
     {
         $credentials = $this->credentials();
+        $site = rtrim((string) $this->frontendUrl, '/');
 
         return $this->httpClient->request('POST', "https://fcm.googleapis.com/v1/projects/{$credentials['project_id']}/messages:send", [
             'auth_bearer' => $this->accessToken(),
@@ -64,6 +68,12 @@ class FcmClient
                 // уведомление на чат: новое сообщение заменяет предыдущее, а не копится стопкой.
                 'android'      => ['priority' => 'HIGH', 'notification' => ['channel_id' => 'messages', 'tag' => $group, 'sound' => 'default']],
                 'apns'         => ['payload' => ['aps' => ['sound' => 'default', 'thread-id' => $group]]],
+                // Браузер (сайт): иконка и страница по нажатию — абсолютные https-адреса сайта (FRONTEND_URL);
+                // tag — то же «одно уведомление на чат».
+                'webpush'      => [
+                    'notification' => ['icon' => "{$site}/img/icons/logos/push-icon.png", 'tag' => $group],
+                    ...(str_starts_with($site, 'https://') ? ['fcm_options' => ['link' => $site . $path]] : []),
+                ],
             ]],
         ]);
     }
