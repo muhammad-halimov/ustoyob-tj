@@ -132,8 +132,8 @@ const router = createBrowserRouter([
     },
 ]);
 
-// Мобильная сборка: анимированные переходы между экранами (utils/nativeMotion.ts) и ссылки «в новой
-// вкладке» (utils/nativeLinks.ts).
+// Мобильная сборка: анимированные переходы между экранами (utils/nativeMotion.ts) и ссылки без `href`
+// и «в новой вкладке» (utils/nativeLinks.ts).
 installNativePageTransitions(router);
 installNativeLinks(router);
 

@@ -278,7 +278,7 @@ const initOverlayGhosts = (): void => {
 const PRESS_DELAY_MS = 50;
 const PRESS_IN_MS = 110;
 const MOVE_CANCEL_PX = 10;
-const BUTTONISH = 'button, a[href], [role="button"], [role="tab"], [role="option"], label[for], summary';
+const BUTTONISH = 'button, a[href], a[data-native-href], [role="button"], [role="tab"], [role="option"], label[for], summary';
 const NOT_PRESSABLE = 'input, textarea, select, [contenteditable="true"], [data-native-ghost], [class*="_mobile_header_"]';
 // Выше этих контейнеров не поднимаемся: подложка модалки или галереи — не кнопка, даже с cursor: pointer.
 const PRESS_BOUNDARY = `${DIALOG_OVERLAY}, [class*="_photo_modal_overlay_"], [class*="_photoModalOverlay_"], main`;

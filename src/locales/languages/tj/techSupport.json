@@ -47,6 +47,8 @@
   "thread": {
     "loadError": "Муроҷиат бор карда нашуд",
     "sendError": "Паём ирсол нашуд",
+    "retrySend": "Такроран",
+    "cancelSend": "Бекор кардан",
     "originalRequest": "Тавсиф",
     "you": "Шумо",
     "support": "Дастгирии техникӣ",

@@ -10,7 +10,7 @@ import Status from '../../shared/ui/Modal/Status';
 import { EmptyState } from '../../widgets/EmptyState';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoBanOutline, IoTrashOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoChatbubblesOutline, IoChevronDown, IoTimeOutline, IoAlertCircle } from "react-icons/io5";
+import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoBanOutline, IoTrashOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoChatbubblesOutline, IoChevronDown, IoTimeOutline, IoAlertCircle, IoClose } from "react-icons/io5";
 import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
 import { MediaSidebar } from '../../shared/ui/Photo/MediaSidebar/MediaSidebar';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
@@ -38,7 +38,7 @@ import { API_BASE_URL } from '../../utils/configUtils';
 import { sameResponse } from '../../utils/apiCache';
 import { CHAT_MESSAGES_OPTIONS, chatFirstPageUrl, prefetchChatMessages } from '../../utils/nativeChatPrefetch';
 import { runNativeTransition } from '../../utils/nativeMotion';
-import { animateMessageEnter, freshTailKeys, keepComposerFocus, useStickToBottom, warmImages } from '../../utils/nativeChat';
+import { animateMessageEnter, freshTailKeys, keepComposerFocus, useStickToBottom } from '../../utils/nativeChat';
 
 /**
  * Сообщение на экране. Мобильная сборка отправляет без ожидания сервера: своё сообщение сразу в
@@ -47,6 +47,24 @@ import { animateMessageEnter, freshTailKeys, keepComposerFocus, useStickToBottom
  * (без повторного появления и мигания). `files` — чтобы повторить неотправленное.
  */
 type Message = ChatMessageView & { clientKey?: string | number; localImages?: string[]; files?: File[] };
+
+/**
+ * Локальные превью своего отправленного фото остаются в сообщении и после доставки: это те же фото, и
+ * замена их серверными (пока те грузятся и декодируются) давала «фото исчезло — появилось» со скачком
+ * переписки. Снимаются, только если фото у сообщения на сервере поменялись (удалили, отредактировали).
+ */
+const keptPreviews = (held: Message | undefined, server: Message): string[] | undefined => {
+    const local = held?.localImages;
+    if (!local?.length || server.deletedByAuthor) return undefined;
+    return (server.images ?? []).length === local.length ? local : undefined;
+};
+
+/** Сообщение, которое показывать нечем: на сервере без текста и без фото (фото к нему ещё грузятся или не дошли). */
+const isBlankMessage = (msg: Message): boolean =>
+    !msg.isLocal && !msg.deletedByAuthor && !msg.text?.trim() && !(msg.images ?? []).length && !(msg.localImages ?? []).length;
+
+/** Сетевой сбой (нет ответа сервера) — его показывает само сообщение («Повторить»), без окна с ошибкой. */
+const isNetworkFailure = (err: unknown): boolean => err instanceof TypeError;
 
 // Backend physically rejects PATCH /chat-messages/{id} past this window (`edit_window_expired`,
 // 403) — 15 minutes from the message's own `createdAt`. Hiding the pencil once it's expired
@@ -516,11 +534,12 @@ function Chat() {
                         (msg.status === 'pending' || msg.status === 'uploading' || msg.status === 'error'));
                     const localIds = new Set(localMessages.map(msg => msg.id));
 
-                    // Серверная версия своего сообщения, под которой ещё лежат локальные превью, их не теряет.
+                    // Своё отправленное фото остаётся локальным превью (см. keptPreviews) — серверная версия его не сменяет.
                     const previews = new Map(prev.filter(m => m.localImages?.length && !m.isLocal).map(m => [m.id, m]));
                     const withPreviews = (msg: Message): Message => {
                         const held = previews.get(msg.id);
-                        return held ? { ...msg, clientKey: held.clientKey, localImages: held.localImages } : msg;
+                        const localImages = keptPreviews(held, msg);
+                        return localImages ? { ...msg, clientKey: held!.clientKey, localImages } : msg;
                     };
                     const combined = [...localMessages, ...serverItems.filter(msg => !localIds.has(msg.id)).map(withPreviews)];
                     combined.sort((a, b) => {
@@ -699,7 +718,7 @@ function Chat() {
             // все (иначе фото появлялись бы по одному, а спиннер пропадал раньше времени).
             setMessages(prev => prev.map(m => m.id !== msg.id ? m
                 : m.localImages?.length && (m.status === 'pending' || m.status === 'uploading') ? m
-                : { ...msg, clientKey: m.clientKey, localImages: m.localImages }));
+                : { ...msg, clientKey: m.clientKey, localImages: keptPreviews(m, msg) }));
             const updThumbs: ChatImageThumbnail[] = (apiMsg.images || []).map(img => ({
                 id: img.id,
                 imageUrl: getImageUrl(img.image),
@@ -897,8 +916,9 @@ function Chat() {
         } catch (err) {
             console.error(t('chat.messageError'), err);
             // Surfaces e.g. "user_blocked" (they've blocked you — asymmetric, §10) with the
-            // server's own localized text instead of failing silently.
-            setError(resolveApiError(err, t('chat.messageError')));
+            // server's own localized text instead of failing silently. Сбой сети показывает само
+            // сообщение («Повторить» / «Отменить»).
+            if (!isNetworkFailure(err)) setError(resolveApiError(err, t('chat.messageError')));
             return false;
         }
     }, [t]);
@@ -1007,23 +1027,21 @@ function Chat() {
         await uploadPhotos('chat-messages', messageId, files, token);
     }, []);
 
-    /** Серверные фото сообщения, под которыми ещё лежат локальные превью: какие уже показались. */
-    const settledRef = useRef(new Map<string | number, Set<string | number>>());
-    const finishSettle = useCallback((key: string | number) => {
-        settledRef.current.delete(key);
-        setMessages(prev => prev.map(m => {
-            if (m.clientKey !== key || !m.localImages?.length || !m.images?.length) return m;
-            m.localImages.forEach(url => URL.revokeObjectURL(url));
-            return { ...m, localImages: undefined };
-        }));
-    }, []);
-    const imageSettled = useCallback((msg: Message, imageId: string | number) => {
-        const key = msg.clientKey ?? msg.id;
-        const set = settledRef.current.get(key) ?? new Set<string | number>();
-        set.add(imageId);
-        settledRef.current.set(key, set);
-        if (set.size >= (msg.images?.length ?? 0)) finishSettle(key);
-    }, [finishSettle]);
+    // Превью отправленных фото — blob: в памяти. Когда переписку закрыли, они больше не нужны (кроме фото,
+    // которые ещё в пути: их доставка закончится уже без переписки на экране).
+    const previewUrlsRef = useRef(new Set<string>());
+    const messagesRef = useRef<Message[]>([]);
+    useEffect(() => { messagesRef.current = messages; }, [messages]);
+    useEffect(() => () => {
+        const inFlight = new Set(messagesRef.current
+            .filter(m => m.status === 'pending' || m.status === 'uploading')
+            .flatMap(m => m.localImages ?? []));
+        previewUrlsRef.current.forEach(url => {
+            if (inFlight.has(url)) return;
+            URL.revokeObjectURL(url);
+            previewUrlsRef.current.delete(url);
+        });
+    }, [selectedChat]);
 
     /** Нажали на цитату в ответе — прокручиваем к исходному сообщению и коротко подсвечиваем его. */
     const scrollToMessage = useCallback((id: string | number) => {
@@ -1041,8 +1059,10 @@ function Chat() {
 
     /**
      * Доставка своего сообщения, уже показанного в переписке (временного, `clientKey`): текст — на сервер,
-     * затем фото — к созданному сообщению; готовое серверное сообщение сменяет временное тем же узлом.
-     * Не вышло — сообщение помечается ошибкой (нажатие на значок — повторить).
+     * затем фото — к созданному сообщению; готовое серверное сообщение сменяет временное тем же узлом, а фото
+     * в нём так и остаются локальными превью (keptPreviews) — спиннер просто уходит. Не вышло — сообщение
+     * помечается ошибкой: «Повторить» или «Отменить». Сообщение без текста, к которому не дошли фото, на
+     * сервере не оставляем: там оно было бы пустым.
      */
     const deliverMessage = useCallback(async (temp: Message, chatId: string | number) => {
         const key = temp.clientKey ?? temp.id;
@@ -1050,7 +1070,7 @@ function Chat() {
         const update = (patch: Partial<Message>) => setMessages(prev => prev.map(m => m.clientKey === key ? { ...m, ...patch } : m));
         update({ status: 'pending' });
 
-        // Сообщение уже создано (повтор после сбоя загрузки фото — id с сервера) — второй раз не создаём.
+        // Сообщение с текстом уже создано (повтор после сбоя загрузки фото — id с сервера) — второй раз не создаём.
         let messageId = temp.id !== key ? temp.id : null;
         if (messageId === null) {
             const created = await sendMessageToServer(chatId, temp.text, temp.replyTo?.id);
@@ -1076,27 +1096,39 @@ function Chat() {
         try {
             await uploadFilesToMessage(messageId, files);
             const fetched = await universalApiRequest(API_ROUTES.CHAT_MESSAGE_BY_ID(messageId), { locale: false }) as ApiMessage;
-            if (fetched?.author) {
-                const saved = mapApiMessageToView(fetched);
-                // Серверные превью — заранее, чтобы на месте локальных фото не мелькнула заглушка.
-                // Локальные превью остаются поверх, пока серверные фото не загрузятся (imageSettled), — без
-                // «исчезло — появилось». Страховка — через 8 с превью снимается в любом случае.
-                const keepPreviews = !!temp.localImages?.length && (saved.images ?? []).length > 0;
-                setMessages(prev => prev.map(m => m.clientKey === key
-                    ? { ...saved, clientKey: key, ...(keepPreviews ? { localImages: temp.localImages } : {}) } : m));
-                if (keepPreviews) window.setTimeout(() => finishSettle(key), 8000);
-                else temp.localImages?.forEach(url => URL.revokeObjectURL(url));
-            } else {
-                // Свежую версию покажет загрузка переписки ниже (тем же узлом).
-                update({ status: undefined });
-            }
+            const saved = fetched?.author ? mapApiMessageToView(fetched) : null;
+            // Сервер ответил, но фото к сообщению не прикрепил (файл отбракован) — это тоже не доставлено.
+            if (saved && (saved.images ?? []).length < files.length) throw new Error(t('chat.messageError'));
+            setMessages(prev => prev.map(m => m.clientKey !== key ? m
+                : saved ? { ...saved, clientKey: key, replyTo: saved.replyTo ?? m.replyTo, localImages: keptPreviews(m, saved) }
+                // Свежую версию покажет загрузка переписки ниже (тем же узлом, с теми же превью).
+                : { ...m, isLocal: false, status: undefined }));
             // Миниатюры чата (боковая панель) — с сервера.
             if (selectedChatIdRef.current === chatId) fetchChatMessages(chatId);
         } catch (err) {
-            update({ status: 'error' });
-            setError(resolveApiError(err, t('chat.messageError')));
+            if (!temp.text?.trim()) {
+                // Фото не дошли, а текста нет — на сервере осталось пустое сообщение. Убираем его;
+                // «Повторить» создаст сообщение заново.
+                const orphan = messageId;
+                clientKeyByIdRef.current.delete(orphan);
+                universalApiRequest(API_ROUTES.CHAT_MESSAGE_BY_ID(orphan), { method: 'DELETE', locale: false }).catch(() => {});
+                update({ id: key, status: 'error' });
+            } else {
+                update({ status: 'error' });
+            }
+            if (!isNetworkFailure(err)) setError(resolveApiError(err, t('chat.messageError')));
         }
-    }, [sendMessageToServer, uploadFilesToMessage, mapApiMessageToView, fetchChatMessages, finishSettle, t]);
+    }, [sendMessageToServer, uploadFilesToMessage, mapApiMessageToView, fetchChatMessages, t]);
+
+    /**
+     * «Отменить» у неотправленного сообщения — убрать его из переписки. Если текст уже на сервере (не дошли
+     * только фото), остаётся серверная версия — текст без фото.
+     */
+    const cancelMessage = useCallback((msg: Message) => {
+        const key = msg.clientKey ?? msg.id;
+        setMessages(prev => prev.filter(m => (m.clientKey ?? m.id) !== key));
+        if (msg.id !== key && selectedChatIdRef.current) fetchChatMessages(selectedChatIdRef.current);
+    }, [fetchChatMessages]);
 
     const sendMessage = useCallback(async () => {
         const isEditMode = !!editingMessage;
@@ -1134,6 +1166,7 @@ function Chat() {
             const localImages = photoItems.length > 0
                 ? photoItems.map(item => item.type === 'new' ? item.previewUrl : item.thumbnail ?? getImageUrl(item.image))
                 : undefined;
+            localImages?.forEach(url => { if (url.startsWith('blob:')) previewUrlsRef.current.add(url); });
             setMessages(prev => prev.map(m => m.id === original.id
                 ? { ...m, text, edited: true, isLocal: true, status: 'pending' as const, localImages, images: localImages ? [] : m.images }
                 : m));
@@ -1145,8 +1178,9 @@ function Chat() {
                 const fetched = await universalApiRequest(API_ROUTES.CHAT_MESSAGE_BY_ID(original.id), { locale: false }) as ApiMessage;
                 if (fetched?.author) {
                     const saved = mapApiMessageToView(fetched);
-                    await warmImages((saved.images ?? []).map(img => img.source?.thumbnail ?? img.url));
-                    setMessages(prev => prev.map(m => m.id === original.id ? saved : m));
+                    // Те же фото остаются превью правки (keptPreviews) — без замены на серверные и мигания.
+                    setMessages(prev => prev.map(m => m.id === original.id
+                        ? { ...saved, clientKey: m.clientKey, localImages: keptPreviews(m, saved) } : m));
                 } else {
                     setMessages(prev => prev.map(m => m.id === original.id ? { ...m, status: undefined } : m));
                 }
@@ -1181,6 +1215,7 @@ function Chat() {
             replyTo: replyToMessage ? { id: replyToMessage.id, text: replyToMessage.text, name: replyToMessage.name } : undefined
         };
 
+        tempMessage.localImages?.forEach(url => previewUrlsRef.current.add(url));
         forceScrollRef.current = true;
         enterArmedRef.current = true;
         setMessages(prev => [...prev, tempMessage]);
@@ -1981,6 +2016,9 @@ function Chat() {
                                                 );
                                             }
 
+                                            // Пустое на сервере (фото к нему ещё грузятся или не дошли) — показывать нечего.
+                                            if (isBlankMessage(msg)) return null;
+
                                             const isDeleted = !!msg.deletedByAuthor;
                                             const isMine = msg.sender === 'me' && !msg.isLocal;
                                             const showEditButton = isMine && !isDeleted;
@@ -2016,45 +2054,41 @@ function Chat() {
                                                                     </div>
                                                                 )}
                                                                 {(() => {
-                                                                    // Фото сообщения. Своё сообщение в пути: локальные превью, загрузка — прямо в нём.
-                                                                    // Когда сервер уже отдал фото, они грузятся под превью, а превью снимается только
-                                                                    // после того, как все серверные фото реально показались: без «исчезло — появилось».
+                                                                    // Фото сообщения. Своё отправленное — локальными превью, и в пути (со спиннером),
+                                                                    // и после доставки (см. keptPreviews): серверные на их место не встают, поэтому
+                                                                    // фото не исчезает и не появляется заново — спиннер просто уходит.
                                                                     const local = msg.localImages ?? [];
                                                                     const server = msg.images ?? [];
                                                                     const count = local.length || server.length;
                                                                     if (count === 0) return null;
                                                                     const sizeClass = count === 1 ? styles.messageImages1 : count === 2 ? styles.messageImages2 : styles.messageImages3;
-                                                                    const busy = msg.status === 'pending' || msg.status === 'uploading' || (local.length > 0 && server.length > 0);
-                                                                    const serverImgs = server.map((img) => (
-                                                                        <Img
-                                                                            key={img.id}
-                                                                            // Превью 480 px + BlurHash; оригинал — откат. Если не грузится ничего — скрыто (как раньше).
-                                                                            src={img.source?.thumbnail ?? img.url}
-                                                                            fallbacks={[img.url]}
-                                                                            blurhash={img.source?.blurhash}
-                                                                            alt=""
-                                                                            loading={local.length ? 'eager' : undefined}
-                                                                            className={styles.messageGridImage}
-                                                                            onLoad={local.length ? () => imageSettled(msg, img.id) : undefined}
-                                                                            onError={local.length ? () => imageSettled(msg, img.id) : undefined}
-                                                                            onClick={() => {
-                                                                                const galleryIdx = chatImages.findIndex(ci => ci.imageUrl === img.url);
-                                                                                photoGallery.openGallery(galleryIdx >= 0 ? galleryIdx : 0);
-                                                                            }}
-                                                                        />
-                                                                    ));
+                                                                    const busy = msg.status === 'pending' || msg.status === 'uploading';
+                                                                    const openImage = (url: string) => {
+                                                                        const galleryIdx = chatImages.findIndex(ci => ci.imageUrl === url);
+                                                                        photoGallery.openGallery(galleryIdx >= 0 ? galleryIdx : 0);
+                                                                    };
                                                                     return (
                                                                         <div className={`${styles.messageImagesGrid} ${sizeClass} ${local.length ? styles.localImages : ''}`}>
-                                                                            {local.map((url, i) => (
-                                                                                <img key={`local-${i}`} src={url} alt="" className={styles.messageGridImage} />
+                                                                            {local.length > 0 ? local.map((url, i) => (
+                                                                                <img
+                                                                                    key={i}
+                                                                                    src={url}
+                                                                                    alt=""
+                                                                                    className={styles.messageGridImage}
+                                                                                    onClick={!busy && server[i] ? () => openImage(server[i].url) : undefined}
+                                                                                />
+                                                                            )) : server.map((img) => (
+                                                                                <Img
+                                                                                    key={img.id}
+                                                                                    // Превью 480 px + BlurHash; оригинал — откат. Если не грузится ничего — скрыто (как раньше).
+                                                                                    src={img.source?.thumbnail ?? img.url}
+                                                                                    fallbacks={[img.url]}
+                                                                                    blurhash={img.source?.blurhash}
+                                                                                    alt=""
+                                                                                    className={styles.messageGridImage}
+                                                                                    onClick={() => openImage(img.url)}
+                                                                                />
                                                                             ))}
-                                                                            {/* Серверные фото — один и тот же узел и пока грузятся невидимо под превью, и после того, как
-                                                                                превью снято: ничего не перемонтируется, фото не мигает. Превью остаётся в потоке: высота не меняется. */}
-                                                                            {server.length > 0 && (
-                                                                                <div key="server" className={local.length > 0 ? styles.settleLayer : styles.serverLayer} aria-hidden={local.length > 0 || undefined}>
-                                                                                    {serverImgs}
-                                                                                </div>
-                                                                            )}
                                                                             {local.length > 0 && busy && (
                                                                                 <div className={styles.localImagesProgress}>
                                                                                     <PageLoader compact asSpan primary={false} />
@@ -2077,15 +2111,25 @@ function Chat() {
                                                                             <IoTimeOutline className={styles.tickPending} aria-label={t('chat.waiting')} />
                                                                         )}
                                                                         {msg.sender === 'me' && msg.isLocal && msg.status === 'error' && selectedChat && (
-<button
-                                                                                type="button"
-                                                                                className={styles.retryBtn}
-                                                                                onClick={() => deliverMessage(msg, selectedChat)}
-                                                                                title={t('chat.messageError')}
-                                                                            >
-                                                                                <IoAlertCircle />
-                                                                                <span>{t('chat.retry')}</span>
-                                                                            </button>
+                                                                            <>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className={styles.retryBtn}
+                                                                                    onClick={() => deliverMessage(msg, selectedChat)}
+                                                                                    title={t('chat.messageError')}
+                                                                                >
+                                                                                    <IoAlertCircle />
+                                                                                    <span>{t('chat.retry')}</span>
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className={styles.cancelSendBtn}
+                                                                                    onClick={() => cancelMessage(msg)}
+                                                                                >
+                                                                                    <IoClose />
+                                                                                    <span>{t('chat.cancelSend')}</span>
+                                                                                </button>
+                                                                            </>
                                                                         )}
                                                                     </div>
                                                                 </div>

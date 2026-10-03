@@ -211,6 +211,15 @@ html.native {
   }
 }
 
+// У ссылок в приложении нет `href` (utils/nativeLinks.ts) — без него браузер перестаёт красить их как
+// ссылки. Возвращаем вид стандартной ссылки; весь селектор в :where — нулевая специфичность, так что любые
+// стили компонентов главнее.
+:where(html.native a[data-native-href]) {
+  color: -webkit-link;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 @keyframes nativeNavBubbleIn {
   from { transform: translateY(28px) scale(0.92); opacity: 0; }
   to   { transform: none; opacity: 1; }

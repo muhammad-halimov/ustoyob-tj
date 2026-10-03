@@ -47,6 +47,8 @@
   "thread": {
     "loadError": "Failed to load the request",
     "sendError": "Failed to send the message",
+    "retrySend": "Retry",
+    "cancelSend": "Cancel",
     "originalRequest": "Description",
     "you": "You",
     "support": "Support",

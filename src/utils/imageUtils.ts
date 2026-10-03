@@ -3,6 +3,7 @@ import { universalApiRequest } from './apiUtils';
 import { getAuthToken } from './authUtils';
 import { API_ROUTES } from '../app/routers/routes';
 import { compressImageFile } from './imageCompressUtils';
+import { fileToMemory } from './nativeFiles';
 import type { PhotoSource, ImageFields, ResolvedImage } from '../entities';
 
 // ─── Форматирование URL изображений ──────────────────────────
@@ -132,15 +133,9 @@ export const uploadPhotos = async (
     files: File[],
     guestToken?: string | null,
 ): Promise<any> => {
-    // Файл из системного выбора фото (Android) читается лениво, уже при отправке, и если доступ к нему
-    // успел пропасть, fetch падает без статуса — «Failed to fetch». Поэтому сначала забираем байты в память.
-    const inMemory = await Promise.all(files.map(async file => {
-        try {
-            return new File([await file.arrayBuffer()], file.name, { type: file.type, lastModified: file.lastModified });
-        } catch {
-            return file;
-        }
-    }));
+    // Копия в памяти — на случай, если файл не скопировали при выборе (utils/nativeFiles.ts): так сжатие и
+    // все попытки загрузки читают одни и те же байты.
+    const inMemory = await Promise.all(files.map(fileToMemory));
 
     // Сжимаем до отправки (canvas) — см. imageCompressUtils; аватар (`users`) сильнее, он
     // показывается только маленьким. Сбой сжатия = отправляем оригинал, загрузка не ломается.

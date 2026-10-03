@@ -133,27 +133,6 @@ export function initNativeTouch(): void {
         if (e.target instanceof Element && e.target.closest('a, img, svg, button, [role="button"], nav') && !e.target.closest(KEEPS_FOCUS)) e.preventDefault();
     });
 
-    // Android WebView при долгом нажатии на ссылку показывает плашку «название + адрес» (https://localhost/…),
-    // и contextmenu/CSS на неё не влияют. Плашка строится по href, поэтому на время касания его снимаем
-    // (переходы по <Link> от href не зависят — их ведёт обработчик клика) и возвращаем, когда палец поднят.
-    let stripped: { link: HTMLAnchorElement; href: string } | null = null;
-    const restoreHref = () => {
-        if (!stripped) return;
-        stripped.link.setAttribute('href', stripped.href);
-        stripped = null;
-    };
-    window.addEventListener('touchstart', (e) => {
-        restoreHref();
-        const link = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>('a[href]') : null;
-        if (!link || link.target === '_blank') return;
-        stripped = { link, href: link.getAttribute('href') ?? '' };
-        link.removeAttribute('href');
-    }, { capture: true, passive: true });
-    // Клик приходит после touchend — возвращаем href следом за ним, не раньше.
-    const restoreAfterTap = () => { window.setTimeout(restoreHref, 0); };
-    window.addEventListener('touchend', restoreAfterTap, { capture: true, passive: true });
-    window.addEventListener('touchcancel', restoreHref, { capture: true, passive: true });
-
     // Фокус после тапа — последним обработчиком: если тап сам перевёл фокус (открыл поиск), он уже не на
     // кнопке. detail === 0 — «клик» с клавиатуры (Enter/пробел): там фокус нужен.
     window.addEventListener('click', (e) => {

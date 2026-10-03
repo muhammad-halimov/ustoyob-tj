@@ -164,6 +164,7 @@
     "messageError": "Error sending message",
     "noPhotoDescription": "Photo",
     "retry": "Retry",
+    "cancelSend": "Cancel",
     "waiting": "Waiting...",
     "uploading": "Uploading {{progress}}%",
     "prevPhoto": "Previous photo",

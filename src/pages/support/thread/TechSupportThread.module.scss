@@ -502,7 +502,7 @@
   .messageImage { width: 72px; height: 72px; }
 }
 
-// Мобильная сборка: своё сообщение до ответа сервера — часики, не ушло — значок «повторить»; фото —
+// Мобильная сборка: своё сообщение до ответа сервера — часики, не ушло — «повторить» / «отменить»; фото —
 // локальные превью с загрузкой прямо в сообщении.
 .outgoingPending {
   margin-left: 4px;
@@ -512,14 +512,24 @@
 .outgoingRetry {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   margin-left: 4px;
   padding: 0;
   border: none;
   background: none;
   color: #ef5350;
-  font-size: 16px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
   vertical-align: -4px;
   cursor: pointer;
+
+  svg { font-size: 16px; }
+}
+
+.outgoingCancel {
+  @extend .outgoingRetry;
+  color: var(--color-text-secondary, #888);
 }
 
 .outgoingImages {
@@ -535,19 +545,4 @@
   justify-content: center;
   border-radius: map.get(vars.$border-radius, base);
   background: rgba(0, 0, 0, 0.28);
-}
-
-// Серверные фото невидимо догружаются, пока на их месте (в потоке) лежат локальные превью.
-.settleLayer {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
-}
-
-// Обычный (не удерживаемый) случай — обёртка не должна ломать flex-раскладку фото.
-.messageImagesInline {
-  display: contents;
 }

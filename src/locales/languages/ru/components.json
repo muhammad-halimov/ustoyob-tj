@@ -164,6 +164,7 @@
     "messageError": "Ошибка отправки сообщения",
     "noPhotoDescription": "Фото",
     "retry": "Повторить",
+    "cancelSend": "Отменить",
     "waiting": "Ожидание...",
     "uploading": "Загрузка {{progress}}%",
     "prevPhoto": "Предыдущее фото",

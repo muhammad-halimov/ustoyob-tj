@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline, IoPersonOutline, IoHeadsetOutline, IoTrashOutline, IoCloseCircleOutline, IoTimeOutline, IoAlertCircle } from 'react-icons/io5';
+import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline, IoPersonOutline, IoHeadsetOutline, IoTrashOutline, IoCloseCircleOutline, IoTimeOutline, IoAlertCircle, IoClose } from 'react-icons/io5';
 import styles from './TechSupportThread.module.scss';
 import { peekApi, universalApiRequest } from '../../../utils/apiUtils';
 import { sameResponse } from '../../../utils/apiCache';
@@ -26,7 +26,7 @@ import { Markdown } from '../../../shared/ui/Text/Markdown';
 import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 import { EmptyState } from '../../../widgets/EmptyState';
 import { PageLoader } from '../../../widgets/PageLoader';
-import { animateMessageEnter, freshTailKeys, keepComposerFocus, useStickToBottom, warmImages } from '../../../utils/nativeChat';
+import { animateMessageEnter, freshTailKeys, keepComposerFocus, useStickToBottom } from '../../../utils/nativeChat';
 import {
     STATUS_ICONS,
     PRIORITY_ICONS,
@@ -171,26 +171,19 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     const [photos, setPhotos] = useState<PhotoItem[]>([]);
     // Мобильная сборка: отправленное сразу в переписке (как в мессенджере), доставка — в фоне.
     const [outbox, setOutbox] = useState<OutgoingMessage[]>([]);
-    // Локальные превью фото доставленного сообщения: лежат поверх серверных, пока те не загрузятся, —
-    // без «исчезло — появилось». Ключ — id сообщения на сервере.
+    // Локальные превью фото доставленного сообщения остаются в нём и после доставки: это те же фото, а замена
+    // их серверными (пока те грузятся) давала «фото исчезло — появилось». Ключ — id сообщения на сервере.
+    // Снимаются, только если фото у сообщения поменялись (heldFor). Сами blob: — до ухода со страницы.
     const [heldPreviews, setHeldPreviews] = useState<Record<string, string[]>>({});
-    const loadedHeldRef = useRef(new Map<string, Set<string | number>>());
-    const releaseHeld = (serverId: string | number) => {
-        loadedHeldRef.current.delete(String(serverId));
-        setHeldPreviews(prev => {
-            const urls = prev[String(serverId)];
-            if (!urls) return prev;
-            urls.forEach(url => URL.revokeObjectURL(url));
-            const { [String(serverId)]: _drop, ...rest } = prev;
-            return rest;
-        });
+    const heldFor = (msg: TechSupportMessage): string[] | null => {
+        const held = heldPreviews[String(msg.id)];
+        return held && !msg.deletedByAuthor && held.length === (msg.images ?? []).length ? held : null;
     };
-    const heldImageLoaded = (serverId: string | number, imageId: string | number, total: number) => {
-        const set = loadedHeldRef.current.get(String(serverId)) ?? new Set<string | number>();
-        set.add(imageId);
-        loadedHeldRef.current.set(String(serverId), set);
-        if (set.size >= total) releaseHeld(serverId);
-    };
+    const previewUrlsRef = useRef(new Set<string>());
+    useEffect(() => {
+        const urls = previewUrlsRef.current;
+        return () => urls.forEach(url => URL.revokeObjectURL(url));
+    }, []);
     const [isMediaOpen, setIsMediaOpen] = useState(false);
     const composePreviewUrls = photos.filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new').map(p => p.previewUrl);
     const composeGallery = usePreview({ images: composePreviewUrls });
@@ -302,7 +295,10 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // Пока к своему сообщению грузятся фото, показываем его из outbox (с локальными превью), а не
     // серверную версию без фото, пришедшую событием раньше.
     const deliveringIds = new Set(outbox.filter(o => o.serverId !== undefined && o.status !== 'sent').map(o => o.serverId));
-    const serverMessages = (ticket?.messages ?? []).filter(m => !deliveringIds.has(m.id));
+    // Пустое на сервере (фото к нему ещё грузятся или не дошли) — показывать нечего.
+    const isBlank = (m: TechSupportMessage): boolean =>
+        !m.deletedByAuthor && !m.description?.trim() && !(m.images ?? []).length;
+    const serverMessages = (ticket?.messages ?? []).filter(m => !deliveringIds.has(m.id) && !isBlank(m));
     const serverIds = new Set(serverMessages.map(m => m.id));
     const visibleOutbox = outbox.filter(o => o.serverId === undefined || !serverIds.has(o.serverId));
     const renderedKeys = [...serverMessages.map(m => messageKey(m.id)), ...visibleOutbox.map(o => o.key)];
@@ -430,14 +426,20 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
 
     /**
      * Доставка сообщения, уже показанного в переписке (outbox): текст → фото к нему → свежая переписка.
-     * Серверная версия с фото показывается, когда превью уже в кэше (без мигания заглушки), тем же
-     * узлом. Не вышло — сообщение помечается ошибкой, нажатие на значок — повторить.
+     * Серверная версия сменяет его тем же узлом, а фото в ней так и остаются локальными превью (heldFor) —
+     * спиннер просто уходит. Не вышло — сообщение помечается ошибкой: «Повторить» или «Отменить». Сообщение
+     * без текста, к которому не дошли фото, на сервере не оставляем: там оно было бы пустым.
      */
     const deliver = async (item: OutgoingMessage) => {
         const update = (patch: Partial<OutgoingMessage>) => setOutbox(prev => prev.map(o => o.key === item.key ? { ...o, ...patch } : o));
+        const fail = () => {
+            update({ status: 'error' });
+            setError(t('thread.sendError'));
+        };
         update({ status: 'pending' });
+
+        let serverId = item.serverId;
         try {
-            let serverId = item.serverId;
             if (serverId === undefined) {
                 const body: Record<string, string> = { techSupport: API_ROUTES.TECH_SUPPORT_BY_ID(ticketId) };
                 if (item.text) body.description = item.text;
@@ -446,20 +448,36 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                     body,
                 });
                 serverId = result?.id;
-                if (serverId !== undefined) {
-                    clientKeyByIdRef.current.set(serverId, item.key);
-                    update({ serverId });
-                }
+                if (serverId === undefined) throw new Error('no_id');
+                clientKeyByIdRef.current.set(serverId, item.key);
+                update({ serverId });
             }
+        } catch {
+            fail();
+            return;
+        }
 
-            if (item.files.length > 0 && serverId !== undefined) {
-                try {
-                    await uploadPhotos('tech-support-messages', serverId, item.files);
-                } catch {
-                    // Photo upload failures are non-critical
+        if (item.files.length > 0) {
+            try {
+                const uploaded: TechSupportMessage | null = await uploadPhotos('tech-support-messages', serverId, item.files);
+                // Сервер ответил, но фото не прикрепил (файл отбракован) — это тоже не доставлено.
+                if (uploaded?.images && uploaded.images.length < item.files.length) throw new Error('images_not_attached');
+            } catch {
+                if (!item.text) {
+                    // Без текста сообщение на сервере осталось бы пустым — убираем его; «Повторить» создаст заново.
+                    const orphan = serverId;
+                    clientKeyByIdRef.current.delete(orphan);
+                    universalApiRequest(API_ROUTES.TECH_SUPPORT_MESSAGE_BY_ID(orphan), { method: 'DELETE', locale: false }).catch(() => {});
+                    update({ serverId: undefined });
                 }
+                fail();
+                return;
             }
+            // Фото на сервере — повтор (если дальше что-то не выйдет) их второй раз не загрузит.
+            update({ files: [] });
+        }
 
+        try {
             // Replying to a closed/resolved ticket reopens it — either side (author or admin)
             // picking the conversation back up means it isn't actually settled anymore.
             if (statusKey === 'closed' || statusKey === 'resolved') {
@@ -477,24 +495,64 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             }
 
             const data: SupportTicket = await universalApiRequest(API_ROUTES.TECH_SUPPORT_BY_ID(ticketId));
-            const sent = data.messages?.find(m => m.id === serverId);
-            await warmImages((sent?.images ?? []).map(img => toPhotoSource(img, 'uploads/tech_support_messages').thumbnail ?? formatTechSupportMessageImageUrl(img.image)));
             shownResponseRef.current = data;
             setTicket({ ...data, messages: sortMessagesByCreatedAt(data.messages ?? []) });
-            if (serverId !== undefined && (sent?.images ?? []).length > 0 && item.previews.length > 0) {
+            if (item.previews.length > 0) {
                 const heldId = serverId;
                 setHeldPreviews(prev => ({ ...prev, [String(heldId)]: item.previews }));
-                window.setTimeout(() => releaseHeld(heldId), 8000);
-            } else {
-                item.previews.forEach(url => URL.revokeObjectURL(url));
             }
             update({ status: 'sent' });
             markThreadRead();
         } catch {
-            update({ status: 'error' });
-            setError(t('thread.sendError'));
+            fail();
         }
     };
+
+    /**
+     * «Отменить» у неотправленного сообщения — убрать его из переписки. Если текст уже на сервере (не дошли
+     * только фото), остаётся серверная версия — текст без фото.
+     */
+    const cancelOutgoing = (item: OutgoingMessage) => {
+        setOutbox(prev => prev.filter(o => o.key !== item.key));
+        if (item.serverId !== undefined) void fetchTicket();
+    };
+
+    /**
+     * Фото сообщения — одна разметка и для отправляемого (outbox), и для серверной версии: своё фото —
+     * локальными превью (спиннер, пока в пути), чужое/давнее — с сервера.
+     */
+    const renderMessageImages = (previews: string[] | null, images: TechSupportMessage['images'], pending: boolean) => (
+        <div className={`${styles.messageImages} ${previews ? styles.outgoingImages : ''}`}>
+            {previews ? previews.map((url, i) => (
+                <img
+                    key={i}
+                    src={url}
+                    alt=""
+                    className={styles.messageImage}
+                    onClick={!pending && images[i] ? () => openSentImage(formatTechSupportMessageImageUrl(images[i].image)) : undefined}
+                />
+            )) : images.map(img => {
+                const url = formatTechSupportMessageImageUrl(img.image);
+                const photo = toPhotoSource(img, 'uploads/tech_support_messages');
+                return (
+                    <Img
+                        key={img.id}
+                        src={photo.thumbnail ?? url}
+                        fallbacks={[url]}
+                        blurhash={photo.blurhash}
+                        alt=""
+                        className={styles.messageImage}
+                        onClick={() => openSentImage(url)}
+                    />
+                );
+            })}
+            {previews && pending && (
+                <div className={styles.outgoingProgress}>
+                    <PageLoader compact asSpan primary={false} />
+                </div>
+            )}
+        </div>
+    );
 
     const handleSend = () => {
         const text = message.trim();
@@ -508,6 +566,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             createdAt: new Date().toISOString(),
             status: 'pending',
         };
+        item.previews.forEach(url => previewUrlsRef.current.add(url));
         forceScrollRef.current = true;
         enterArmedRef.current = true;
         setOutbox(prev => [...prev, item]);
@@ -1243,41 +1302,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                     ) : (
                                         <>
                                             {msg.description && <Markdown text={decodeHtmlEntities(msg.description)} className={styles.messageBodyMd} />}
-                                            {(msg.images ?? []).length > 0 && (() => {
-                                                const held = heldPreviews[String(msg.id)];
-                                                return (
-                                                <div className={`${styles.messageImages} ${held ? styles.outgoingImages : ''}`}>
-                                                    {held && held.map((url, i) => <img key={i} src={url} alt="" className={styles.messageImage} />)}
-                                                    {/* Пока держим превью (в потоке — высота не меняется), серверные фото грузятся невидимо. */}
-                                                    <div className={held ? styles.settleLayer : styles.messageImagesInline}>
-                                                        {msg.images.map(img => {
-                                                            const url = formatTechSupportMessageImageUrl(img.image);
-                                                            const photo = toPhotoSource(img, 'uploads/tech_support_messages');
-                                                            const settle = held ? () => heldImageLoaded(msg.id, img.id, msg.images.length) : undefined;
-                                                            return (
-                                                                <Img
-                                                                    key={img.id}
-                                                                    src={photo.thumbnail ?? url}
-                                                                    fallbacks={[url]}
-                                                                    blurhash={photo.blurhash}
-                                                                    alt=""
-                                                                    loading={held ? 'eager' : undefined}
-                                                                    className={styles.messageImage}
-                                                                    onLoad={settle}
-                                                                    onError={settle}
-                                                                    onClick={() => openSentImage(url)}
-                                                                />
-                                                            );
-                                                        })}
-                                                    </div>
-                                                    {held && (
-                                                        <div className={styles.outgoingProgress}>
-                                                            <PageLoader compact asSpan primary={false} />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                );
-                                            })()}
+                                            {(msg.images ?? []).length > 0 && renderMessageImages(heldFor(msg), msg.images, false)}
                                         </>
                                     )}
                                 </div>
@@ -1303,33 +1328,36 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                         <span className={styles.messageTime}>
                                             {getFormattedDateTime(item.createdAt)}
                                             {item.status === 'error' ? (
-                                                <button
-                                                    type="button"
-                                                    className={styles.outgoingRetry}
-                                                    onClick={() => void deliver(item)}
-                                                    aria-label={t('thread.sendError')}
-                                                    title={t('thread.sendError')}
-                                                >
-                                                    <IoAlertCircle />
-                                                </button>
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.outgoingRetry}
+                                                        onClick={() => void deliver(item)}
+                                                        title={t('thread.sendError')}
+                                                    >
+                                                        <IoAlertCircle />
+                                                        <span>{t('thread.retrySend')}</span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.outgoingCancel}
+                                                        onClick={() => cancelOutgoing(item)}
+                                                    >
+                                                        <IoClose />
+                                                        <span>{t('thread.cancelSend')}</span>
+                                                    </button>
+                                                </>
                                             ) : (
                                                 <IoTimeOutline className={styles.outgoingPending} />
                                             )}
                                         </span>
                                     </div>
-                                    {item.text && <Markdown text={item.text} className={styles.messageBodyMd} />}
-                                    {item.previews.length > 0 && (
-                                        <div className={`${styles.messageImages} ${styles.outgoingImages}`}>
-                                            {item.previews.map((url, i) => (
-                                                <img key={i} src={url} alt="" className={styles.messageImage} />
-                                            ))}
-                                            {item.status === 'pending' && (
-                                                <div className={styles.outgoingProgress}>
-                                                    <PageLoader compact asSpan primary={false} />
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                    {/* Та же разметка, что у серверной версии (фрагмент, текст, фото), — сменяя это сообщение,
+                                        она занимает те же узлы: превью фото не пересоздаются и не мигают. */}
+                                    <>
+                                        {item.text && <Markdown text={item.text} className={styles.messageBodyMd} />}
+                                        {item.previews.length > 0 && renderMessageImages(item.previews, [], item.status === 'pending')}
+                                    </>
                                 </div>
                             );
                         })]}

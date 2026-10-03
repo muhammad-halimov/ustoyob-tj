@@ -2410,7 +2410,7 @@
     }
   }
 }
-// Мобильная сборка: своё сообщение в пути — часики вместо галочек, не ушло — значок «повторить»;
+// Мобильная сборка: своё сообщение в пути — часики вместо галочек, не ушло — «повторить» / «отменить»;
 // фото — локальные превью с загрузкой прямо в сообщении, а не поверх всего экрана.
 .tickPending {
   font-size: 12px;
@@ -2437,21 +2437,13 @@
   svg { font-size: 16px; }
 }
 
+.cancelSendBtn {
+  @extend .retryBtn;
+  color: var(--color-text-secondary, #888);
+}
+
 .localImages {
   position: relative;
-}
-
-.settleLayer {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.serverLayer {
-  display: contents;
 }
 
 .localImagesProgress {

@@ -47,6 +47,8 @@
   "thread": {
     "loadError": "Не удалось загрузить обращение",
     "sendError": "Не удалось отправить сообщение",
+    "retrySend": "Повторить",
+    "cancelSend": "Отменить",
     "originalRequest": "Описание",
     "you": "Вы",
     "support": "Техподдержка",
