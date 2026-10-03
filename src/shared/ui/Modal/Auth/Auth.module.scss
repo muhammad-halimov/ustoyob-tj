@@ -434,6 +434,9 @@
 .modal_forgot_password { max-width: 520px; }
 .modal_verify_code { max-width: 520px; }
 .modal_new_password { max-width: 520px; }
+.modal_sms_login { max-width: 520px; }
+.modal_sms_code { max-width: 520px; }
+.modal_confirm_email { max-width: 520px; }
 
 @media screen and (max-width: 550px) {
   .modal_welcome {
@@ -444,6 +447,9 @@
   .modal_forgot_password { max-width: 335px; }
   .modal_verify_code { max-width: 335px; }
   .modal_new_password { max-width: 335px; }
+  .modal_sms_login { max-width: 335px; }
+  .modal_sms_code { max-width: 335px; }
+  .modal_confirm_email { max-width: 335px; }
 
   .roleSelector {
     width: 100%;
