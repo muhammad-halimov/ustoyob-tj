@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Service\Extra\AdminLoadBalancerService;
 use App\Service\Notification\Email\NotifyNewTechSupportEmailService;
 use App\Service\Notification\NotificationDispatcher;
+use App\Service\Notification\Push\PushNotifier;
 use App\Service\Notification\Telegram\NotifyNewTechSupportTelegramBotService;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
@@ -57,6 +58,7 @@ class TechSupportListener
         private readonly AdminLoadBalancerService               $adminLoadBalancerService,
         private readonly NotificationDispatcher                 $dispatcher,
         private readonly Security                               $security,
+        private readonly PushNotifier                           $pushNotifier,
     ){}
 
     /**
@@ -77,6 +79,7 @@ class TechSupportListener
     public function postPersist(TechSupport $techSupport): void
     {
         $this->notifyAdmin($techSupport, $techSupport->getAdministrant());
+        $this->pushNotifier->techSupportCreated($techSupport);
     }
 
     /**
@@ -106,6 +109,7 @@ class TechSupportListener
         if ($newAdmin === $this->security->getUser()) return;
 
         $this->notifyAdmin($techSupport, $newAdmin);
+        $this->pushNotifier->techSupportAssigned($techSupport, $newAdmin);
     }
 
     private function notifyAdmin(TechSupport $techSupport, ?User $admin): void

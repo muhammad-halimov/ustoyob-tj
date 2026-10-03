@@ -4,9 +4,11 @@ namespace App\Service\Notification\Push;
 
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;
+use App\Entity\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\User;
 use App\Repository\User\DeviceTokenRepository;
+use App\Repository\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\ConsoleEvents;
@@ -34,6 +36,8 @@ class PushNotifier implements EventSubscriberInterface
         'responseTitle' => ['tj' => 'Ҷавоби нав', 'ru' => 'Новый отклик', 'eng' => 'New response'],
         'responseBody'  => ['tj' => '%s ба «%s» ҷавоб дод', 'ru' => '%s откликнулся на «%s»', 'eng' => '%s responded to “%s”'],
         'supportTitle'  => ['tj' => 'Дастгирии техникӣ: %s', 'ru' => 'Техподдержка: %s', 'eng' => 'Support: %s'],
+        'newTicket'     => ['tj' => 'Муроҷиати нав ба дастгирии техникӣ', 'ru' => 'Новое обращение в техподдержку', 'eng' => 'New support ticket'],
+        'assigned'      => ['tj' => 'Муроҷиат ба шумо супорида шуд', 'ru' => 'Вам назначено обращение', 'eng' => 'A support ticket was assigned to you'],
     ];
 
     /** @var list<array{user: User, texts: callable(string): array{0: string, 1: string}, data: array<string, string>, group: string, path: string}> */
@@ -42,6 +46,7 @@ class PushNotifier implements EventSubscriberInterface
     public function __construct(
         private readonly FcmClient              $fcm,
         private readonly DeviceTokenRepository  $deviceTokenRepository,
+        private readonly UserRepository         $userRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface        $logger,
     ) {}
@@ -100,28 +105,68 @@ class PushNotifier implements EventSubscriberInterface
     }
 
     /**
-     * Новое сообщение в обращении в техподдержку: ответ администратора — автору обращения, сообщение автора —
-     * назначенному администратору (у админа ещё Telegram/email, см. TechSupportMessageListener). Гостевое
-     * обращение (без аккаунта) — некому. Сообщение без текста и без фото не шлём (фото к нему ещё грузятся).
+     * Новое сообщение в обращении в техподдержку.
+     *  - Пишет автор обращения → исполнителю (administrant); не назначен — всем администраторам.
+     *  - Отвечает поддержка (администратор; в т.ч. сообщение из админ-панели без автора) → автору обращения.
+     * Гостевое обращение (без аккаунта) — автору слать некуда. Сообщение без текста и без фото не шлём (фото
+     * к нему ещё грузятся — push уйдёт из ApiPostUniversalImageController).
      */
     public function techSupportMessage(TechSupportMessage $message): void
     {
         $ticket = $message->getTechSupport();
-        $author = $message->getAuthor();
-        if (!$ticket || !$author) return;
-
-        $recipient = $ticket->getAuthor() === $author ? $ticket->getAdministrant() : $ticket->getAuthor();
-        if (!$recipient || $recipient === $author) return;
+        if (!$ticket) return;
 
         $text = trim((string) $message->getDescription());
         if ($text === '' && $message->getImages()->isEmpty()) return;
 
+        $author       = $message->getAuthor();
+        $ticketAuthor = $ticket->getAuthor();
+        $recipients   = $author !== null && $author === $ticketAuthor
+            ? $this->ticketAdmins($ticket)
+            : ($ticketAuthor ? [$ticketAuthor] : []);
+
         $ticketTitle = $this->cut((string) $ticket->getTitle(), 60);
         $body        = $text !== '' ? $this->cut($text, 180) : null;
 
+        foreach ($recipients as $recipient) {
+            if ($recipient === $author) continue;
+            $this->queueSupport($recipient, $ticket, fn(string $locale) => [
+                sprintf($this->text('supportTitle', $locale), $ticketTitle),
+                $body ?? $this->text('photo', $locale),
+            ]);
+        }
+    }
+
+    /** Новое обращение — исполнителю (назначается автоматически, см. TechSupportListener); нет — всем админам. */
+    public function techSupportCreated(TechSupport $ticket): void
+    {
+        $title = $this->cut((string) $ticket->getTitle(), 120);
+        foreach ($this->ticketAdmins($ticket) as $admin) {
+            $this->queueSupport($admin, $ticket, fn(string $locale) => [$this->text('newTicket', $locale), $title]);
+        }
+    }
+
+    /** Обращение переназначено — новому исполнителю. */
+    public function techSupportAssigned(TechSupport $ticket, User $admin): void
+    {
+        $title = $this->cut((string) $ticket->getTitle(), 120);
+        $this->queueSupport($admin, $ticket, fn(string $locale) => [$this->text('assigned', $locale), $title]);
+    }
+
+    /** @return list<User> исполнитель обращения или, если его нет, все администраторы */
+    private function ticketAdmins(TechSupport $ticket): array
+    {
+        $admin = $ticket->getAdministrant();
+
+        return $admin ? [$admin] : array_values($this->userRepository->findAllAdmins());
+    }
+
+    /** @param callable(string): array{0: string, 1: string} $texts */
+    private function queueSupport(User $recipient, TechSupport $ticket, callable $texts): void
+    {
         $this->queue[] = [
             'user'  => $recipient,
-            'texts' => fn(string $locale) => [sprintf($this->text('supportTitle', $locale), $ticketTitle), $body ?? $this->text('photo', $locale)],
+            'texts' => $texts,
             'data'  => ['type' => 'tech_support_message', 'ticketId' => (string) $ticket->getId()],
             'group' => 'support-' . $ticket->getId(),
             'path'  => '/support?ticket=' . $ticket->getId(),
