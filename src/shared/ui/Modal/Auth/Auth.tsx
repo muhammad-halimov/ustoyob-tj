@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { IoInformationCircleOutline } from 'react-icons/io5';
@@ -176,6 +176,52 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         message: ''
     });
     const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
+
+    // Смена экрана (вход → код из SMS → восстановление…): новый экран плавно проявляется, а высота
+    // окна плавно подстраивается под него, а не прыгает. Высоту меряет ResizeObserver на самом экране —
+    // она же следит за изменениями внутри экрана (ошибка, подсказки к паролю). На время изменения
+    // высоты содержимое обрезается (`resizing`), в остальное время — нет: иначе обрезались бы
+    // выпадающие списки, которые выходят за экран.
+    const screenRef = useRef<HTMLDivElement>(null);
+    const [screenHeight, setScreenHeight] = useState<number | null>(null);
+    const [resizing, setResizing] = useState(false);
+    const lastHeightRef = useRef<number | null>(null);
+    const shownStateRef = useRef<AuthModalStateType | null>(null);
+    // Первый экран при открытии не анимируем (окно и так появляется), все следующие — да
+    const [animateScreens, setAnimateScreens] = useState(false);
+    useLayoutEffect(() => {
+        if (!isOpen) {
+            shownStateRef.current = null;
+            lastHeightRef.current = null;
+            setScreenHeight(null);
+            setAnimateScreens(false);
+            return;
+        }
+        if (shownStateRef.current !== null && shownStateRef.current !== currentState) setAnimateScreens(true);
+        shownStateRef.current = currentState;
+        const el = screenRef.current;
+        if (!el) return;
+        let timer: number | undefined;
+        const measure = () => {
+            const next = el.offsetHeight;
+            if (lastHeightRef.current !== null && lastHeightRef.current !== next) {
+                setResizing(true);
+                window.clearTimeout(timer);
+                // Чуть дольше перехода высоты (280ms) — и без transitionend, которого нет при
+                // prefers-reduced-motion
+                timer = window.setTimeout(() => setResizing(false), 320);
+            }
+            lastHeightRef.current = next;
+            setScreenHeight(next);
+        };
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(el);
+        return () => {
+            observer.disconnect();
+            window.clearTimeout(timer);
+        };
+    }, [isOpen, currentState]);
 
     useEffect(() => {
         if (resendIn <= 0) return;
@@ -1817,7 +1863,18 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                         onClick={(e) => e.stopPropagation()}
                     >
                         <Clear className={styles.closeButton} onClick={handleClose} />
-                        {renderContent()}
+                        <div
+                            className={`${styles.screenViewport} ${resizing ? styles.screenViewportResizing : ''}`}
+                            style={screenHeight !== null ? { height: screenHeight } : undefined}
+                        >
+                            <div
+                                ref={screenRef}
+                                key={currentState}
+                                className={`${styles.screen} ${animateScreens ? styles.screenEnter : ''}`}
+                            >
+                                {renderContent()}
+                            </div>
+                        </div>
                     </div>
                     <Status
                         type="error"

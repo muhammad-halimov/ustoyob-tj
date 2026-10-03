@@ -217,24 +217,20 @@
   border-radius: 0 0 12px 12px;
   box-shadow: 0 8px 24px var(--color-shadow-light);
   overflow: hidden;
-  // Плавное появление вместо резкого — только transform/opacity (без перерасчёта раскладки)
-  transform-origin: top center;
-  animation: dropdownIn 0.14s ease-out;
+  // Раскрывается шторкой сверху вниз — обрезкой, без прозрачности: список лежит поверх полей формы,
+  // и при проявлении через opacity они просвечивали сквозь него. В приложении (html.native) анимацию
+  // задаёт native-motion.scss — та же шторка, плюс сворачивание при закрытии.
+  animation: dropdownIn 0.22s cubic-bezier(0.05, 0.7, 0.1, 1);
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }
 }
 
+// Поля обрезки по бокам и снизу — с запасом под тень списка
 @keyframes dropdownIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { clip-path: inset(0 -40px 100% -40px); }
+  to { clip-path: inset(0 -40px -40px -40px); }
 }
 
 // ── Поиск внутри дропдауна ───────────────────────────────────────────────────
