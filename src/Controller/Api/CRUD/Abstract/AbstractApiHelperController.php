@@ -363,6 +363,28 @@ abstract class AbstractApiHelperController extends AbstractController
     }
 
     /**
+     * DELETE сообщения (ChatMessage/TechSupportMessage). Пустое сообщение — без
+     * текста и без фото — удаляется физически: так бывает, когда фото к нему не
+     * загрузились (двухшаговая отправка, см. wouldLeaveMessageEmpty), и клиент
+     * убирает за собой. «Мягко» удалять в нём нечего, а плейсхолдер «Сообщение
+     * удалено» остался бы в переписке мусором у обеих сторон. Остальные —
+     * мягкое удаление (softDeleteMessage).
+     */
+    protected function deleteMessage(EditableMessageInterface $message, User $bearer): void
+    {
+        $isEmpty = !$message->isDeletedByAuthor()
+            && trim((string) $message->getDescription()) === ''
+            && $message->getImages()->isEmpty();
+
+        if ($isEmpty) {
+            $this->entityManager->remove($message);
+            return;
+        }
+
+        $this->softDeleteMessage($message, $bearer);
+    }
+
+    /**
      * Останется ли сообщение без текста И без фото после PATCH — используют
      * ChatMessage/TechSupportMessage, чтобы не дать отредактировать
      * сообщение в полностью пустое состояние (см. AppMessages::MESSAGE_EMPTY).

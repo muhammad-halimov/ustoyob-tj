@@ -8,7 +8,8 @@ use App\Entity\TechSupport\TechSupportMessage;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 /**
- * DELETE /api/tech-support-messages/{id} — мягкое удаление, не физическое.
+ * DELETE /api/tech-support-messages/{id} — мягкое удаление, не физическое
+ * (пустое — без текста и фото — физическое, см. deleteMessage()).
  *
  * Отдельно от PATCH (свободная правка текста) — сценарий тут другой: убрать
  * случайно введённые чувствительные данные, а не поправить формулировку.
@@ -36,7 +37,7 @@ class ApiDeleteTechSupportMessageController extends AbstractApiHelperController
         if (!$isAdmin && $message->getAuthor() !== $bearer)
             return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
 
-        $this->softDeleteMessage($message, $bearer);
+        $this->deleteMessage($message, $bearer);
         $this->flush();
 
         return $this->json(null, 204);

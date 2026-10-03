@@ -8,7 +8,8 @@ use App\Entity\Chat\ChatMessage;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 /**
- * DELETE /api/chat-messages/{id} — мягкое удаление, не физическое.
+ * DELETE /api/chat-messages/{id} — мягкое удаление, не физическое
+ * (пустое — без текста и фото — физическое, см. deleteMessage()).
  *
  * Раньше был безусловный физический remove() (AbstractApiDeleteController) —
  * теперь та же механика, что у TechSupportMessage (см.
@@ -36,7 +37,7 @@ class ApiDeleteChatMessageController extends AbstractApiHelperController
         if (!$isAdmin && $message->getAuthor() !== $bearer)
             return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
 
-        $this->softDeleteMessage($message, $bearer);
+        $this->deleteMessage($message, $bearer);
         $this->flush();
 
         return $this->json(null, 204);
