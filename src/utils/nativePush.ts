@@ -1,13 +1,14 @@
 /**
  * Push-уведомления (Firebase Cloud Messaging) — только мобильная сборка. Бэкенд шлёт их на новое сообщение
- * в чате и на новый отклик на объявление (см. README бэкенда → «Push-уведомления»).
+ * в чате, на новый отклик на объявление и на новое сообщение в обращении в техподдержку (см. README
+ * бэкенда → «Push-уведомления»).
  *
  *  - Устройство регистрируется на сервере (`POST /api/device-tokens`) при запуске, если пользователь вошёл, и
  *    сразу после входа; разрешение на уведомления спрашивается тогда же, один раз. Сменили язык — устройство
  *    регистрируется заново: текст уведомлений приходит на языке приложения.
  *  - Выход из аккаунта — устройство отписывается (`POST /api/device-tokens/unregister`), чтобы уведомления
  *    прошлого пользователя сюда больше не приходили.
- *  - Нажали на уведомление — открывается его чат.
+ *  - Нажали на уведомление — открывается его чат или обращение.
  *  - Пока приложение открыто, системные уведомления не показываются: новые сообщения и так видны в приложении
  *    (переписка и счётчики обновляются через Mercure).
  *
@@ -73,10 +74,14 @@ const unregister = (): void => {
 export function installNativePush(router: AppRouter): void {
     if (!Capacitor.isNativePlatform()) return;
 
-    // Нажали на уведомление (приложение было закрыто или в фоне) — открываем чат.
+    // Нажали на уведомление (приложение было закрыто или в фоне) — открываем его чат или обращение в техподдержку.
     FirebaseMessaging.addListener('notificationActionPerformed', ({ notification }) => {
-        const chatId = (notification.data as Record<string, unknown> | undefined)?.chatId;
-        if (typeof chatId === 'string' && chatId) void router.navigate(`${ROUTES.CHATS}?chatId=${encodeURIComponent(chatId)}`);
+        const data = (notification.data ?? {}) as Record<string, unknown>;
+        if (typeof data.chatId === 'string' && data.chatId) {
+            void router.navigate(`${ROUTES.CHATS}?chatId=${encodeURIComponent(data.chatId)}`);
+        } else if (typeof data.ticketId === 'string' && data.ticketId) {
+            void router.navigate(`${ROUTES.TECH_SUPPORT}?ticket=${encodeURIComponent(data.ticketId)}`);
+        }
     }).catch(() => {});
     // Firebase сменил токен устройства — сообщаем серверу новый.
     FirebaseMessaging.addListener('tokenReceived', ({ token }) => {
