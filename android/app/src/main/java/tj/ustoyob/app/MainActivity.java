@@ -1,5 +1,6 @@
 package tj.ustoyob.app;
 
+import android.content.pm.ActivityInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Display;
@@ -13,6 +14,7 @@ public class MainActivity extends BridgeActivity {
         // Кастомный плагин — до super.onCreate(), так требует Capacitor.
         registerPlugin(NavigationBarPlugin.class);
         super.onCreate(savedInstanceState);
+        lockPortraitOnPhones();
         // WebView по умолчанию белый до первого кадра страницы — между сплэшем и приложением
         // мелькала белая вспышка. Красим в фон приложения (день/ночь — по системной теме).
         getBridge().getWebView().setBackgroundColor(getColor(R.color.app_window_bg));
@@ -26,6 +28,17 @@ public class MainActivity extends BridgeActivity {
         // (сворачивание, переключение приложений) — переустанавливаем при каждом
         // возврате на передний план, а не только один раз в onCreate.
         requestHighestRefreshRate();
+    }
+
+    // Телефон — только вертикально (планшет — как угодно). Раскладка экранов рассчитана на высоту
+    // телефона в портрете: в альбомной ориентации высоты (~400dp) не хватало — шапки и нижняя панель
+    // съедали почти всё, у чатов и обращений в ТП переписка сжималась до пары строк, поле ввода уходило
+    // под панель. Телефон от планшета — по smallestScreenWidthDp (меньшая сторона экрана, < 600dp).
+    // В манифесте этого не задать: screenOrientation там один на все устройства.
+    private void lockPortraitOnPhones() {
+        if (getResources().getConfiguration().smallestScreenWidthDp < 600) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        }
     }
 
     // Android does not opt an app into the display's highest refresh rate (90/120Hz) by
