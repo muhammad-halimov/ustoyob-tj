@@ -98,16 +98,14 @@ html.native {
     transform-origin: top right;
     animation: 180ms $md-decelerate both native-menu-in;
   }
-  [class*='_dropdown_'][role='listbox']:not([data-native-ghost]) {
-    transform-origin: top center;
-    animation: 180ms $md-decelerate both native-menu-in;
-  }
+  // Выпадающие списки — шторкой сверху вниз (обрезкой, без прозрачности): список лежит поверх полей
+  // формы, и при проявлении/угасании они просвечивали сквозь него — раскрытие выглядело дёрганым.
+  [class*='_dropdown_'][role='listbox']:not([data-native-ghost]),
   [class*='_language_dropdown_']:not([data-native-ghost]) {
-    transform-origin: top right;
-    animation: 180ms $md-decelerate both native-menu-in;
+    animation: 220ms $md-decelerate both native-list-in;
   }
-  [data-native-ghost='menu'],
-  [data-native-ghost='listbox'] { animation: 140ms ease-in both native-menu-out; }
+  [data-native-ghost='menu'] { animation: 140ms ease-in both native-menu-out; }
+  [data-native-ghost='listbox'] { animation: 160ms $md-accelerate both native-list-out; }
 
   // Баннер cookie выезжает снизу, а не возникает.
   [class*='_cookieBanner_'] { animation: 380ms $md-decelerate 300ms both native-rise-in; }
@@ -187,6 +185,9 @@ html.native-android [class*='_mobile_header_'] > [class*='_bottomHeader_navList_
 @keyframes native-zoom-in { from { opacity: 0; scale: 0.94; } }
 @keyframes native-menu-in  { from { opacity: 0; scale: 0.9; } }
 @keyframes native-menu-out { to { opacity: 0; scale: 0.96; } }
+// Поля обрезки по бокам и снизу — с запасом под тень списка, иначе она обрезалась бы.
+@keyframes native-list-in  { from { clip-path: inset(0 -40px 100% -40px); } to { clip-path: inset(0 -40px -40px -40px); } }
+@keyframes native-list-out { from { clip-path: inset(0 -40px -40px -40px); } to { clip-path: inset(0 -40px 100% -40px); } }
 @keyframes native-rise-in { from { opacity: 0; translate: 0 24px; } }
 @keyframes native-photo-out-start { to { transform: translateX(-35%); opacity: 0; } }
 @keyframes native-photo-in-end    { from { transform: translateX(35%); opacity: 0; } }
