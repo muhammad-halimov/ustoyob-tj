@@ -3,13 +3,15 @@
 namespace App\EventListener;
 
 use App\Entity\Chat\Chat;
+use App\Service\Notification\Push\PushNotifier;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Events;
 
 /**
  * Автоматически увеличивает счётчик откликов (responsesCount) на тикете
- * каждый раз, когда к нему привязывается новый Chat (т.е. мастер откликается).
+ * каждый раз, когда к нему привязывается новый Chat (т.е. мастер откликается),
+ * и шлёт владельцу объявления push об отклике (PushNotifier).
  *
  * Почему postPersist, а не postUpdate?
  *   Счётчик нужно увеличивать только при СОЗДАНИИ чата.
@@ -24,7 +26,10 @@ use Doctrine\ORM\Events;
 #[AsEntityListener(event: Events::postPersist, entity: Chat::class)]
 readonly class ChatResponseListener
 {
-    public function __construct(private EntityManagerInterface $em) {}
+    public function __construct(
+        private EntityManagerInterface $em,
+        private PushNotifier           $pushNotifier,
+    ) {}
 
     public function postPersist(Chat $chat): void
     {
@@ -35,6 +40,9 @@ readonly class ChatResponseListener
         if ($ticket === null) return;
 
         $ticket->incrementResponsesCount();
+
+        // Push владельцу объявления: «N откликнулся на …».
+        $this->pushNotifier->chatResponse($chat);
 
         // flush без persist: Ticket уже отслеживается Unit of Work,
         // поэтому достаточно только сохранить изменения

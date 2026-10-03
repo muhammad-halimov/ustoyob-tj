@@ -83,6 +83,7 @@ docker compose --env-file .env.local up -d --force-recreate mercure
 | `CORS_ALLOW_ORIGIN` | разрешённые origin'ы клиентов |
 | `MAILER_DSN`, `MAILER_SENDER` | почта (в dev по умолчанию `null://null` — письма не уходят) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_API_URL` | уведомления администрации в Telegram |
+| `FIREBASE_CREDENTIALS` | путь к JSON-ключу сервисного аккаунта Firebase — push в мобильное приложение (см. [Push-уведомления](#push-уведомления)); пусто — push выключены |
 | `MERCURE_URL`, `MERCURE_PUBLIC_URL`, `MERCURE_JWT_SECRET`, `MERCURE_CORS_ORIGIN` | Mercure-хаб |
 | `APP_URL`, `FRONTEND_URL` | публичные адреса API и клиента (ссылки в письмах и т. п.) |
 
@@ -183,6 +184,25 @@ php -d variables_order=EGPCS -S 127.0.0.1:8001 -t public
 ### Чаты
 
 Между двумя пользователями может быть несколько чатов: общий (`ticket = null`) и по каждому объявлению. Уникальна тройка `(author, replyAuthor, ticket)`. Проверить, есть ли чат с конкретным человеком: `GET /api/chats/me?user=<uuid>` (можно комбинировать с `ticket`, `active`).
+
+### Push-уведомления
+
+Мобильное приложение (Capacitor, ветка `mobile`) получает push через **Firebase Cloud Messaging** — и на Android, и на iOS (на iOS Firebase сам доставляет через APNs).
+
+- Устройство регистрируется `POST /api/device-tokens` `{ token, platform: android|ios, locale }` (Bearer) — при запуске и после входа; выход — `POST /api/device-tokens/unregister` `{ token }` (без авторизации). Токены — сущность `DeviceToken`, мёртвые (приложение удалено) удаляются по ответу FCM.
+- Что шлётся (`Service/Notification/Push/PushNotifier`): **новое сообщение в чате** — собеседнику автора (сообщение только с фото — когда к нему прикрепились фото); **новый отклик** (чат по объявлению) — владельцу объявления. В `data` — `type` (`chat_message` / `chat_response`) и `chatId`; по нажатию приложение открывает этот чат.
+- Отправка — на `kernel.terminate`, после ответа клиенту: FCM не тормозит запросы чата. Текст — на языке приложения устройства.
+
+Настройка (один раз):
+
+1. [Firebase console](https://console.firebase.google.com) → создать проект → добавить приложения **Android** (package `tj.ustoyob.app`) и **iOS** (bundle id `tj.ustoyob.app`). Файлы `google-services.json` и `GoogleService-Info.plist` — в приложение (см. README ветки `mobile`).
+2. iOS: [Apple Developer](https://developer.apple.com/account/resources/authkeys/list) → Keys → «+» → Apple Push Notifications service (APNs) → скачать `.p8`; Firebase → Project settings → Cloud Messaging → Apple app configuration → загрузить ключ (Key ID, Team ID).
+3. Бэкенд: Firebase → Project settings → Service accounts → **Generate new private key** → положить JSON на сервер вне `public/` (например, `config/secrets/firebase.json` — в git не попадает) и указать путь в `.env.local`:
+   ```
+   FIREBASE_CREDENTIALS=%kernel.project_dir%/config/secrets/firebase.json
+   ```
+   Права: файл читает только пользователь PHP-FPM (`chmod 640`).
+4. Новая таблица `device_token` — `php bin/console doctrine:schema:update --force` (миграций нет, см. [Деплой](#деплой)).
 
 ### Жалобы
 

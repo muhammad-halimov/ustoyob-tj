@@ -3,6 +3,7 @@
 namespace App\EventListener;
 
 use App\Entity\Chat\ChatMessage;
+use App\Service\Notification\Push\PushNotifier;
 use App\Entity\Extra\EntityRevision;
 use App\Entity\User;
 use App\Service\Extra\MercurePublisher;
@@ -66,6 +67,7 @@ class ChatMessageListener
         private readonly MercurePublisher       $publisher,
         private readonly EntityManagerInterface $entityManager,
         private readonly Security               $security,
+        private readonly PushNotifier           $pushNotifier,
     ) {}
 
     /**
@@ -87,6 +89,9 @@ class ChatMessageListener
     public function postPersist(ChatMessage $message): void
     {
         $this->publish('created', $message);
+        // Сообщение только с фото уходит пустым, фото — следующим запросом: push по нему шлёт
+        // загрузка фото (ApiPostUniversalImageController), здесь PushNotifier такое пропустит.
+        $this->pushNotifier->chatMessage($message);
     }
 
     /** Вызывается после обновления сообщения в БД */

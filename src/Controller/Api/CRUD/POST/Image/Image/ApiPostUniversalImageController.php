@@ -15,6 +15,7 @@ use App\Entity\Ticket\Ticket;
 use App\Entity\Trait\Readable\G;
 use App\Entity\User;
 use App\Service\Extra\LocalizationService;
+use App\Service\Notification\Push\PushNotifier;
 use Doctrine\ORM\Exception\ORMException;
 use Doctrine\ORM\OptimisticLockException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -23,7 +24,10 @@ use Symfony\Component\HttpFoundation\Request;
 
 class ApiPostUniversalImageController extends AbstractApiHelperController
 {
-    public function __construct(private readonly LocalizationService $localizationService) {}
+    public function __construct(
+        private readonly LocalizationService $localizationService,
+        private readonly PushNotifier        $pushNotifier,
+    ) {}
 
     protected function setSerializationGroups(): array {
         return [
@@ -95,11 +99,20 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
 
         $imageFiles = is_array($imageFiles) ? $imageFiles : [$imageFiles];
 
+        // Сообщение чата только с фото создаётся пустым (push по нему не ушёл, см. PushNotifier) —
+        // уведомление о нём шлём, когда к нему прикрепились первые фото.
+        $photoOnlyMessage = $entity instanceof ChatMessage
+            && trim((string) $entity->getDescription()) === ''
+            && $entity->getImages()->isEmpty();
+
         foreach ($imageFiles as $imageFile)
             if ($imageFile instanceof UploadedFile && $imageFile->isValid())
                 $this->processImageFile($entity, $imageFile, $bearerUser);
 
         $this->flush();
+
+        if ($photoOnlyMessage && !$entity->getImages()->isEmpty())
+            $this->pushNotifier->chatMessage($entity);
 
         $this->afterFetch($entity, $bearerUser);
 
