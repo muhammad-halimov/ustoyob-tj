@@ -464,17 +464,21 @@ function Profile() {
 
     
     // Preview hook для примеров работ
+    // Выход без перезагрузки приложения. Раньше после `logout` шла `location.reload()`, но событие
+    // `logout` уже пересоздаёт вкладку (TabKeepAlive) — профиль без токена сразу открывал модалку
+    // входа, а перезагрузка тут же сносила её и открывала заново: модалка моргала и появлялась
+    // дважды. Событие и так сбрасывает всё, что держало прежнего пользователя: кэш API (apiCache),
+    // скрытые вкладки (TabKeepAlive), шапку и бейдж непрочитанных (Header, useUnreadChatsCount);
+    // устройство отписывается от push по `authCleared` (nativePush).
     const handleLogout = async () => {
         const confirmed = confirm(t('header:logoutConfirm', 'Вы уверены, что хотите выйти?'));
         if (!confirmed) return;
         try {
             await logout();
-            window.dispatchEvent(new Event('logout'));
-            window.location.reload();
         } catch (error) {
             console.error('Logout error:', error);
-            window.location.reload();
         }
+        window.dispatchEvent(new Event('logout'));
     };
 
     // В просмотре — полный WebP (≤2400 px), а не оригинал; превью/оригиналы для Preview собирает WorkExamplesSection.

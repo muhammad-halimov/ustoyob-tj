@@ -81,6 +81,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         getAuthToken() ? phoneToConfirm(getStorageJSON<User>('userData')) : null
     );
     const [isLoading, setIsLoading] = useState(false);
+    const [, setAuthTick] = useState(0);
     const [showLogo, setShowLogo] = useState(false);
     const [headerStatus, setHeaderStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string; isOpen: boolean }>({ type: 'success', message: '', isOpen: false });
 
@@ -225,8 +226,18 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         const handleAuthChange = () => {
             setTimeout(() => fetchAndHandleUserData({ checkRole: true }), 1000);
         };
+        // Выход без перезагрузки (мобильная сборка): шапка перерисовывается без вошедшего пользователя
+        const handleLogout = () => {
+            setShowConfirmationBanner(false);
+            setConfirmPhone(null);
+            setAuthTick(n => n + 1); // isAuthenticated считается при рендере — перерисовываем
+        };
         window.addEventListener('login', handleAuthChange);
-        return () => window.removeEventListener('login', handleAuthChange);
+        window.addEventListener('logout', handleLogout);
+        return () => {
+            window.removeEventListener('login', handleAuthChange);
+            window.removeEventListener('logout', handleLogout);
+        };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [onOpenAuthModal]);
 

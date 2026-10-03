@@ -15,6 +15,14 @@ interface ChatListEntry {
  *  "something changed", so this debounces into a refetch rather than trusting event payloads. */
 export const useUnreadChatsCount = () => {
     const [unreadCount, setUnreadCount] = useState(0);
+    // Выход без перезагрузки (мобильная сборка — см. Profile.handleLogout): подписка прежнего
+    // пользователя закрывается, бейдж обнуляется; вход и так перезагружает страницу.
+    const [session, setSession] = useState(0);
+    useEffect(() => {
+        const onLogout = () => setSession(n => n + 1);
+        window.addEventListener('logout', onLogout);
+        return () => window.removeEventListener('logout', onLogout);
+    }, []);
     const sourceRef = useRef<EventSource | null>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -70,7 +78,7 @@ export const useUnreadChatsCount = () => {
             sourceRef.current = null;
             if (debounceRef.current) clearTimeout(debounceRef.current);
         };
-    }, [fetchUnreadCount]);
+    }, [fetchUnreadCount, session]);
 
     return unreadCount;
 };
