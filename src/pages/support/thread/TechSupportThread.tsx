@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
+import { isPageSeen, onPageSeen } from '../../../utils/pageAttention';
 import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline, IoPersonOutline, IoHeadsetOutline, IoTrashOutline, IoCloseCircleOutline, IoTimeOutline, IoAlertCircle } from 'react-icons/io5';
 import styles from './TechSupportThread.module.scss';
 import { universalApiRequest } from '../../../utils/apiUtils';
@@ -205,9 +206,20 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // Marks every unread reply on this ticket as read server-side (§11: `author != caller &&
     // readAt == null`). Fire-and-forget — a failure here just leaves the tickets-list bubble
     // stale until the next successful call, nothing in this view depends on the result.
+    // Только когда обращение действительно видят: открытое в фоновой вкладке оно продолжает получать ответы,
+    // но «прочитано» им ставить нельзя — отметка ждёт возвращения пользователя (utils/pageAttention.ts).
+    const readPendingRef = useRef(false);
     const markThreadRead = useCallback(() => {
+        if (!isPageSeen()) {
+            readPendingRef.current = true;
+            return;
+        }
+        readPendingRef.current = false;
         universalApiRequest(API_ROUTES.TECH_SUPPORT_READ(ticketId), { method: 'POST', locale: false }).catch(() => {});
     }, [ticketId]);
+    useEffect(() => onPageSeen(() => {
+        if (readPendingRef.current) markThreadRead();
+    }), [markThreadRead]);
 
     const fetchTicket = useCallback(async () => {
         try {

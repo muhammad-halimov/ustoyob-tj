@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
+import { isPageSeen, onPageSeen } from '../../utils/pageAttention';
 import { getAuthToken, fetchCurrentUser, isAdmin } from "../../utils/authUtils";
 import { API_ROUTES, ROUTES } from '../../app/routers/routes';
 import { smartNameTranslator } from '../../utils/textUtils';
@@ -514,13 +515,26 @@ function Chat() {
         }
     }, [messagesPage, hasMoreMessages, isLoadingMoreMessages, mapApiMessageToView]);
 
+    // Отметка «прочитано» — только когда переписку действительно видят: открытый чат в фоновой вкладке
+    // продолжает получать сообщения, но собеседник видел бы у себя «прочитано», хотя их никто не читал.
+    // Тогда отметка ждёт возвращения пользователя к этому чату (utils/pageAttention.ts).
+    const pendingReadRef = useRef(new Set<string | number>());
     const markChatAsRead = useCallback(async (chatId: string | number) => {
+        if (!isPageSeen() || selectedChatIdRef.current !== chatId) {
+            pendingReadRef.current.add(chatId);
+            return;
+        }
+        pendingReadRef.current.delete(chatId);
         try {
             await universalApiRequest(API_ROUTES.CHAT_READ(chatId), { method: 'POST', locale: false });
         } catch {
             // fire-and-forget — ошибка не критична
         }
     }, []);
+    useEffect(() => onPageSeen(() => {
+        const chatId = selectedChatIdRef.current;
+        if (chatId !== null && pendingReadRef.current.has(chatId)) void markChatAsRead(chatId);
+    }), [markChatAsRead]);
 
     /**
      * Loads initial messages and marks the chat as read.
