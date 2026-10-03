@@ -73,6 +73,8 @@ interface SelectSearchProps<T = unknown> {
     hideIcon?: boolean;
     /** Нативный type для input в altMode ('text' | 'email' | 'tel' и т.п.). Игнорируется при isPassword. По умолчанию 'text'. */
     inputType?: string;
+    /** inputMode для input в altMode — какая клавиатура на телефоне ('numeric' для кодов из SMS, 'tel' и т.п.). */
+    inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
     /**
      * Режим пароля для altMode: input переключается между type="password"/"text" через
      * встроенную кнопку-глаз (вместо кнопки очистки) и не показывает значение в
@@ -108,6 +110,7 @@ export function SelectSearch<T = unknown>({
     noSearch = false,
     hideIcon = false,
     inputType = 'text',
+    inputMode,
     isPassword = false,
     name,
     autoComplete,
@@ -253,6 +256,7 @@ export function SelectSearch<T = unknown>({
                         ) : (
                         <input
                             type={isPassword ? (passwordVisible ? 'text' : 'password') : inputType}
+                            inputMode={inputMode}
                             className={`${styles.altInput} ${value && !altFocused && !isPassword ? styles.altInputBlurred : ''}`}
                             // В обычном режиме плейсхолдер рисует Marquee-оверлей ниже (умеет
                             // скроллить длинный текст) — тут placeholder пустой, чтобы не дублировать.

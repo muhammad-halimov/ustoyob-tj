@@ -67,6 +67,10 @@ export const API_ROUTES = {
     CONFIRM_ACCOUNT_TOKENLESS: '/api/confirm-account-tokenless/',
     CHANGE_PASSWORD_SEND_OTP: '/api/change-password/send-otp/',
     CHANGE_PASSWORD: '/api/change-password/',
+    // Телефон для входа и коды из SMS (см. README бэкенда → «Вход по телефону»)
+    PHONE_SEND_CODE: '/api/phone/send-code',
+    PHONE_LOGIN: '/api/phone/login',
+    USERS_ME_PHONE: '/api/users/me/phone',
     USERS_GRANT_ROLE: '/api/users/grant-role',
 
     // OAuth

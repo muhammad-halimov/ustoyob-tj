@@ -19,6 +19,7 @@ import {
     setUserOccupation,
     isAdmin,
     fetchCurrentUser,
+    invalidateCurrentUserCache,
 } from '../../../../utils/authUtils';
 import { openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult, markOAuthPopupFlow } from '../../../../utils/oauthPopup';
 import { isNativePlatform, startNativeOAuth } from '../../../../utils/mobileOAuth';
@@ -34,6 +35,7 @@ import { ROUTES, API_ROUTES } from '../../../../app/routers/routes';
 import { universalApiRequest } from '../../../../utils/apiUtils';
 import { resolveApiError, ApiError } from '../../../../utils/appMessagesUtils';
 import { removeSessionItem, setStorageItem, removeStorageItems } from '../../../../utils/storageUtils';
+import { normalizePhone, formatPhone, parseLogin } from '../../../../utils/phoneUtils';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -43,7 +45,23 @@ const AuthModalState = {
     VERIFY_CODE: 'verify_code',
     NEW_PASSWORD: 'new_password',
     CONFIRM_EMAIL: 'confirm_email',
+    // Вход по коду из SMS: номер → код. Экран кода — он же подтверждение номера сразу после
+    // регистрации по телефону и по кнопке в баннере «аккаунт не подтверждён» (см. smsMode).
+    SMS_LOGIN: 'sms_login',
+    SMS_CODE: 'sms_code',
 } as const;
+
+/** Через сколько секунд можно запросить код ещё раз — как на бэкенде (не чаще раза в минуту). */
+const RESEND_SECONDS = 60;
+
+/**
+ * Зачем показан экран кода из SMS:
+ *  - login    — вход по коду (с экрана SMS_LOGIN);
+ *  - register — подтверждение номера сразу после регистрации: пользователь уже вошёл (токен есть),
+ *               «Подтвердить позже» и закрытие модалки просто завершают вход;
+ *  - confirm  — из баннера в шапке у уже вошедшего (событие openAuthModal с detail.confirmPhone).
+ */
+type SmsMode = 'login' | 'register' | 'confirm';
 
 type AuthModalStateType = typeof AuthModalState[keyof typeof AuthModalState];
 
@@ -65,6 +83,7 @@ interface FormData {
     role: 'master' | 'client';
     code: string;
     dateOfBirth: string;
+    phone: string;
 }
 
 interface LoginResponse {
@@ -140,9 +159,16 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         phoneOrEmail: '',
         role: 'client', // Безопасный дефолт (client вместо master)
         code: '',
-        dateOfBirth: ''
+        dateOfBirth: '',
+        phone: ''
     });
     const [isLoading, setIsLoading] = useState(false);
+    // Код из SMS: куда ушёл (E.164), зачем (см. SmsMode), сколько секунд до повторной отправки
+    const [smsPhone, setSmsPhone] = useState('');
+    const [smsMode, setSmsMode] = useState<SmsMode>('login');
+    const [resendIn, setResendIn] = useState(0);
+    // Куда ушёл код для смены пароля — письмом ({email}) или по SMS ({phone})
+    const [resetTarget, setResetTarget] = useState<{ email: string } | { phone: string } | null>(null);
     const [error, setError] = useState<string>('');
     const [registeredEmail, setRegisteredEmail] = useState<string>('');
     const [passwordValidation, setPasswordValidation] = useState<{ isValid: boolean; message: string }>({
@@ -150,6 +176,24 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         message: ''
     });
     const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
+
+    useEffect(() => {
+        if (resendIn <= 0) return;
+        const id = window.setTimeout(() => setResendIn(sec => sec - 1), 1000);
+        return () => window.clearTimeout(id);
+    }, [resendIn]);
+
+    // Баннер «аккаунт не подтверждён» у зарегистрированного по телефону (Header.tsx) уже отправил
+    // код и открывает модалку тем же событием, что и все — с номером в detail: сразу экран кода.
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const phone = (e as CustomEvent<{ confirmPhone?: string } | null>).detail?.confirmPhone;
+            if (!phone) return;
+            openSmsCode(phone, 'confirm');
+        };
+        window.addEventListener('openAuthModal', handler);
+        return () => window.removeEventListener('openAuthModal', handler);
+    }, []);
 
     // Эффект для валидации пароля при изменении
     useEffect(() => {
@@ -541,13 +585,20 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         setIsLoading(true);
         setError('');
 
+        // Одно поле «Email или телефон»: номер уходит в то же поле email, бэкенд ищет по обоим
+        // (UserRepository::loadUserByIdentifier) — в любом написании, но шлём уже в E.164.
+        const login = parseLogin(formData.email);
+        if (!login) {
+            setError(t('auth.invalidEmailOrPhone'));
+            setIsLoading(false);
+            return;
+        }
+
         try {
             const loginData = {
-                email: formData.email.trim(),
+                email: 'email' in login ? login.email : login.phone,
                 password: formData.password
             };
-
-            console.log('Login attempt with:', loginData);
 
             const data: LoginResponse = await universalApiRequest(API_ROUTES.AUTHENTICATION_TOKEN, {
                 method: 'POST',
@@ -569,7 +620,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             // ПОЛУЧАЕМ И СОХРАНЯЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ С OCCUPATION
             await fetchUserData();
 
-            handleSuccessfulAuth(data.token, formData.email);
+            handleSuccessfulAuth(data.token, 'email' in login ? login.email : undefined);
 
         } catch (err) {
             console.error('Login error:', err);
@@ -603,13 +654,16 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             return;
         }
 
-        const email = formData.phoneOrEmail.includes('@') ? formData.phoneOrEmail : '';
-
-        if (!email) {
-            setError('Для регистрации требуется email. Телефон не поддерживается для входа.');
+        // Email или телефон — что-то одно (бэкенд: email_or_phone_required). По телефону аккаунт
+        // подтверждается кодом из SMS, который бэкенд шлёт сразу при регистрации.
+        const contact = parseLogin(formData.phoneOrEmail);
+        if (!contact) {
+            setError(t('auth.invalidEmailOrPhone'));
             setIsLoading(false);
             return;
         }
+        const email = 'email' in contact ? contact.email : '';
+        const phone = 'phone' in contact ? contact.phone : '';
 
         // SelectSearch (в отличие от нативного <select>) не поддерживает атрибут
         // required — раньше это ограничение навешивал браузер, теперь проверяем сами.
@@ -621,7 +675,8 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
         // Подготавливаем данные пользователя
         const userData: {
-            email: string;
+            email?: string;
+            phone?: string;
             name: string;
             surname: string;
             password: string;
@@ -629,7 +684,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             occupation?: string[];
             dateOfBirth?: string;
         } = {
-            email,
+            ...(email ? { email } : { phone }),
             name: formData.firstName,
             surname: formData.lastName,
             password: formData.password,
@@ -660,18 +715,17 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         console.log('Sending registration data:', userData);
 
         try {
-            // 1. Регистрируем пользователя
+            // 1. Регистрируем пользователя. С ?locale= — на этом языке уйдёт SMS с кодом (и ошибки).
             await universalApiRequest(API_ROUTES.USERS, {
                 method: 'POST',
                 body: userData,
                 requiresAuth: false,
-                locale: false,
             });
 
             // 2. Логинимся после регистрации
             const loginData: LoginResponse = await universalApiRequest(API_ROUTES.AUTHENTICATION_TOKEN, {
                 method: 'POST',
-                body: { email, password: formData.password },
+                body: { email: email || phone, password: formData.password },
                 requiresAuth: false,
                 locale: false,
             });
@@ -719,6 +773,13 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 }
             } catch (userErr) {
                 console.warn('Could not fetch user data from /me endpoint (expected for new users)', userErr);
+            }
+
+            // 7. По телефону — сразу экран кода из SMS (код уже ушёл при регистрации). Вход
+            //    завершится, когда введёт код, нажмёт «Подтвердить позже» или закроет модалку.
+            if (phone) {
+                openSmsCode(phone, 'register');
+                return;
             }
 
             // 7. Отправляем пользователя на подтверждение email
@@ -854,7 +915,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         if (onLoginSuccess) {
             onLoginSuccess(token, email);
         }
-        handleClose();
+        closeModal();
         window.dispatchEvent(new Event('login'));
 
         // Админ попадает сразу на очередь заявок ТП (там же сам решает вкладку "Все заявки"
@@ -883,10 +944,13 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             phoneOrEmail: '',
             role: 'client', // Безопасный дефолт (client вместо master)
             code: '',
-            dateOfBirth: ''
+            dateOfBirth: '',
+            phone: ''
         });
         setError('');
         setCurrentState(AuthModalState.WELCOME);
+        setSmsPhone('');
+        setResetTarget(null);
         setPasswordValidation({ isValid: false, message: '' });
         setShowPasswordRequirements(false);
 
@@ -901,9 +965,22 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         removeStorageItems('tempGoogleToken', 'tempGoogleUserData', 'telegramUserData');
     };
 
-    const handleClose = () => {
+    const closeModal = () => {
         setCurrentState(AuthModalState.WELCOME);
         onClose();
+    };
+
+    // Закрыли экран кода сразу после регистрации по телефону — аккаунт создан и вход уже выполнен
+    // (токен есть), поэтому вход завершаем как обычно; подтвердить номер можно позже из баннера.
+    const handleClose = () => {
+        if (currentState === AuthModalState.SMS_CODE && smsMode === 'register') {
+            const token = getAuthToken();
+            if (token) {
+                handleSuccessfulAuth(token);
+                return;
+            }
+        }
+        closeModal();
     };
 
     const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -912,23 +989,101 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         }
     };
 
+    // ===== SMS code handlers =====
+
+    const openSmsCode = (phone: string, mode: SmsMode) => {
+        setSmsPhone(phone);
+        setSmsMode(mode);
+        setFormData(prev => ({ ...prev, code: '' }));
+        setResendIn(RESEND_SECONDS);
+        setCurrentState(AuthModalState.SMS_CODE);
+    };
+
+    // Код для входа (им же подтверждается номер). 'too_soon' — код уже уходил меньше минуты назад:
+    // он ещё действует, так что экран кода всё равно показываем.
+    const sendSmsCode = async (phone: string): Promise<'sent' | 'too_soon' | 'failed'> => {
+        setIsLoading(true);
+        setError('');
+        try {
+            await universalApiRequest(API_ROUTES.PHONE_SEND_CODE, {
+                method: 'POST',
+                body: { phone, purpose: 'login' },
+                requiresAuth: false,
+            });
+            return 'sent';
+        } catch (err) {
+            setError(resolveApiError(err, t('auth.errorOccurred')));
+            return err instanceof ApiError && err.code === 'sms_resend_too_soon' ? 'too_soon' : 'failed';
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSmsLoginRequest = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const phone = normalizePhone(formData.phone);
+        if (!phone) {
+            setError(t('auth.invalidPhone'));
+            return;
+        }
+        if (await sendSmsCode(phone) !== 'failed') openSmsCode(phone, 'login');
+    };
+
+    const handleResendSms = async () => {
+        if (resendIn > 0 || !smsPhone) return;
+        if (await sendSmsCode(smsPhone) !== 'failed') setResendIn(RESEND_SECONDS);
+    };
+
+    const handleSmsCodeSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+        try {
+            const data: LoginResponse = await universalApiRequest(API_ROUTES.PHONE_LOGIN, {
+                method: 'POST',
+                body: { phone: smsPhone, code: formData.code },
+                requiresAuth: false,
+            });
+            setAuthToken(data.token);
+            setTokenExpiry();
+            invalidateCurrentUserCache();
+            await fetchUserData();
+            handleSuccessfulAuth(data.token);
+        } catch (err) {
+            setError(resolveApiError(err, t('auth.errorOccurred')));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     // ===== Password recovery handlers =====
 
     const handleForgotPassword = async (e: React.FormEvent) => {
         e.preventDefault();
+        // Email — код письмом, телефон — по SMS
+        const target = parseLogin(formData.email);
+        if (!target) {
+            setError(t('auth.invalidEmailOrPhone'));
+            return;
+        }
         setIsLoading(true);
         setError('');
         try {
             await universalApiRequest(API_ROUTES.CHANGE_PASSWORD_SEND_OTP, {
                 method: 'POST',
-                body: { email: formData.email },
+                body: target,
                 requiresAuth: false,
-                locale: false,
             });
-            // Always move to next step (don't reveal if email exists)
+            // Always move to next step (don't reveal if email/phone exists)
+            setResetTarget(target);
             setCurrentState(AuthModalState.VERIFY_CODE);
-        } catch {
-            setError(t('auth.errorOccurred'));
+        } catch (err) {
+            // Код по SMS уже уходил меньше минуты назад — он ещё действует, переходим к вводу
+            if (err instanceof ApiError && err.code === 'sms_resend_too_soon') {
+                setResetTarget(target);
+                setCurrentState(AuthModalState.VERIFY_CODE);
+            }
+            setError(resolveApiError(err, t('auth.errorOccurred')));
         } finally {
             setIsLoading(false);
         }
@@ -951,13 +1106,12 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         try {
             await universalApiRequest(API_ROUTES.CHANGE_PASSWORD, {
                 method: 'POST',
-                body: { email: formData.email, code: formData.code, newPassword: formData.newPassword },
+                body: { ...resetTarget, code: formData.code, newPassword: formData.newPassword },
                 requiresAuth: false,
-                locale: false,
             });
             setCurrentState(AuthModalState.LOGIN);
-        } catch {
-            setError(t('auth.errorOccurred'));
+        } catch (err) {
+            setError(resolveApiError(err, t('auth.errorOccurred')));
         } finally {
             setIsLoading(false);
         }
@@ -975,13 +1129,13 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                         altMode
                         options={[]}
                         hideIcon
-                        inputType="email"
                         name="email"
+                        autoComplete="username"
                         value={formData.email}
                         onChange={handleFieldChange('email')}
                         required
                         disabled={isLoading}
-                        placeholder={t('auth.enterEmail')}
+                        placeholder={t('auth.enterEmailOrPhone')}
                     />
                 </div>
 
@@ -1008,21 +1162,13 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             <form onSubmit={handleVerifyCode} className={styles.form}>
                 <h2>{t('auth.enterCode')}</h2>
 
-                <p className={styles.infoText}>{t('auth.codeSentTo')} <strong>{formData.email}</strong></p>
+                <p className={styles.infoText}>
+                    {t('auth.codeSentTo')}{' '}
+                    <strong>{resetTarget && 'phone' in resetTarget ? formatPhone(resetTarget.phone) : resetTarget?.email}</strong>
+                </p>
 
                 <div className={styles.inputGroup}>
-                    <SelectSearch
-                        altMode
-                        options={[]}
-                        hideIcon
-                        name="code"
-                        value={formData.code}
-                        onChange={handleFieldChange('code')}
-                        required
-                        maxLength={6}
-                        disabled={isLoading}
-                        placeholder={t('auth.enterOtpCode')}
-                    />
+                    {renderCodeInput(resetTarget && 'phone' in resetTarget ? t('auth.enterSmsCode') : t('auth.enterOtpCode'))}
                 </div>
 
                 <button type="submit" className={styles.primaryButton} disabled={isLoading}>
@@ -1147,14 +1293,13 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                         altMode
                         options={[]}
                         hideIcon
-                        inputType="email"
                         name="email"
-                        autoComplete="email"
+                        autoComplete="username"
                         value={formData.email}
                         onChange={handleFieldChange('email')}
                         required
                         disabled={isLoading}
-                        placeholder={t('auth.enterEmail')}
+                        placeholder={t('auth.enterEmailOrPhone')}
                     />
                 </div>
                 <div className={styles.inputGroup}>
@@ -1179,6 +1324,21 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     disabled={isLoading}
                 >
                     {isLoading ? <PageLoader fullPage={false} compact /> : t('auth.login')}
+                </button>
+
+                <button
+                    type="button"
+                    className={`${styles.linkButton} ${styles.smsLoginLink}`}
+                    onClick={() => {
+                        // Номер, уже введённый в поле «Email или телефон», переносим
+                        const phone = normalizePhone(formData.email);
+                        setFormData(prev => ({ ...prev, phone: phone ? formatPhone(phone) : prev.phone }));
+                        setError('');
+                        setCurrentState(AuthModalState.SMS_LOGIN);
+                    }}
+                    disabled={isLoading}
+                >
+                    {t('auth.loginBySms')}
                 </button>
 
                 <div className={styles.socialTitle}>{t('auth.loginWith')}</div>
@@ -1331,14 +1491,13 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                         altMode
                         options={[]}
                         hideIcon
-                        inputType="email"
                         name="phoneOrEmail"
-                        autoComplete="email"
+                        autoComplete="username"
                         value={formData.phoneOrEmail}
                         onChange={handleFieldChange('phoneOrEmail')}
                         required
                         disabled={isLoading}
-                        placeholder="example@mail.com"
+                        placeholder={t('auth.enterEmailOrPhone')}
                     />
                 </div>
 
@@ -1487,6 +1646,116 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         );
     };
 
+    // 6 цифр из SMS/письма. one-time-code — iOS подставляет код из пришедшего SMS прямо над
+    // клавиатурой; numeric — цифровая клавиатура на телефоне.
+    const renderCodeInput = (placeholder: string) => (
+        <SelectSearch
+            altMode
+            options={[]}
+            hideIcon
+            name="code"
+            autoComplete="one-time-code"
+            inputMode="numeric"
+            value={formData.code}
+            onChange={(value) => handleFieldChange('code')(value.replace(/\D/g, '').slice(0, 6))}
+            required
+            minLength={6}
+            maxLength={6}
+            disabled={isLoading}
+            placeholder={placeholder}
+        />
+    );
+
+    const renderSmsLoginScreen = () => {
+        return (
+            <form onSubmit={handleSmsLoginRequest} className={styles.form}>
+                <h2>{t('auth.loginBySms')}</h2>
+
+                <div className={styles.inputGroup}>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        inputType="tel"
+                        name="phone"
+                        autoComplete="tel"
+                        value={formData.phone}
+                        onChange={handleFieldChange('phone')}
+                        required
+                        disabled={isLoading}
+                        placeholder={t('auth.enterPhone')}
+                    />
+                </div>
+
+                <button type="submit" className={styles.primaryButton} disabled={isLoading}>
+                    {isLoading ? <PageLoader fullPage={false} compact /> : t('auth.getCode')}
+                </button>
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
+                        disabled={isLoading}
+                    >
+                        {t('auth.loginByPassword')}
+                    </button>
+                </div>
+            </form>
+        );
+    };
+
+    const renderSmsCodeScreen = () => {
+        const isLogin = smsMode === 'login';
+        return (
+            <form onSubmit={handleSmsCodeSubmit} className={styles.form}>
+                <h2>{isLogin ? t('auth.smsCodeTitle') : t('auth.confirmPhoneTitle')}</h2>
+
+                <p className={styles.infoText}>
+                    {t('auth.smsCodeSentTo')} <strong>{formatPhone(smsPhone)}</strong>
+                </p>
+
+                <div className={styles.inputGroup}>
+                    {renderCodeInput(t('auth.enterSmsCode'))}
+                </div>
+
+                <button type="submit" className={styles.primaryButton} disabled={isLoading || formData.code.length !== 6}>
+                    {isLoading ? <PageLoader fullPage={false} compact /> : (isLogin ? t('auth.login') : t('auth.confirmCode'))}
+                </button>
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={handleResendSms}
+                        disabled={isLoading || resendIn > 0}
+                    >
+                        {resendIn > 0 ? t('auth.resendCodeIn', { seconds: resendIn }) : t('auth.resendCode')}
+                    </button>
+                    {isLogin ? (
+                        <button
+                            type="button"
+                            className={styles.linkButton}
+                            onClick={() => setCurrentState(AuthModalState.SMS_LOGIN)}
+                            disabled={isLoading}
+                        >
+                            {t('common:app.back')}
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            className={styles.linkButton}
+                            onClick={handleClose}
+                            disabled={isLoading}
+                        >
+                            {t('auth.confirmLater')}
+                        </button>
+                    )}
+                </div>
+            </form>
+        );
+    };
+
     const renderConfirmEmailScreen = () => {
         return (
             <div className={styles.form}>
@@ -1528,6 +1797,10 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 return renderVerifyCodeScreen();
             case AuthModalState.NEW_PASSWORD:
                 return renderNewPasswordScreen();
+            case AuthModalState.SMS_LOGIN:
+                return renderSmsLoginScreen();
+            case AuthModalState.SMS_CODE:
+                return renderSmsCodeScreen();
             default:
                 return renderWelcomeScreen();
         }
