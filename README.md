@@ -202,7 +202,18 @@ php -d variables_order=EGPCS -S 127.0.0.1:8001 -t public
    FIREBASE_CREDENTIALS=%kernel.project_dir%/config/secrets/firebase.json
    ```
    Права: файл читает только пользователь PHP-FPM (`chmod 640`).
-4. Новая таблица `device_token` — `php bin/console doctrine:schema:update --force` (миграций нет, см. [Деплой](#деплой)).
+4. Новая таблица `device_token` — `php bin/console doctrine:schema:update --force` (миграций нет, см. [Деплой](#деплой)). **Без неё регистрация устройств падает с 500 и уведомления не приходят никому.**
+
+Проверка: `php bin/console app:push:test user@example.com` — покажет, настроен ли Firebase, какие устройства (android / ios / web) зарегистрировал пользователь, и отправит на каждое тестовое уведомление, напечатав ответ FCM. Если уведомления не приходят:
+
+| Что видно | Причина |
+|---|---|
+| `Firebase не настроен` | `FIREBASE_CREDENTIALS` пуст / путь неверный / файл не читается пользователем PHP-FPM; после правки `.env.local` — `cache:clear` |
+| `нет зарегистрированных устройств` | нет таблицы `device_token` (`POST /api/device-tokens/unregister` с любым токеном отвечает 500), либо в приложении не разрешены уведомления / на сайте не нажали «Включить» |
+| `HTTP 400 … oauth2.googleapis.com` | ключ сервисного аккаунта отозван или от другого проекта |
+| `HTTP 403 SENDER_ID_MISMATCH` | приложение/сайт собраны с конфигом другого проекта Firebase, чем ключ сервера |
+| `HTTP 401 THIRD_PARTY_AUTH_ERROR` (iOS) | в Firebase не загружен ключ APNs (.p8) или неверные Key ID / Team ID |
+| `HTTP 404 UNREGISTERED` | приложение удалено / токен устарел — устройство перерегистрируется само при следующем запуске |
 
 ### Жалобы
 

@@ -46,6 +46,12 @@ class FcmClient
         return $this->credentials() !== false;
     }
 
+    /** Проект Firebase из ключа сервисного аккаунта (для диагностики, см. app:push:test). */
+    public function projectId(): ?string
+    {
+        return $this->credentials()['project_id'] ?? null;
+    }
+
     /**
      * Отправка на одно устройство. Ответ не дожидается — запросы на несколько
      * устройств уходят параллельно, статус смотрит isDeadToken().
