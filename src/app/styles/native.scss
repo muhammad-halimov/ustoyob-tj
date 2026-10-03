@@ -286,6 +286,57 @@ html.native[data-native-tab='/chats'] body:has([class*='_chatAreaActive_']) {
   }
 }
 
+// ── Телефон горизонтально: чаты и обращения в ТП ───────────────────────────────────────────────
+// Высоты выше рассчитаны на портрет: «экран минус шапки и панель». Горизонтально у телефона ~390px
+// высоты, а шапки (51 + 63) и нижняя панель (54) — это почти всё: переписка в ТП сжималась до полоски,
+// окно чата — до шапки собеседника и поля ввода. Поэтому здесь, как в мессенджерах: строка «город/язык/
+// тема» в чатах и ТП не нужна, а пока открыта переписка, прячется и нижняя панель (выход — стрелкой
+// назад в шапке чата или «НАЗАД» сверху). Отступ от начала экрана: верхняя панель 51px + отступ
+// страницы; низ — с зазором 8px (без панели) или над панелью.
+@media (orientation: landscape) and (max-height: 540px) {
+  html.native[data-native-tab='/chats'] body,
+  html.native body:has([class*='_threadBody_']) {
+    // Только сама строка: нижняя панель (`_mobile_header_`) лежит в том же <header>
+    [class*='_header_top_'] {
+      display: none;
+    }
+  }
+
+  // Список чатов: начинается на 91px, заканчивается над панелью
+  html.native[data-native-tab='/chats'] body:not(:has([class*='_chatAreaActive_'])) {
+    [class*='_chat_']:has(> [class*='_sidebar_']),
+    [class*='_sidebar_'] {
+      height: calc(100dvh - 153px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+      min-height: 0;
+    }
+  }
+
+  // Открыт чат: окно от 91px почти до низа экрана, панели нет
+  html.native[data-native-tab='/chats'] body:has([class*='_chatAreaActive_']) {
+    [class*='_mobile_header_'] {
+      display: none !important;
+    }
+
+    div:has(> [class*='_chatArea_']),
+    [class*='_chatArea_'] {
+      height: calc(100dvh - 99px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+      min-height: 0;
+      max-height: none;
+    }
+  }
+
+  // Открыто обращение в ТП: от 63px почти до низа экрана, панели нет
+  html.native body:has([class*='_threadBody_']) {
+    [class*='_mobile_header_'] {
+      display: none !important;
+    }
+
+    [class*='_thread_']:has(> [class*='_threadBody_']) {
+      height: calc(100dvh - 71px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    }
+  }
+}
+
 // Android: поле сообщения в фокусе (открыта клавиатура) — нижняя панель прячется, как в мессенджерах:
 // поле ввода прямо над клавиатурой, а освободившееся место отдаётся переписке. У обращения в ТП ещё
 // сворачиваются подробности шапки (остаётся тема) — иначе ленте оставалась одна строка. Высоты — до
@@ -310,5 +361,29 @@ html.native-android body:has([class*='_chatInput_'] :is(textarea, input):focus) 
     height: calc(100dvh - 161px);
     min-height: calc(100dvh - 161px);
     max-height: calc(100dvh - 161px);
+  }
+}
+
+// То же горизонтально: над клавиатурой остаётся ~150px, поэтому уходит и верхняя панель, и шапки
+// переписки (собеседник в чате, тема обращения) — остаются сообщения и поле ввода. Строка «город/язык»
+// уже скрыта (см. «Телефон горизонтально» выше): чат начинается на 40px, обращение — на 12px.
+@media (orientation: landscape) and (max-height: 540px) {
+  html.native-android body:has([class*='_chatInput_'] :is(textarea, input):focus) {
+    [class*='_mobile_super_header_'],
+    [class*='_chatHeader_'],
+    [class*='_threadHeader_'] {
+      display: none;
+    }
+
+    [class*='_thread_']:has(> [class*='_threadBody_']) {
+      height: calc(100dvh - 16px);
+    }
+
+    div:has(> [class*='_chatArea_']),
+    [class*='_chatArea_'] {
+      height: calc(100dvh - 44px);
+      min-height: calc(100dvh - 44px);
+      max-height: calc(100dvh - 44px);
+    }
   }
 }
