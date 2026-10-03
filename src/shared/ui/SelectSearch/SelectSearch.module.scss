@@ -217,6 +217,24 @@
   border-radius: 0 0 12px 12px;
   box-shadow: 0 8px 24px var(--color-shadow-light);
   overflow: hidden;
+  // Плавное появление вместо резкого — только transform/opacity (без перерасчёта раскладки)
+  transform-origin: top center;
+  animation: dropdownIn 0.14s ease-out;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 // ── Поиск внутри дропдауна ───────────────────────────────────────────────────
