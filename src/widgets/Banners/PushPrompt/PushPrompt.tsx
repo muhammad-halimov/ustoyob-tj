@@ -1,53 +1,45 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { IoClose, IoNotificationsOutline } from 'react-icons/io5';
+import { IoNotificationsOutline } from 'react-icons/io5';
 import { InfoBanner } from '../InfoBanner/InfoBanner';
+import { Clear } from '../../../shared/ui/Button/Clear/Clear';
 import { enableWebPush, webPushPermission, webPushSupported } from '../../../utils/webPush';
-import { getStorageItem, setStorageItem } from '../../../utils/storageUtils';
 import styles from './PushPrompt.module.scss';
-
-const DISMISSED_KEY = 'webPushPromptDismissed';
 
 /**
  * Плашка «Включите уведомления» — разрешение на уведомления браузер даёт спросить только по нажатию (см.
- * utils/webPush.ts). Показывается, пока разрешение не спрашивали, браузер умеет push и Firebase настроен.
- * «×» скрывает её насовсем (в этом браузере); отказ в разрешении — тоже.
+ * utils/webPush.ts). Показывается, пока разрешения нет (браузер умеет push и Firebase настроен): «×» скрывает
+ * её только до следующего захода на страницу. Уведомления запрещены в браузере — сайт уже не может спросить
+ * сам, вместо кнопки подсказка, где разрешить.
  */
 export function PushPrompt({ className }: { className?: string }) {
     const { t } = useTranslation('components');
-    const [visible, setVisible] = useState(false);
+    const [supported, setSupported] = useState(false);
+    const [permission, setPermission] = useState<NotificationPermission>(webPushPermission);
+    const [dismissed, setDismissed] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
-        if (getStorageItem(DISMISSED_KEY) || webPushPermission() !== 'default') return;
-        webPushSupported().then(ok => { if (!cancelled && ok) setVisible(true); });
+        webPushSupported().then(ok => { if (!cancelled) setSupported(ok); });
         return () => { cancelled = true; };
     }, []);
 
-    if (!visible) return null;
+    if (!supported || dismissed || permission === 'granted') return null;
 
-    const dismiss = () => {
-        setStorageItem(DISMISSED_KEY, '1');
-        setVisible(false);
-    };
+    const blocked = permission === 'denied';
 
     return (
         <div className={`${styles.wrap} ${className ?? ''}`}>
             <InfoBanner
                 className={styles.banner}
                 icon={<IoNotificationsOutline />}
-                message={t('chat.pushPrompt')}
-                buttonLabel={t('chat.pushPromptEnable')}
-                onButtonClick={() => {
-                    void enableWebPush().then(() => {
-                        // Разрешили или отказали — спрашивать больше нечего; закрыли окно, не ответив, — плашка остаётся.
-                        if (webPushPermission() !== 'default') setVisible(false);
-                    });
+                message={blocked ? t('chat.pushPromptBlocked') : t('chat.pushPrompt')}
+                buttonLabel={blocked ? undefined : t('chat.pushPromptEnable')}
+                onButtonClick={blocked ? undefined : () => {
+                    void enableWebPush().finally(() => setPermission(webPushPermission()));
                 }}
             />
-            <button type="button" className={styles.close} onClick={dismiss} aria-label={t('chat.pushPromptDismiss')} title={t('chat.pushPromptDismiss')}>
-                <IoClose />
-            </button>
+            <Clear className={styles.close} onClick={() => setDismissed(true)} ariaLabel={t('chat.pushPromptDismiss')} />
         </div>
     );
 }
