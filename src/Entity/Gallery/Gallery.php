@@ -102,6 +102,7 @@ class Gallery implements HasImagesInterface
     private ?Uuid $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'galleries')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     #[Groups([
         G::GALLERIES,
     ])]

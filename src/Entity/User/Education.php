@@ -138,10 +138,12 @@ class Education
     private ?bool $graduated = null;
 
     #[ORM\ManyToOne(inversedBy: 'education')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     #[Ignore]
     private ?User $user = null;
 
     #[ORM\ManyToOne(inversedBy: 'education')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         G::MASTERS,
         G::CLIENTS,

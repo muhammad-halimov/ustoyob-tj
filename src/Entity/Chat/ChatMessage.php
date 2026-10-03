@@ -102,6 +102,7 @@ class ChatMessage implements EditableMessageInterface
     private ?Uuid $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'messages')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     #[Groups([
         G::CHAT_MESSAGES
     ])]

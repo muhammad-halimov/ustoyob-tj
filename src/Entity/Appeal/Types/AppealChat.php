@@ -25,6 +25,7 @@ class AppealChat extends Appeal
     }
 
     #[ORM\ManyToOne(inversedBy: 'appealChats')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Chat $chat = null;
 
     public function getChat(): ?Chat

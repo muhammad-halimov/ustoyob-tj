@@ -52,7 +52,7 @@ class Phone
     private ?Uuid $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'phones')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     #[Groups([G::PHONE_WRITE])]
     #[ApiProperty(writable: false)]
     private ?User $owner = null;

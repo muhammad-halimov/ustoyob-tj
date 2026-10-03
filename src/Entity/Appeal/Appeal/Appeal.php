@@ -115,6 +115,7 @@ abstract class Appeal implements HasImagesInterface
     private ?Uuid $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'appeals')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         G::APPEAL,
         G::APPEAL_CHAT,
@@ -125,6 +126,7 @@ abstract class Appeal implements HasImagesInterface
     private ?User $author = null;
 
     #[ORM\ManyToOne(inversedBy: 'appealsAsRespondent')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         G::APPEAL,
         G::APPEAL_CHAT,

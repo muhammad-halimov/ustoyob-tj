@@ -67,6 +67,7 @@ class SocialNetwork
     private ?Uuid $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'socialNetworks')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     #[Ignore]
     private ?User $user = null;
 

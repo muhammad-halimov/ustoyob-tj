@@ -51,9 +51,11 @@ class TicketApproval
     private bool $approved = false;
 
     #[ORM\ManyToOne(inversedBy: 'ticketApprovals')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?User $administrant = null;
 
     #[ORM\ManyToOne(inversedBy: 'ticketApprovals')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     private ?Ticket $ticket = null;
 
     /**

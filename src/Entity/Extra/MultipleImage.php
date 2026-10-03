@@ -129,6 +129,7 @@ class MultipleImage
      * Изображение галереи работ мастера.
      */
     #[ORM\ManyToOne(cascade: ['persist'], inversedBy: 'images')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     #[ApiProperty(writable: false)]
     private ?Gallery $gallery = null;
 
@@ -136,6 +137,7 @@ class MultipleImage
      * Изображение тикета (услуги/объявления).
      */
     #[ORM\ManyToOne(cascade: ['persist'], inversedBy: 'images')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     #[ApiProperty(writable: false)]
     private ?Ticket $ticket = null;
 
@@ -143,6 +145,7 @@ class MultipleImage
      * Изображение прикреплённое к сообщению техподдержки.
      */
     #[ORM\ManyToOne(cascade: ['persist'], inversedBy: 'images')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     #[ApiProperty(writable: false)]
     private ?TechSupportMessage $techSupportMessage = null;
 
@@ -150,6 +153,7 @@ class MultipleImage
      * Изображение прикреплённое напрямую к тикету техподдержки (не через сообщение).
      */
     #[ORM\ManyToOne(cascade: ['persist'], inversedBy: 'images')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     #[ApiProperty(writable: false)]
     private ?TechSupport $techSupport = null;
 
@@ -157,6 +161,7 @@ class MultipleImage
      * Изображение прикреплённое к отзыву.
      */
     #[ORM\ManyToOne(cascade: ['persist'], inversedBy: 'images')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     #[ApiProperty(writable: false)]
     private ?Review $review = null;
 
@@ -164,6 +169,7 @@ class MultipleImage
      * Изображение прикреплённое к сообщению чата.
      */
     #[ORM\ManyToOne(cascade: ['persist'], inversedBy: 'images')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     #[ApiProperty(writable: false)]
     private ?ChatMessage $chatMessage = null;
 
@@ -171,6 +177,7 @@ class MultipleImage
      * Изображение прикреплённое к обращению (жалобе).
      */
     #[ORM\ManyToOne(cascade: ['persist'], inversedBy: 'images')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     #[ApiProperty(writable: false)]
     private ?Appeal $appeal = null;
 

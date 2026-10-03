@@ -25,6 +25,7 @@ class AppealReview extends Appeal
     }
 
     #[ORM\ManyToOne(inversedBy: 'appealReviews')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Review $review = null;
 
     public function getReview(): ?Review
