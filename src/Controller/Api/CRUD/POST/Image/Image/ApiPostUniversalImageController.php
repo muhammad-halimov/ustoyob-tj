@@ -99,9 +99,9 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
 
         $imageFiles = is_array($imageFiles) ? $imageFiles : [$imageFiles];
 
-        // Сообщение чата только с фото создаётся пустым (push по нему не ушёл, см. PushNotifier) —
+        // Сообщение чата/техподдержки только с фото создаётся пустым (push по нему не ушёл, см. PushNotifier) —
         // уведомление о нём шлём, когда к нему прикрепились первые фото.
-        $photoOnlyMessage = $entity instanceof ChatMessage
+        $photoOnlyMessage = ($entity instanceof ChatMessage || $entity instanceof TechSupportMessage)
             && trim((string) $entity->getDescription()) === ''
             && $entity->getImages()->isEmpty();
 
@@ -112,7 +112,9 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
         $this->flush();
 
         if ($photoOnlyMessage && !$entity->getImages()->isEmpty())
-            $this->pushNotifier->chatMessage($entity);
+            $entity instanceof ChatMessage
+                ? $this->pushNotifier->chatMessage($entity)
+                : $this->pushNotifier->techSupportMessage($entity);
 
         $this->afterFetch($entity, $bearerUser);
 

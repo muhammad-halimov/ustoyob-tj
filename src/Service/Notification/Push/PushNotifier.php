@@ -4,6 +4,7 @@ namespace App\Service\Notification\Push;
 
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;
+use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\User;
 use App\Repository\User\DeviceTokenRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -15,7 +16,8 @@ use Throwable;
 
 /**
  * Push-уведомления в мобильное приложение и в браузер (сайт): новое сообщение
- * в чате и новый отклик на объявление (Chat с тикетом).
+ * в чате, новый отклик на объявление (Chat с тикетом) и новое сообщение в
+ * обращении в техподдержку.
  *
  * Уведомления копятся за запрос и уходят на kernel.terminate — уже ПОСЛЕ
  * того, как ответ отдан клиенту (fastcgi_finish_request): отправка в FCM
@@ -31,9 +33,10 @@ class PushNotifier implements EventSubscriberInterface
         'photo'         => ['tj' => '📷 Акс',     'ru' => '📷 Фото',       'eng' => '📷 Photo'],
         'responseTitle' => ['tj' => 'Ҷавоби нав', 'ru' => 'Новый отклик', 'eng' => 'New response'],
         'responseBody'  => ['tj' => '%s ба «%s» ҷавоб дод', 'ru' => '%s откликнулся на «%s»', 'eng' => '%s responded to “%s”'],
+        'supportTitle'  => ['tj' => 'Дастгирии техникӣ: %s', 'ru' => 'Техподдержка: %s', 'eng' => 'Support: %s'],
     ];
 
-    /** @var list<array{user: User, texts: callable(string): array{0: string, 1: string}, data: array<string, string>, group: string}> */
+    /** @var list<array{user: User, texts: callable(string): array{0: string, 1: string}, data: array<string, string>, group: string, path: string}> */
     private array $queue = [];
 
     public function __construct(
@@ -72,6 +75,7 @@ class PushNotifier implements EventSubscriberInterface
             'texts' => fn(string $locale) => [$title, $body ?? $this->text('photo', $locale)],
             'data'  => ['type' => 'chat_message', 'chatId' => (string) $chat->getId()],
             'group' => 'chat-' . $chat->getId(),
+            'path'  => '/chats?chatId=' . $chat->getId(),
         ];
     }
 
@@ -91,6 +95,36 @@ class PushNotifier implements EventSubscriberInterface
             'texts' => fn(string $locale) => [$this->text('responseTitle', $locale), sprintf($this->text('responseBody', $locale), $name, $title)],
             'data'  => ['type' => 'chat_response', 'chatId' => (string) $chat->getId()],
             'group' => 'chat-' . $chat->getId(),
+            'path'  => '/chats?chatId=' . $chat->getId(),
+        ];
+    }
+
+    /**
+     * Новое сообщение в обращении в техподдержку: ответ администратора — автору обращения, сообщение автора —
+     * назначенному администратору (у админа ещё Telegram/email, см. TechSupportMessageListener). Гостевое
+     * обращение (без аккаунта) — некому. Сообщение без текста и без фото не шлём (фото к нему ещё грузятся).
+     */
+    public function techSupportMessage(TechSupportMessage $message): void
+    {
+        $ticket = $message->getTechSupport();
+        $author = $message->getAuthor();
+        if (!$ticket || !$author) return;
+
+        $recipient = $ticket->getAuthor() === $author ? $ticket->getAdministrant() : $ticket->getAuthor();
+        if (!$recipient || $recipient === $author) return;
+
+        $text = trim((string) $message->getDescription());
+        if ($text === '' && $message->getImages()->isEmpty()) return;
+
+        $ticketTitle = $this->cut((string) $ticket->getTitle(), 60);
+        $body        = $text !== '' ? $this->cut($text, 180) : null;
+
+        $this->queue[] = [
+            'user'  => $recipient,
+            'texts' => fn(string $locale) => [sprintf($this->text('supportTitle', $locale), $ticketTitle), $body ?? $this->text('photo', $locale)],
+            'data'  => ['type' => 'tech_support_message', 'ticketId' => (string) $ticket->getId()],
+            'group' => 'support-' . $ticket->getId(),
+            'path'  => '/support?ticket=' . $ticket->getId(),
         ];
     }
 
@@ -105,8 +139,7 @@ class PushNotifier implements EventSubscriberInterface
             foreach ($queue as $item) {
                 foreach ($this->deviceTokenRepository->findBy(['user' => $item['user']]) as $device) {
                     [$title, $body] = ($item['texts'])($device->getLocale() ?? 'tj');
-                    $path = '/chats?chatId=' . rawurlencode($item['data']['chatId']);
-                    $sent[] = [$device, $this->fcm->send((string) $device->getToken(), $title, $body, $item['data'], $item['group'], $path)];
+                    $sent[] = [$device, $this->fcm->send((string) $device->getToken(), $title, $body, $item['data'], $item['group'], $item['path'])];
                 }
             }
 

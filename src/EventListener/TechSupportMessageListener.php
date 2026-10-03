@@ -4,6 +4,7 @@ namespace App\EventListener;
 
 use App\Entity\Extra\EntityRevision;
 use App\Entity\TechSupport\TechSupportMessage;
+use App\Service\Notification\Push\PushNotifier;
 use App\Entity\User;
 use App\Service\Extra\MercurePublisher;
 use App\Service\Notification\Email\NotifyNewTechSupportEmailService;
@@ -54,6 +55,7 @@ class TechSupportMessageListener
         private readonly MercurePublisher                       $publisher,
         private readonly EntityManagerInterface                 $entityManager,
         private readonly Security                               $security,
+        private readonly PushNotifier                           $pushNotifier,
     ) {}
 
     public function postPersist(TechSupportMessage $message): void
@@ -65,6 +67,10 @@ class TechSupportMessageListener
         $this->publisher->publish("tech-support:{$techSupport->getId()}", 'created', $message, ['techSupportMessages:read']);
 
         $this->notifyAdmin($message, $techSupport->getAdministrant());
+
+        // Push собеседнику (автору обращения или администратору). Сообщение только с фото уходит пустым —
+        // push по нему шлёт загрузка фото (ApiPostUniversalImageController).
+        $this->pushNotifier->techSupportMessage($message);
     }
 
     /**
