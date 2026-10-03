@@ -8,6 +8,7 @@ import { API_ROUTES } from '../../app/routers/routes';
 import { getAppealReasons, getMyTechSupports } from '../../utils/dataCacheUtils';
 import { uploadPhotos, formatTechSupportImageUrl } from '../../utils/imageUtils';
 import { isAuthenticated, getUserData, isAdmin } from '../../utils/authUtils';
+import { NativePushPrompt } from '../../widgets/Banners/NativePushPrompt/NativePushPrompt';
 import { openMercureSource } from '../../utils/mercureUtils';
 import { textHelper } from '../../utils/textUtils';
 import { getFormattedDateTime } from '../../utils/timeUtils';
@@ -503,6 +504,8 @@ function TechSupport({ embedded = false }: TechSupportProps) {
 
                     {activeTab === 'my' ? (
                         <div className={styles.myTicketsSection}>
+                            {/* Приложение: уведомления не разрешены — предложить включить (utils/nativePush.ts). */}
+                            {isAuth && <NativePushPrompt className={styles.pushPrompt} />}
                             {myTickets.length > 0 && (
                                 <>
                                     <div className={styles.ticketsSearchBar}>

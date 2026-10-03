@@ -30,6 +30,7 @@ import { ApiError, resolveApiError } from '../../utils/appMessagesUtils';
 import { useShowMore } from '../../hooks';
 import { fetchBlacklistEntries, blockUser as blockUserApi, unblockUser as unblockUserApi } from '../../hooks/useBlacklist';
 import { InfoBanner } from '../../widgets/Banners/InfoBanner/InfoBanner';
+import { NativePushPrompt } from '../../widgets/Banners/NativePushPrompt/NativePushPrompt';
 import { Marquee } from '../../shared/ui/Text/Marquee';
 import type { User as ApiUser } from '../../entities/api/User';
 import type { Chat as ApiChat, ChatMessage as ApiMessage } from '../../entities/api/Chat';
@@ -1822,6 +1823,9 @@ function Chat() {
                     activeTab={activeTab}
                     onChange={setActiveTab}
                 />
+
+                {/* Приложение: уведомления не разрешены — предложить включить (utils/nativePush.ts). */}
+                <NativePushPrompt />
 
                 <div className={styles.chatList}>
                     {isChatListRefreshing && filteredChats.length === 0 ? (

@@ -4,7 +4,9 @@
  * бэкенда → «Push-уведомления»).
  *
  *  - Устройство регистрируется на сервере (`POST /api/device-tokens`) при запуске, если пользователь вошёл, и
- *    сразу после входа; разрешение на уведомления спрашивается тогда же, один раз. Сменили язык — устройство
+ *    сразу после входа; разрешение на уведомления спрашивается тогда же. Отказались — над чатами и обращениями
+ *    плашка NativePushPrompt: «Включить» (системный запрос, а если система больше не спрашивает — настройки
+ *    уведомлений приложения). Вернулись в приложение с разрешением — устройство регистрируется само. Сменили язык — устройство
  *    регистрируется заново: текст уведомлений приходит на языке приложения.
  *  - Выход из аккаунта — устройство отписывается (`POST /api/device-tokens/unregister`), чтобы уведомления
  *    прошлого пользователя сюда больше не приходили.
@@ -16,7 +18,9 @@
  * тихо не происходит, приложение работает как раньше.
  */
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { FirebaseMessaging } from '@capacitor-firebase/messaging';
+import { AndroidSettings, IOSSettings, NativeSettings } from 'capacitor-native-settings';
 import i18n from 'i18next';
 import type { createBrowserRouter } from 'react-router-dom';
 import { API_ROUTES, ROUTES } from '../app/routers/routes';
@@ -57,6 +61,39 @@ const syncRegistration = async (askPermission: boolean): Promise<void> => {
         // Firebase не настроен (нет google-services.json / GoogleService-Info.plist) или нет сети — без уведомлений.
         console.warn('Push: устройство не зарегистрировано', err);
     }
+};
+
+/**
+ * Разрешение на уведомления для плашки NativePushPrompt: granted — всё включено; prompt — система ещё может
+ * спросить; denied — больше не спросит (Android после двух отказов, iOS после первого), включить можно только
+ * в настройках телефона; unavailable — не мобильное приложение.
+ */
+export type NativePushState = 'granted' | 'prompt' | 'denied' | 'unavailable';
+
+export const nativePushState = async (): Promise<NativePushState> => {
+    if (!Capacitor.isNativePlatform()) return 'unavailable';
+    try {
+        const { receive } = await FirebaseMessaging.checkPermissions();
+        return receive === 'granted' ? 'granted' : receive.startsWith('prompt') ? 'prompt' : 'denied';
+    } catch {
+        return 'unavailable';
+    }
+};
+
+/**
+ * «Включить» на плашке: системный запрос разрешения, а если система уже не спрашивает — настройки уведомлений
+ * приложения (вернувшись оттуда с разрешением, устройство регистрируется само — см. appStateChange ниже).
+ */
+export const enableNativePush = async (): Promise<NativePushState> => {
+    const state = await nativePushState();
+    if (state === 'prompt') {
+        await syncRegistration(true);
+        return nativePushState();
+    }
+    if (state === 'denied') {
+        await NativeSettings.open({ optionAndroid: AndroidSettings.AppNotification, optionIOS: IOSSettings.AppNotification }).catch(() => {});
+    }
+    return state;
 };
 
 const unregister = (): void => {
@@ -100,6 +137,10 @@ export function installNativePush(router: AppRouter): void {
     }
 
     void syncRegistration(true);
+    // Вернулись в приложение (например, из настроек, где включили уведомления) — регистрируем, если разрешено.
+    void App.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) void syncRegistration(false);
+    }).catch(() => {});
     window.addEventListener('login', () => { void syncRegistration(true); });
     window.addEventListener('authCleared', unregister);
     window.addEventListener('languageChanged', () => { void syncRegistration(false); });

@@ -472,3 +472,7 @@ $ticketsColumns: minmax(180px, 2.2fr) minmax(110px, 1.3fr) minmax(90px, 1fr) min
   }
 }
 
+// Плашка «Включите уведомления» над списком обращений — во всю ширину раздела.
+.pushPrompt {
+  margin: 0 0 12px;
+}

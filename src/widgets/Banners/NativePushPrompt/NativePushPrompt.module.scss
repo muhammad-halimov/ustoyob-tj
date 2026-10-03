@@ -1,0 +1,45 @@
+// Как InfoBanner на узком экране (плашка входа в техподдержке): иконка и текст — первой строкой, кнопка —
+// второй, во всю ширину. Справа сверху — «×» (Clear).
+.wrap {
+  position: relative;
+  margin: 8px 12px;
+}
+
+.banner {
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  padding: 14px 16px;
+  font-size: 14px;
+
+  p {
+    flex: 1 1 0;
+    min-width: 0;
+    // Место под «×» справа от текста.
+    margin-right: 18px;
+  }
+
+  button {
+    flex: 1 1 100%;
+    margin-left: 0;
+    padding: 10px 16px;
+    white-space: normal;
+  }
+}
+
+.wrap .close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  color: #3A54DA;
+  opacity: 0.7;
+
+  &:hover {
+    opacity: 1 !important;
+  }
+}
+
+:global(html[data-theme="dark"]) .wrap .close {
+  color: #7b96ff;
+}
