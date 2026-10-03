@@ -13,6 +13,8 @@ export type User = ImageFields & {
     // rewrite everywhere at once; see guides/UUID_MIGRATION_GUIDE.md.
     id: string | number;
     email?: string;
+    /** Телефон для входа (E.164, +992901234567) — только у своего аккаунта (/users/me). Не путать с `phones` (контактные номера профиля). */
+    phone?: string | null;
     login?: string;
     name?: string;
     surname?: string;

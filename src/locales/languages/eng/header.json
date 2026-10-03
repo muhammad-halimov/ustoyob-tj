@@ -28,6 +28,8 @@
     "sending": "Sending...",
     "tokenError": "Authentication token not found",
     "emailSent": "Confirmation email sent successfully",
+    "messagePhone": "Confirm your phone number with an SMS code to get full access to site features",
+    "getCode": "Get code",
     "sendError": "Failed to send confirmation email",
     "warning": "Warning",
     "sendErrorRetry": "Error sending confirmation. Please try again",

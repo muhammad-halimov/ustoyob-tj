@@ -901,3 +901,15 @@
     }
   }
 }
+
+/* «Войти по коду из SMS» — сразу под кнопкой входа, по центру, как остальные ссылки модалки
+   (.linkButton — inline-flex, по центру его ставит только блочный display + auto-поля) */
+.linkButton.smsLoginLink {
+  display: flex;
+  margin: map.get(vars.$spacing, 2) auto 0;
+}
+
+/* Номер, на который ушёл код, — не переносим посередине («+992 90 / 123 45 67») */
+.phoneNumber {
+  white-space: nowrap;
+}

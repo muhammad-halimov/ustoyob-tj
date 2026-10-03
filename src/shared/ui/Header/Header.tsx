@@ -17,6 +17,7 @@ import { getPageSize } from '../../../utils/pageSizeUtils';
 import { SelectSearch } from '../SelectSearch';
 import type { User } from '../../../entities';
 import { universalApiRequest } from '../../../utils/apiUtils';
+import { ApiError, resolveApiError } from '../../../utils/appMessagesUtils';
 import { getCities, getDistricts } from '../../../utils/dataCacheUtils';
 import { getStorageItem, setStorageItem, removeStorageItems, getStorageJSON, setStorageJSON } from '../../../utils/storageUtils';
 
@@ -73,6 +74,12 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         }
         return false;
     });
+    // Зарегистрирован по телефону (email нет) — подтверждает аккаунт кодом из SMS, а не письмом
+    const phoneToConfirm = (user: User | null | undefined): string | null =>
+        user && !user.email && user.phone ? user.phone : null;
+    const [confirmPhone, setConfirmPhone] = useState<string | null>(() =>
+        getAuthToken() ? phoneToConfirm(getStorageJSON<User>('userData')) : null
+    );
     const [isLoading, setIsLoading] = useState(false);
     const [showLogo, setShowLogo] = useState(false);
     const [headerStatus, setHeaderStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string; isOpen: boolean }>({ type: 'success', message: '', isOpen: false });
@@ -189,6 +196,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
 
             // Баннер подтверждения аккаунта
             setShowConfirmationBanner(userData.approved === false);
+            setConfirmPhone(phoneToConfirm(userData));
 
             // Проверка роли (только при явном запросе — монтирование / login). Актуально для
             // ЛЮБОГО OAuth-провайдера (Google/Facebook/Instagram/Telegram), не только Google:
@@ -233,14 +241,28 @@ function Header({ onOpenAuthModal }: HeaderProps) {
             return;
         }
 
+        // По телефону код приходит по SMS и вводится в модалке входа (экран кода, см. Auth.tsx)
+        const openCodeScreen = (phone: string) =>
+            window.dispatchEvent(new CustomEvent('openAuthModal', { detail: { confirmPhone: phone } }));
+
         try {
+            // По телефону — с ?locale= (по умолчанию): на этом языке уйдёт SMS
             await universalApiRequest(API_ROUTES.CONFIRM_ACCOUNT_TOKENLESS, {
                 method: 'POST',
-                locale: false,
+                ...(confirmPhone ? {} : { locale: false as const }),
             });
+            if (confirmPhone) {
+                openCodeScreen(confirmPhone);
+                return;
+            }
             setHeaderStatus({ type: 'success', message: t('header:confirmationBanner.emailSent'), isOpen: true });
         } catch (error: any) {
-            const status = error?.status ?? error?.response?.status;
+            // Код уже уходил меньше минуты назад — он ещё действует: просто открываем ввод
+            if (confirmPhone && error instanceof ApiError && error.code === 'sms_resend_too_soon') {
+                openCodeScreen(confirmPhone);
+                return;
+            }
+            const status = error instanceof ApiError ? error.http : (error?.status ?? error?.response?.status);
             if (status === 409) {
                 setHeaderStatus({ type: 'info', message: t('header:confirmationBanner.warning'), isOpen: true });
                 invalidateCurrentUserCache();
@@ -248,7 +270,11 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                 if (freshUserData) setShowConfirmationBanner(freshUserData.approved === false);
             } else {
                 console.error('Error resending confirmation:', error);
-                setHeaderStatus({ type: 'error', message: t('header:confirmationBanner.sendErrorRetry'), isOpen: true });
+                // У SMS причина бывает понятной пользователю (лимит на сегодня, страна) — показываем её
+                const message = confirmPhone
+                    ? resolveApiError(error, t('header:confirmationBanner.sendErrorRetry'))
+                    : t('header:confirmationBanner.sendErrorRetry');
+                setHeaderStatus({ type: 'error', message, isOpen: true });
             }
         } finally {
             setIsLoading(false);
@@ -375,7 +401,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                             </svg>
                             <span>
-                                {t('header:confirmationBanner.message')}
+                                {confirmPhone ? t('header:confirmationBanner.messagePhone') : t('header:confirmationBanner.message')}
                             </span>
                         </div>
                         <button
@@ -383,7 +409,9 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                             className={styles.confirmationBannerButton}
                             disabled={isLoading}
                         >
-                            {isLoading ? <PageLoader fullPage={false} compact /> : t('header:confirmationBanner.resend')}
+                            {isLoading
+                                ? <PageLoader fullPage={false} compact />
+                                : (confirmPhone ? t('header:confirmationBanner.getCode') : t('header:confirmationBanner.resend'))}
                         </button>
                         <button
                             onClick={() => setShowConfirmationBanner(false)}
