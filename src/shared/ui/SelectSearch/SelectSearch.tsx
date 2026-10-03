@@ -169,9 +169,11 @@ export function SelectSearch<T = unknown>({
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    // Фокус на поиск при открытии
+    // Фокус на поиск при открытии — только с мышью. На сенсорном экране фокус сразу поднимает
+    // клавиатуру: страница сжимается и прокручивается, список прыгает, а при закрытии клавиатура
+    // уходит и всё прыгает обратно. Там поиск получает фокус, только когда по нему тапнули.
     useEffect(() => {
-        if (open && !noSearch) {
+        if (open && !noSearch && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
             setTimeout(() => searchRef.current?.focus(), 0);
         }
     }, [open, noSearch]);
