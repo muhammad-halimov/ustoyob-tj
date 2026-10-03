@@ -1043,11 +1043,18 @@ function Chat() {
         });
     }, [selectedChat]);
 
-    /** Нажали на цитату в ответе — прокручиваем к исходному сообщению и коротко подсвечиваем его. */
-    const scrollToMessage = useCallback((id: string | number) => {
+    /**
+     * Нажали на цитату в ответе — прокручиваем к исходному сообщению и коротко подсвечиваем его. Ищем по id
+     * с сервера (`data-msg-id`): у своих только что отправленных сообщений ключ узла — временный. Исходного
+     * сообщения ещё нет на экране (оно в старых страницах) — догружаем историю страница за страницей, пока
+     * оно не найдётся, разом добавляем её сверху и прокручиваем к нему (см. эффект jumpToRef ниже).
+     */
+    const jumpToRef = useRef<{ id: string | number; prevScrollHeight: number } | null>(null);
+    const jumpingRef = useRef(false);
+    const revealMessage = useCallback((id: string | number): boolean => {
         const container = messagesContainerRef.current;
-        const el = container?.querySelector<HTMLElement>(`[data-msg-key="${CSS.escape(String(id))}"]`);
-        if (!container || !el) return;
+        const el = container?.querySelector<HTMLElement>(`[data-msg-id="${CSS.escape(String(id))}"]`);
+        if (!container || !el) return false;
         const top = el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop
             - (container.clientHeight - el.offsetHeight) / 2;
         container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
@@ -1055,7 +1062,64 @@ function Chat() {
             [{ backgroundColor: 'rgba(58, 84, 218, 0.28)' }, { backgroundColor: 'rgba(58, 84, 218, 0)' }],
             { duration: 1400, delay: 250, easing: 'ease-out' },
         );
+        return true;
     }, []);
+    const scrollToMessage = useCallback(async (id: string | number) => {
+        if (revealMessage(id)) {
+            atBottomRef.current = false;
+            return;
+        }
+        const chatId = selectedChatIdRef.current;
+        if (!chatId || !hasMoreMessages || jumpingRef.current) return;
+        jumpingRef.current = true;
+        setIsLoadingMoreMessages(true);
+        try {
+            const pageSize = getPageSize();
+            let page = messagesPage;
+            let more: boolean = hasMoreMessages;
+            let older: Message[] = [];
+            let found = false;
+            // Страховка от бесконечного цикла, если сервер почему-то всегда отвечает «есть ещё».
+            for (let guard = 0; more && !found && guard < 100; guard++) {
+                page += 1;
+                const responseData = await universalApiRequest(`${API_ROUTES.CHAT_MESSAGES(chatId)}?page=${page}&itemsPerPage=${pageSize}`, { locale: false });
+                const { items, hasMore } = parsePagedResponse<ApiMessage>(responseData, page, pageSize);
+                older = [...items.map(mapApiMessageToView).reverse(), ...older];
+                found = items.some(m => String(m.id) === String(id));
+                more = hasMore;
+            }
+            // Пока догружали, открыли другой чат — эту историю сюда не добавляем.
+            if (selectedChatIdRef.current !== chatId) return;
+            if (older.length > 0) {
+                jumpToRef.current = found ? { id, prevScrollHeight: messagesContainerRef.current?.scrollHeight ?? 0 } : null;
+                skipAutoScrollRef.current = true;
+                setMessages(prev => {
+                    const existingIds = new Set(prev.map(m => m.id));
+                    return [...older.filter(m => !existingIds.has(m.id)), ...prev];
+                });
+            }
+            setMessagesPage(page);
+            setHasMoreMessages(more);
+        } catch (err) {
+            console.error('Error loading messages for reply jump:', err);
+        } finally {
+            jumpingRef.current = false;
+            setIsLoadingMoreMessages(false);
+        }
+    }, [revealMessage, hasMoreMessages, messagesPage, mapApiMessageToView]);
+
+    // История для перехода к цитате добавлена сверху: сначала держим экран на месте (как при «Загрузить
+    // ещё»), затем плавно едем к исходному сообщению и подсвечиваем его.
+    useLayoutEffect(() => {
+        const jump = jumpToRef.current;
+        const container = messagesContainerRef.current;
+        if (!jump || !container) return;
+        jumpToRef.current = null;
+        // Уходим от низа переписки — «прилипание к низу» (useStickToBottom) не должно утянуть экран обратно.
+        atBottomRef.current = false;
+        container.scrollTop = container.scrollHeight - jump.prevScrollHeight;
+        requestAnimationFrame(() => revealMessage(jump.id));
+    }, [messages, revealMessage]);
 
     /**
      * Доставка своего сообщения, уже показанного в переписке (временного, `clientKey`): текст — на сервер,
@@ -2029,6 +2093,7 @@ function Chat() {
                                                 <div
                                                     key={messageKey(msg)}
                                                     data-msg-key={messageKey(msg)}
+                                                    data-msg-id={String(msg.id)}
                                                     className={`${styles.messageWrapper} ${msg.sender === "me" ? styles.myWrapper : ''}`}
                                                 >
                                                     <div className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}>
@@ -2045,7 +2110,7 @@ function Chat() {
                                                                 {msg.replyTo && (
                                                                     <div
                                                                         className={styles.replyQuote}
-                                                                        onClick={() => msg.replyTo && scrollToMessage(msg.replyTo.id)}
+                                                                        onClick={() => msg.replyTo && void scrollToMessage(msg.replyTo.id)}
                                                                     >
                                                                         <div className={styles.replyQuoteName}>{msg.replyTo.name}</div>
                                                                         <div className={styles.replyQuoteText}>
