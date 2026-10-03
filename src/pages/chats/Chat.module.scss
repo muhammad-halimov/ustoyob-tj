@@ -2450,6 +2450,10 @@
   pointer-events: none;
 }
 
+.serverLayer {
+  display: contents;
+}
+
 .localImagesProgress {
   z-index: 2;
   position: absolute;

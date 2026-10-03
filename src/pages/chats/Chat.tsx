@@ -2045,15 +2045,16 @@ function Chat() {
                                                                     ));
                                                                     return (
                                                                         <div className={`${styles.messageImagesGrid} ${sizeClass} ${local.length ? styles.localImages : ''}`}>
-                                                                            {local.length > 0 ? (
-                                                                                <>
-                                                                                    {local.map((url, i) => (
-                                                                                        <img key={i} src={url} alt="" className={styles.messageGridImage} />
-                                                                                    ))}
-                                                                                    {/* Серверные фото грузятся невидимо, превью остаётся в потоке: высота не меняется. */}
-                                                                                    {server.length > 0 && <div className={styles.settleLayer} aria-hidden>{serverImgs}</div>}
-                                                                                </>
-                                                                            ) : serverImgs}
+                                                                            {local.map((url, i) => (
+                                                                                <img key={`local-${i}`} src={url} alt="" className={styles.messageGridImage} />
+                                                                            ))}
+                                                                            {/* Серверные фото — один и тот же узел и пока грузятся невидимо под превью, и после того, как
+                                                                                превью снято: ничего не перемонтируется, фото не мигает. Превью остаётся в потоке: высота не меняется. */}
+                                                                            {server.length > 0 && (
+                                                                                <div key="server" className={local.length > 0 ? styles.settleLayer : styles.serverLayer} aria-hidden={local.length > 0 || undefined}>
+                                                                                    {serverImgs}
+                                                                                </div>
+                                                                            )}
                                                                             {local.length > 0 && busy && (
                                                                                 <div className={styles.localImagesProgress}>
                                                                                     <PageLoader compact asSpan primary={false} />
