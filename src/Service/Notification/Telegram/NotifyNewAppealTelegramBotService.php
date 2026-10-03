@@ -26,8 +26,8 @@ class NotifyNewAppealTelegramBotService extends AbstractAppealNotificationServic
             "📁 Тип: {$appeal->getTypeLabel()}\n" .
             "🎯 На: {$this->subject($appeal)}\n" .
             "📂 Причина: {$this->reason($appeal)}\n" .
-            "👤 Истец: " . ($appeal->getAuthor()?->getEmail() ?? 'Неизвестен') . "\n" .
-            "👤 Ответчик: " . ($appeal->getRespondent()?->getEmail() ?? '—') . "\n\n" .
+            "👤 Истец: " . ($appeal->getAuthor()?->getContact() ?? 'Неизвестен') . "\n" .
+            "👤 Ответчик: " . ($appeal->getRespondent()?->getContact() ?? '—') . "\n\n" .
             "📝 {$desc}\n\n" .
             "{$divider}\n" .
             "🔗 Ссылка: <a href='{$this->appealAdminUrl($appeal)}'>Открыть в админке</a>";

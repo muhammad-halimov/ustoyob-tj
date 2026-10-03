@@ -372,7 +372,7 @@ class EntityRevision
         $this->actor = $actor;
 
         if ($actor !== null) {
-            $this->actorLabel   = $actor->getEmail();
+            $this->actorLabel   = $actor->getContact();
             $this->actorId      = $actor->getId();
             $this->actorName    = $actor->getName();
             $this->actorSurname = $actor->getSurname();

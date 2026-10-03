@@ -21,6 +21,10 @@ final class G
 
     const string USER_PUBLIC = 'user:public:read';
     const string USERS_ME    = 'users:me:read';
+    // Только чтение владельцем (GET /users/me): в отличие от USERS_ME, этой группы нет
+    // в denormalizationContext у PATCH /users/{id} — поле через PATCH не меняется
+    // (телефон для входа — только с кодом из SMS, см. User::$phone).
+    const string USERS_ME_READONLY = 'users:me:readonly';
     const string MASTERS     = 'masters:read';
     const string CLIENTS     = 'clients:read';
     const string SOCIAL      = 'social:read';
@@ -112,7 +116,7 @@ final class G
     //     PHP 8.1+ constant arrays work in attributes.
     //     When operations differ, define BASE + FULL variants.
 
-    const array OPS_USERS_ME     = [self::MASTERS, self::CLIENTS, self::USERS_ME, self::PHONES_READ];
+    const array OPS_USERS_ME     = [self::MASTERS, self::CLIENTS, self::USERS_ME, self::USERS_ME_READONLY, self::PHONES_READ];
     const array OPS_USERS_PUBLIC = [self::MASTERS, self::CLIENTS, self::USER_PUBLIC];
 
     const array OPS_TICKETS      = [self::MASTER_TICKETS, self::CLIENT_TICKETS];

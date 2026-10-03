@@ -5,10 +5,11 @@ security:
     # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
         # used to reload user from session & other features (e.g. switch_user)
+        # Без property — пользователя ищет UserRepository::loadUserByIdentifier():
+        # по email или по телефону (вход по номеру телефона).
         app_user_provider:
             entity:
                 class: App\Entity\User
-                property: email
     firewalls:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
@@ -27,6 +28,7 @@ security:
             entry_point: jwt
             json_login:
                 check_path: /api/authentication_token
+                # Поле называется email, но принимает и телефон (см. UserRepository::loadUserByIdentifier)
                 username_path: email
                 password_path: password
                 success_handler: lexik_jwt_authentication.handler.authentication_success

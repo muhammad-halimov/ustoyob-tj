@@ -3,7 +3,6 @@
 namespace App\Service\Auth;
 
 use App\Entity\User;
-use App\Service\Extra\StateStorageService;
 use App\Service\Notification\Abstract\AbstractMailerService;
 use Psr\Cache\InvalidArgumentException;
 use Random\RandomException;
@@ -13,12 +12,15 @@ use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
  * OTP-based password change flow:
  *   1. sendOtp()   — генерирует 6-значный код, сохраняет в Redis (TTL 10 мин), отправляет на email
  *   2. verifyOtp() — проверяет код, удаляет из Redis (one-time use)
+ *
+ * Хранение и проверка кода — OtpService (там же предел неверных попыток).
+ * Тот же поток по SMS — PhoneCodeService::RESET.
  */
 class AccountChangePasswordService extends AbstractMailerService
 {
     private const string PREFIX = 'password_otp_';
 
-    public function __construct(private readonly StateStorageService $stateStorage) {}
+    public function __construct(private readonly OtpService $otp) {}
 
     /**
      * @throws RandomException
@@ -27,9 +29,7 @@ class AccountChangePasswordService extends AbstractMailerService
      */
     public function sendOtp(User $user): void
     {
-        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-
-        $this->stateStorage->save(self::PREFIX . $user->getId(), $code);
+        $code = $this->otp->issue(self::PREFIX . $user->getId());
 
         $siteName = $this->siteName();
 
@@ -57,11 +57,6 @@ class AccountChangePasswordService extends AbstractMailerService
      */
     public function verifyOtp(User $user, string $code): bool
     {
-        $stored = $this->stateStorage->get(self::PREFIX . $user->getId());
-
-        if ($stored === null || $stored !== $code) return false;
-
-        $this->stateStorage->delete(self::PREFIX . $user->getId());
-        return true;
+        return $this->otp->verify(self::PREFIX . $user->getId(), $code);
     }
 }

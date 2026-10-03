@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Service\Extra\PhoneNumberUtil;
 use App\Service\Extra\SlugUtil;
 use App\Service\Extra\UuidUtil;
 
@@ -21,6 +22,9 @@ use App\ApiResource\AppMessages;
 use App\Controller\Api\CRUD\GET\User\User\ApiGetMyProfileController;
 use App\Controller\Api\CRUD\GET\User\User\SocialNetworkController;
 use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
+use App\Controller\Api\CRUD\POST\User\Phone\ApiPostPhoneLinkController;
+use App\Controller\Api\CRUD\POST\User\Phone\ApiPostPhoneLoginController;
+use App\Controller\Api\CRUD\POST\User\Phone\ApiPostPhoneSendCodeController;
 use App\Controller\Api\CRUD\POST\User\User\ApiPostChangePasswordController;
 use App\Controller\Api\CRUD\POST\User\User\ApiPostChangePasswordSendOtpController;
 use App\Controller\Api\CRUD\POST\User\User\ApiPostConfirmAccountController;
@@ -35,6 +39,8 @@ use App\Dto\User\AccountConfirmInput;
 use App\Dto\User\AccountConfirmOutput;
 use App\Dto\User\ChangePasswordInput;
 use App\Dto\User\ChangePasswordSendOtpInput;
+use App\Dto\User\Phone\PhoneCodeInput;
+use App\Dto\User\Phone\PhoneSendCodeInput;
 use App\Dto\User\RoleInput;
 use App\Dto\User\SocialNetworkOutput;
 use App\Entity\Appeal\Appeal\Appeal;
@@ -220,6 +226,28 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             output: false,
             name: 'change_password',
         ),
+        // Телефон для входа и коды из SMS — см. User::$phone, PhoneCodeService
+        new Post(
+            uriTemplate: '/phone/send-code',
+            controller: ApiPostPhoneSendCodeController::class,
+            input: PhoneSendCodeInput::class,
+            output: false,
+            name: 'phone_send_code',
+        ),
+        new Post(
+            uriTemplate: '/phone/login',
+            controller: ApiPostPhoneLoginController::class,
+            input: PhoneCodeInput::class,
+            output: false,
+            name: 'phone_login',
+        ),
+        new Post(
+            uriTemplate: '/users/me/phone',
+            controller: ApiPostPhoneLinkController::class,
+            input: PhoneCodeInput::class,
+            output: false,
+            name: 'users_me_phone',
+        ),
     ],
     paginationClientItemsPerPage: true,
     paginationEnabled: true,
@@ -260,9 +288,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $roles = implode(',', $this->roles);
 
-        if($this->name && $this->surname) return "$this->name $this->surname, ({$this->getEmail()}), [$roles]";
+        $contact = $this->getContact();
 
-        return $this->getEmail() ?: ('#' . UuidUtil::short($this->id));
+        if($this->name && $this->surname) return "$this->name $this->surname, ({$contact}), [$roles]";
+
+        return $contact ?: ('#' . UuidUtil::short($this->id));
     }
 
     public function __construct()
@@ -335,6 +365,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         G::USERS_ME,
     ])]
     private ?string $email = null;
+
+    /**
+     * Телефон для входа — альтернатива email: регистрация, вход (по паролю или
+     * по коду из SMS), восстановление пароля. Всегда E.164 (+992901234567, см.
+     * setPhone()/PhoneNumberUtil). Не путать с $phones — это контактные номера
+     * профиля, их видят другие пользователи; этот номер, как и email, видит
+     * только владелец (GET /users/me).
+     *
+     * Задаётся при регистрации (POST /users — вместо email, см.
+     * validateRegistrationContact()) — тогда аккаунт подтверждается кодом из
+     * SMS (UserListener::postPersist → POST /phone/login), либо привязывается
+     * к уже существующему аккаунту тоже только с кодом (POST /users/me/phone).
+     * Через PATCH /users/{id} не меняется: группа USERS_ME_READONLY в
+     * denormalizationContext у PATCH не входит — иначе можно было бы вписать
+     * себе чужой, ничем не подтверждённый номер. Уникальность — в
+     * UserListener (PHONE_ALREADY_EXISTS), как у email/login.
+     */
+    #[ORM\Column(length: 20, unique: true, nullable: true)]
+    #[Groups([
+        G::USERS_ME_READONLY,
+    ])]
+    private ?string $phone = null;
 
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
@@ -1011,9 +1063,35 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->email;
     }
 
-    public function setEmail(string $email): static
+    public function setEmail(?string $email): static
     {
-        $this->email = $email;
+        // Пустая строка — «нет email» (у зарегистрированных по телефону), а не
+        // значение: иначе второй такой упёрся бы в уникальный индекс email
+        $this->email = $email !== null && trim($email) !== '' ? $email : null;
+
+        return $this;
+    }
+
+    public function getPhone(): ?string
+    {
+        return $this->phone;
+    }
+
+    /** Email, а у зарегистрированного по телефону — номер. Для подписей (админка, уведомления, история). */
+    public function getContact(): ?string
+    {
+        return $this->email ?? $this->phone;
+    }
+
+    /**
+     * Сразу в E.164 — по этому виду ищется пользователь при входе. Не номер
+     * вовсе (не нормализуется) — сохраняется как есть, отказ даст
+     * UserListener (PHONE_INVALID).
+     */
+    public function setPhone(?string $phone): static
+    {
+        $phone = $phone !== null && trim($phone) !== '' ? trim($phone) : null;
+        $this->phone = $phone !== null ? (PhoneNumberUtil::normalize($phone) ?? $phone) : null;
 
         return $this;
     }
@@ -1128,7 +1206,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     public function getUserIdentifier(): string
     {
-        return (string) $this->email;
+        // Зарегистрированный по телефону — без email; ищется по этому значению
+        // UserRepository::loadUserByIdentifier() (email или телефон).
+        return (string) ($this->email ?? $this->phone);
     }
 
     /**
@@ -1935,6 +2015,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->dateOfBirth = $dateOfBirth;
 
         return $this;
+    }
+
+    /**
+     * Регистрация (POST /users, группа registration) — по email или по
+     * телефону, что-то одно. Оба сразу — нет: подтверждается только один
+     * канал (письмо или SMS), и второй остался бы чужим неподтверждённым
+     * адресом/номером, по которому потом входят. Телефон к аккаунту с email
+     * привязывается отдельно, с кодом (POST /users/me/phone).
+     */
+    #[Assert\Callback(groups: ['registration'])]
+    public function validateRegistrationContact(ExecutionContextInterface $context): void
+    {
+        if (($this->email !== null) === ($this->phone !== null)) {
+            throw new AppMessageException(AppMessages::EMAIL_OR_PHONE_REQUIRED);
+        }
     }
 
     /**

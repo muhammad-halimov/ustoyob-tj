@@ -7,6 +7,8 @@ use App\Entity\User;
 use App\Exception\AppMessageException;
 use App\Repository\User\UserRepository;
 use App\Service\Auth\AccountConfirmationService;
+use App\Service\Auth\PhoneCodeService;
+use App\Service\Extra\PhoneNumberUtil;
 use App\Service\Extra\UuidUtil;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\Events;
@@ -43,12 +45,13 @@ readonly class UserListener
     public function __construct(
         private UserPasswordHasherInterface  $passwordHasher,
         private AccountConfirmationService   $accountConfirmationService,
+        private PhoneCodeService             $phoneCodeService,
         private UserRepository               $userRepository,
         private LoggerInterface              $logger,
     ) {}
 
     /**
-     * Хэшируем пароль и проверяем уникальность email/login перед
+     * Хэшируем пароль и проверяем уникальность email/телефона/login перед
      * сохранением пользователя
      */
     public function prePersist(User $user): void
@@ -103,6 +106,19 @@ readonly class UserListener
             }
         }
 
+        // Телефон для входа (см. User::$phone): setPhone() уже привёл его к E.164 —
+        // не привёлся, значит это не номер
+        $phone = $user->getPhone();
+        if ($phone !== null) {
+            if (PhoneNumberUtil::normalize($phone) !== $phone) {
+                throw new AppMessageException(AppMessages::PHONE_INVALID);
+            }
+            $existing = $this->userRepository->findOneBy(['phone' => $phone]);
+            if ($existing !== null && !UuidUtil::same($existing->getId(), $user->getId())) {
+                throw new AppMessageException(AppMessages::PHONE_ALREADY_EXISTS);
+            }
+        }
+
         $login = $user->getLogin();
         if ($login !== null) {
             $existing = $this->userRepository->findOneBy(['login' => $login]);
@@ -139,6 +155,23 @@ readonly class UserListener
     public function postPersist(User $user): void
     {
         if ($user->getActive()) return;
+
+        // Зарегистрированный по телефону (без email) подтверждает аккаунт кодом
+        // из SMS — тем же, которым входят по коду: POST /phone/login подтвердит
+        // аккаунт и сразу войдёт. Не ушло (лимит, Twilio) — так же, как с
+        // письмом: регистрацию не валим, код можно запросить ещё раз.
+        if ($user->getEmail() === null && $user->getPhone() !== null) {
+            try {
+                $this->phoneCodeService->send($user->getPhone(), PhoneCodeService::LOGIN);
+            } catch (Throwable $e) {
+                $this->logger->error('Не удалось отправить SMS с кодом подтверждения при регистрации', [
+                    'userId'    => $user->getId(),
+                    'phone'     => PhoneNumberUtil::mask($user->getPhone()),
+                    'exception' => $e->getMessage(),
+                ]);
+            }
+            return;
+        }
 
         try {
             $this->accountConfirmationService->sendConfirmationEmail($user);

@@ -10,7 +10,10 @@ use App\Controller\Admin\User\Education\EducationCrudController;
 use App\Controller\Admin\User\Phone\PhoneCrudController;
 use App\Controller\Admin\User\SocialNetworks\SocialNetworkCrudController;
 use App\Entity\User;
+use App\ApiResource\AppMessages;
+use App\Exception\AppMessageException;
 use App\Service\Auth\AccountConfirmationService;
+use App\Service\Auth\PhoneCodeService;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
@@ -51,6 +54,7 @@ class UserCrudController extends AbstractCrudController
 
     public function __construct(
         private readonly AccountConfirmationService  $accountConfirmationService,
+        private readonly PhoneCodeService            $phoneCodeService,
     ){}
 
     public static function getEntityFqcn(): string
@@ -148,6 +152,17 @@ class UserCrudController extends AbstractCrudController
             return $currentPage;
         }
 
+        // Зарегистрированному по телефону (без почты) — код по SMS, им он подтверждает аккаунт
+        if ($user->getEmail() === null && $user->getPhone() !== null) {
+            try {
+                $this->phoneCodeService->send($user->getPhone(), PhoneCodeService::LOGIN);
+                $this->addFlash('success', 'Код подтверждения отправлен по SMS на ' . $user->getPhone());
+            } catch (AppMessageException $e) {
+                $this->addFlash('warning', 'SMS не отправлено: ' . AppMessages::get($e->appCode, 'ru')->message);
+            }
+            return $currentPage;
+        }
+
         $response = $this->accountConfirmationService->sendConfirmationEmail($user);
         $this->addFlash('success', $response);
 
@@ -189,9 +204,15 @@ class UserCrudController extends AbstractCrudController
             ->hideOnIndex()
             ->setColumns(12);
 
+        // Почта или телефон — у зарегистрированных по телефону почты нет (см. User::$phone)
         yield EmailField::new('email', 'Эл. почта')
             ->setColumns(4)
-            ->setRequired(true);
+            ->setRequired(false);
+
+        yield TelephoneField::new('phone', 'Телефон для входа')
+            ->setHelp('E.164, например +992901234567. Не контактный номер профиля — по нему входят.')
+            ->setColumns(4)
+            ->setRequired(false);
 
         yield TextField::new('name', 'Имя')
             ->setColumns(4)

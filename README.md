@@ -84,6 +84,8 @@ docker compose --env-file .env.local up -d --force-recreate mercure
 | `MAILER_DSN`, `MAILER_SENDER` | почта (в dev по умолчанию `null://null` — письма не уходят) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_API_URL` | уведомления администрации в Telegram |
 | `FIREBASE_CREDENTIALS` | путь к JSON-ключу сервисного аккаунта Firebase — push в мобильное приложение (см. [Push-уведомления](#push-уведомления)); пусто — push выключены |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` / `TWILIO_MESSAGING_SERVICE_SID` | SMS с кодами — вход и регистрация по телефону (см. [Вход по телефону](#вход-по-телефону-sms-twilio)); пусто — в dev текст SMS пишется в лог, на проде коды по SMS не уходят |
+| `SMS_ALLOWED_COUNTRY_CODES` | коды стран, на номера которых можно слать SMS (`992,7`); пусто — любые |
 | `MERCURE_URL`, `MERCURE_PUBLIC_URL`, `MERCURE_JWT_SECRET`, `MERCURE_CORS_ORIGIN` | Mercure-хаб |
 | `APP_URL`, `FRONTEND_URL` | публичные адреса API и клиента (ссылки в письмах и т. п.) |
 
@@ -214,6 +216,39 @@ php -d variables_order=EGPCS -S 127.0.0.1:8001 -t public
 | `HTTP 403 SENDER_ID_MISMATCH` | приложение/сайт собраны с конфигом другого проекта Firebase, чем ключ сервера |
 | `HTTP 401 THIRD_PARTY_AUTH_ERROR` (iOS) | в Firebase не загружен ключ APNs (.p8) или неверные Key ID / Team ID |
 | `HTTP 404 UNREGISTERED` | приложение удалено / токен устарел — устройство перерегистрируется само при следующем запуске |
+
+### Вход по телефону (SMS, Twilio)
+
+Регистрироваться и входить можно по **email или по номеру телефона**. Номер — `User::$phone`, всегда в E.164 (`+992901234567`; без кода страны 9 цифр считаются таджикским номером, пробелы/скобки/дефисы убираются — `Service/Extra/PhoneNumberUtil`). Это не контактные телефоны профиля (`Phone`, их видят другие) — номер для входа, как и email, видит только владелец (`GET /api/users/me`).
+
+Коды — 6 цифр, живут 10 минут, одноразовые, после 5 неверных попыток код сгорает. Генерирует и проверяет их сам бэкенд (`Service/Auth/PhoneCodeService` + `OtpService`), Twilio только доставляет текст (`Service/Notification/Sms/TwilioSmsSender` за интерфейсом `SmsSenderInterface` — сменить провайдера = написать ещё одну реализацию). У каждой цели свой код: `login`, `reset`, `link`.
+
+| Что | Как |
+|---|---|
+| Регистрация | `POST /api/users` `{ phone, password, name, surname, … }` — вместо `email` (оба сразу или ни одного — `email_or_phone_required`). Сразу уходит SMS с кодом подтверждения |
+| Подтверждение аккаунта / вход по коду | `POST /api/phone/send-code` `{ phone, purpose: "login" }` → `POST /api/phone/login` `{ phone, code }` → `{ token }` + refresh-cookie, как у обычного входа. Неподтверждённый аккаунт этим же подтверждается (`active`/`approved`). Есть ли аккаунт с номером, `send-code` не выдаёт — всегда 200 |
+| Повторно отправить подтверждение | `POST /api/confirm-account-tokenless/` (Bearer) — у аккаунта без email уходит SMS, в ответе `channel: "sms"` |
+| Вход по паролю | `POST /api/authentication_token` `{ email: "<email или телефон>", password }` — поле по-прежнему `email`, но принимает и номер в любом написании (`UserRepository::loadUserByIdentifier`) |
+| Восстановление пароля | `POST /api/change-password/send-otp/` `{ phone }` → `POST /api/change-password/` `{ phone, code, newPassword }` (с `email` — как раньше, письмом) |
+| Привязать / сменить номер у своего аккаунта | `POST /api/phone/send-code` `{ phone, purpose: "link" }` (Bearer) → `POST /api/users/me/phone` `{ phone, code }` → новый `token`. Через `PATCH /api/users/{id}` номер не меняется |
+
+SMS платные, поэтому лимиты: на номер — не чаще раза в минуту (`sms_resend_too_soon`) и не больше 10 в сутки (`sms_limit_reached`), на IP — 10 SMS в час и 20 проверок кода за 10 минут (`config/packages/rate_limiter.yaml`, `ApiRateLimitSubscriber`). Текст SMS — на языке запроса (`?locale=`), укладывается в одно сообщение; последняя строка `@домен #код` — формат WebOTP, Chrome на Android сам подставляет код на сайте.
+
+Настройка (один раз):
+
+1. [Twilio Console](https://console.twilio.com) → Account Info: **Account SID** и **Auth Token**.
+2. Отправитель: купить номер (Phone Numbers → Buy a number, с возможностью SMS) **или** буквенное имя отправителя (Alphanumeric Sender ID, например `UstoYob` — для Таджикистана проверьте в Twilio, нужна ли предварительная регистрация имени), либо Messaging Service (`MG…`).
+3. Messaging → Settings → **Geo permissions**: включить только страны, куда реально шлём (Таджикистан и т.п.) — это главная защита от накрутки SMS на чужие платные номера. То же можно ограничить на нашей стороне: `SMS_ALLOWED_COUNTRY_CODES=992,7`.
+4. В `.env.local` на сервере (не в репозиторий):
+   ```
+   TWILIO_ACCOUNT_SID=AC…
+   TWILIO_AUTH_TOKEN=…
+   TWILIO_FROM=UstoYob            # или +1…, или вместо этого TWILIO_MESSAGING_SERVICE_SID=MG…
+   ```
+   затем `php bin/console cache:clear`.
+5. Новая колонка `user.phone` — `php bin/console doctrine:schema:update --force`.
+
+Проверка: `php bin/console app:sms:test +992901234567` — отправит тестовое SMS мимо кодов и лимитов и напечатает ошибку Twilio как есть. Частые ошибки: **21408** — страна не включена в Geo permissions; **21211** — неверный номер; **21608** — пробный (trial) аккаунт шлёт только на подтверждённые номера; **21612** — с этого отправителя нельзя слать в эту страну (буквенное имя не поддерживается / не зарегистрировано). Доставку конкретного SMS видно в Twilio Console → Monitor → Logs → Messaging.
 
 ### Жалобы
 

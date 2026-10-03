@@ -90,7 +90,7 @@ class DeleteUnactivatedUsersCommand extends Command
             ['ID', 'Email', 'Login', 'Дата регистрации'],
             array_map(fn($u) => [
                 $u->getId(),
-                $u->getEmail() ?? '—',
+                $u->getContact() ?? '—',
                 $u->getLogin() ?? '—',
                 $u->getCreatedAt()->format('Y-m-d H:i'),
             ], $users),

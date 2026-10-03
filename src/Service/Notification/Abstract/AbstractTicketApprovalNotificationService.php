@@ -61,6 +61,6 @@ abstract class AbstractTicketApprovalNotificationService extends AbstractMailerS
      */
     protected function owner(?Ticket $ticket): string
     {
-        return ($ticket?->getAuthor() ?? $ticket?->getMaster())?->getEmail() ?? 'Неизвестен';
+        return ($ticket?->getAuthor() ?? $ticket?->getMaster())?->getContact() ?? 'Неизвестен';
     }
 }

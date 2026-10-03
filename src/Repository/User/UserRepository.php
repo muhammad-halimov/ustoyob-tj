@@ -3,8 +3,10 @@
 namespace App\Repository\User;
 
 use App\Entity\User;
+use App\Service\Extra\PhoneNumberUtil;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Security\User\UserLoaderInterface;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\PasswordUpgraderInterface;
@@ -12,11 +14,31 @@ use Symfony\Component\Security\Core\User\PasswordUpgraderInterface;
 /**
  * @extends ServiceEntityRepository<User>
  */
-class UserRepository extends ServiceEntityRepository implements PasswordUpgraderInterface
+class UserRepository extends ServiceEntityRepository implements PasswordUpgraderInterface, UserLoaderInterface
 {
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, User::class);
+    }
+
+    /**
+     * Кто входит — для всего security (security.yaml: провайдер app_user_provider
+     * без property, значит Symfony спрашивает здесь): вход по паролю
+     * (/api/authentication_token — поле email, в нём может быть и телефон; форма
+     * входа в админку), JWT и refresh-токены (в них User::getUserIdentifier() —
+     * email, а у зарегистрированных по телефону — номер).
+     *
+     * Сначала email как есть (как и раньше), не нашёлся — то же значение как
+     * номер телефона в любом написании (+992 90 123-45-67, 901234567…).
+     */
+    public function loadUserByIdentifier(string $identifier): ?User
+    {
+        $user = $this->findOneBy(['email' => $identifier]);
+        if ($user !== null) return $user;
+
+        $phone = PhoneNumberUtil::normalize($identifier);
+
+        return $phone !== null ? $this->findOneBy(['phone' => $phone]) : null;
     }
 
     /**

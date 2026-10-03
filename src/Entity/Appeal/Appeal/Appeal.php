@@ -248,8 +248,8 @@ abstract class Appeal implements HasImagesInterface
             "Тип жалобы: $typeHuman",
             "ID жалобы: " . ($this->id ?? 'N/A'),
             "Заголовок жалобы: " . ($this->title ?? 'N/A'),
-            "Истец: " . ($this->author?->getEmail() ?? 'N/A'),
-            "Ответчик: " . ($this->respondent?->getEmail() ?? 'N/A'),
+            "Истец: " . ($this->author?->getContact() ?? 'N/A'),
+            "Ответчик: " . ($this->respondent?->getContact() ?? 'N/A'),
             "Причина жалобы: " . ($this->reason?->getTitle() ?? 'N/A'),
             "Описание: " . ($this->description ?? 'N/A'),
         ];

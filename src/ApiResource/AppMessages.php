@@ -50,6 +50,15 @@ class AppMessages
     const string LOGIN_ALREADY_EXISTS           = 'login_already_exists';
     const string USER_UNDERAGE                  = 'user_underage';
 
+    // ── Телефон для входа и коды из SMS (см. PhoneCodeService) ──────────────
+    const string PHONE_ALREADY_EXISTS           = 'phone_already_exists';
+    const string PHONE_INVALID                  = 'phone_invalid';
+    const string EMAIL_OR_PHONE_REQUIRED        = 'email_or_phone_required';
+    const string PHONE_COUNTRY_NOT_SUPPORTED    = 'phone_country_not_supported';
+    const string SMS_RESEND_TOO_SOON            = 'sms_resend_too_soon';
+    const string SMS_LIMIT_REACHED              = 'sms_limit_reached';
+    const string SMS_SEND_FAILED                = 'sms_send_failed';
+
     // ── Message editing (Review, ChatMessage, TechSupportMessage — общие правила) ──
     // Один набор кодов на все три сущности вместо копии на каждую — сама
     // проверка (AbstractApiHelperController::isPastEditWindow/isEditTooDifferent/
@@ -218,6 +227,13 @@ class AppMessages
         self::EMAIL_ALREADY_EXISTS           => ['http' => 409, 'messages' => ['tj' => 'Ин почтаи электронӣ аллакай сабт шудааст',                                                  'eng' => 'This email is already registered',                             'ru' => 'Этот email уже зарегистрирован']],
         self::LOGIN_ALREADY_EXISTS           => ['http' => 409, 'messages' => ['tj' => 'Ин логин аллакай гирифта шудааст',                                                          'eng' => 'This login is already taken',                                  'ru' => 'Этот логин уже занят']],
         self::USER_UNDERAGE                  => ['http' => 400, 'messages' => ['tj' => 'Корбар бояд на кам аз 18 сола бошад',                                                       'eng' => 'User must be at least 18 years old',                           'ru' => 'Пользователь должен быть не младше 18 лет']],
+        self::PHONE_ALREADY_EXISTS           => ['http' => 409, 'messages' => ['tj' => 'Ин рақами телефон аллакай сабт шудааст',                                                  'eng' => 'This phone number is already registered',                      'ru' => 'Этот номер телефона уже зарегистрирован']],
+        self::PHONE_INVALID                  => ['http' => 400, 'messages' => ['tj' => 'Рақами телефон нодуруст аст. Мисол: +992 90 123 45 67',                                     'eng' => 'Invalid phone number. Example: +992 90 123 45 67',              'ru' => 'Неверный номер телефона. Пример: +992 90 123 45 67']],
+        self::EMAIL_OR_PHONE_REQUIRED        => ['http' => 400, 'messages' => ['tj' => 'Почтаи электронӣ ё рақами телефонро нишон диҳед (танҳо яке)',                              'eng' => 'Enter an email or a phone number (just one)',                  'ru' => 'Укажите email или номер телефона (что-то одно)']],
+        self::PHONE_COUNTRY_NOT_SUPPORTED    => ['http' => 400, 'messages' => ['tj' => 'Ба рақамҳои ин кишвар SMS фиристода намешавад',                                            'eng' => 'SMS to numbers of this country are not supported',              'ru' => 'SMS на номера этой страны не отправляются']],
+        self::SMS_RESEND_TOO_SOON            => ['http' => 429, 'messages' => ['tj' => 'Рамз аллакай фиристода шуд — рамзи навро пас аз як дақиқа дархост кунед',                  'eng' => 'The code has already been sent — you can request a new one in a minute', 'ru' => 'Код уже отправлен — новый можно запросить через минуту']],
+        self::SMS_LIMIT_REACHED              => ['http' => 429, 'messages' => ['tj' => 'Имрӯз ба ин рақам SMS дигар фиристода намешавад. Фардо кӯшиш кунед',                       'eng' => "Today's SMS limit for this number is reached. Try again tomorrow", 'ru' => 'Лимит SMS на этот номер на сегодня исчерпан. Попробуйте завтра']],
+        self::SMS_SEND_FAILED                => ['http' => 502, 'messages' => ['tj' => 'SMS фиристода нашуд. Баъдтар кӯшиш кунед',                                                 'eng' => 'Failed to send SMS. Please try again later',                   'ru' => 'Не удалось отправить SMS. Попробуйте позже']],
         // Chat
         self::CHAT_NOT_FOUND                 => ['http' => 404, 'messages' => ['tj' => 'Чат ёфт нашуд',                                                                            'eng' => 'Chat not found',                                               'ru' => 'Чат не найден']],
         self::CHAT_ALREADY_EXISTS            => ['http' => 409, 'messages' => ['tj' => 'Чат аллакай вуҷуд дорад',                                                                  'eng' => 'Chat already exists',                                          'ru' => 'Чат уже существует']],

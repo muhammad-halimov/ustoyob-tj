@@ -6,9 +6,12 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 class ChangePasswordInput
 {
-    #[Assert\NotBlank]
+    /** Email или телефон — тот же, на который запрашивали код (ChangePasswordSendOtpInput). */
     #[Assert\Email]
-    public string $email;
+    public ?string $email = null;
+
+    #[Assert\Length(max: 32)]
+    public ?string $phone = null;
 
     #[Assert\NotBlank]
     #[Assert\Length(exactly: 6)]

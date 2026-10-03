@@ -21,9 +21,9 @@ class NotifyNewAppealEmailService extends AbstractAppealNotificationService
         $type       = htmlspecialchars($appeal->getTypeLabel(), ENT_QUOTES, 'UTF-8');
         $subject    = htmlspecialchars($this->subject($appeal), ENT_QUOTES, 'UTF-8');
         $reason     = htmlspecialchars($this->reason($appeal), ENT_QUOTES, 'UTF-8');
-        $authorId   = $appeal->getAuthor()?->getEmail() ?? 'Неизвестен';
+        $authorId   = $appeal->getAuthor()?->getContact() ?? 'Неизвестен';
         $author     = htmlspecialchars($authorId, ENT_QUOTES, 'UTF-8');
-        $respondentId = $appeal->getRespondent()?->getEmail() ?? '—';
+        $respondentId = $appeal->getRespondent()?->getContact() ?? '—';
         $respondent   = htmlspecialchars($respondentId, ENT_QUOTES, 'UTF-8');
 
         return $this->sendEmail(

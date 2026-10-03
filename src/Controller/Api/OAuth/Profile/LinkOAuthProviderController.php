@@ -109,13 +109,13 @@ class LinkOAuthProviderController extends AbstractController
         }
 
         // Если юзер раньше завёлся без реального email (плейсхолдер
-        // @internal.local — например, пришёл через Instagram/Telegram или
-        // саморегистрацию без email) и провайдер, который сейчас
+        // @internal.local — например, пришёл через Instagram/Telegram, — или
+        // вовсе без email: зарегистрировался по телефону) и провайдер, который сейчас
         // привязываем, ЗНАЕТ реальный email — заполняем его и выдаём
         // свежий JWT (email — часть claims токена, старый токен был бы
         // рассинхронизирован).
         $emailUpdated = false;
-        if ($realEmail !== null && str_contains($currentUser->getEmail(), '@internal.local')) {
+        if ($realEmail !== null && ($currentUser->getEmail() === null || str_contains($currentUser->getEmail(), '@internal.local'))) {
             $currentUser->setEmail($realEmail);
             $emailUpdated = true;
         }

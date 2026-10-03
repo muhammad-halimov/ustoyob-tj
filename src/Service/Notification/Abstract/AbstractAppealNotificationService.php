@@ -58,7 +58,7 @@ abstract class AbstractAppealNotificationService extends AbstractMailerService
             $appeal instanceof AppealChat   => 'чат #' . UuidUtil::short($appeal->getChat()?->getId()),
             $appeal instanceof AppealReview => 'отзыв #' . UuidUtil::short($appeal->getReview()?->getId()),
             $appeal instanceof AppealTicket => 'объявление/услугу «' . ($appeal->getTicket()?->getTitle() ?? '—') . '»',
-            $appeal instanceof AppealUser   => 'пользователя ' . ($appeal->getRespondent()?->getEmail() ?? '—'),
+            $appeal instanceof AppealUser   => 'пользователя ' . ($appeal->getRespondent()?->getContact() ?? '—'),
             default => $appeal->getTypeLabel(),
         };
     }

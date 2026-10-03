@@ -129,7 +129,7 @@ class Ticket implements HasImagesInterface
 
         $fullName = trim(($counterpart->getName() ?? '') . ' ' . ($counterpart->getSurname() ?? ''));
 
-        return "$label - $fullName, ({$counterpart->getEmail()}), [$role]";
+        return "$label - $fullName, ({$counterpart->getContact()}), [$role]";
     }
 
     public function __construct()

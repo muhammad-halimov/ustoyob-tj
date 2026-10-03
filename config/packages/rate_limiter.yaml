@@ -24,3 +24,31 @@ framework:
             policy: 'sliding_window'
             limit: 5
             interval: '1 hour'
+
+        # SMS с кодами (вход по коду, регистрация по телефону, восстановление
+        # пароля, привязка номера) — 10 SMS в час с одного IP. SMS платные:
+        # без лимита их можно гнать на чужие номера за наш счёт.
+        api_sms_send:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '1 hour'
+
+        # Проверка 6-значных кодов (смена пароля, вход по коду из SMS, привязка
+        # номера) — 20 попыток за 10 минут с одного IP (плюс предел неверных
+        # попыток на сам код — OtpService::MAX_ATTEMPTS)
+        api_code_verify:
+            policy: 'sliding_window'
+            limit: 20
+            interval: '10 minutes'
+
+        # На один номер — не чаще раза в минуту и не больше 10 SMS в сутки,
+        # с каких бы IP ни просили (см. PhoneCodeService)
+        sms_phone_cooldown:
+            policy: 'fixed_window'
+            limit: 1
+            interval: '1 minute'
+
+        sms_phone_daily:
+            policy: 'fixed_window'
+            limit: 10
+            interval: '1 day'

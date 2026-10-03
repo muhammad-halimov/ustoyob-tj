@@ -25,7 +25,7 @@ class NotifyNewTechSupportEmailService extends AbstractTechSupportNotificationSe
         $siteName = $this->siteName();
         $title    = htmlspecialchars($techSupport->getTitle(), ENT_QUOTES, 'UTF-8');
         $desc     = htmlspecialchars($techSupport->getDescription(), ENT_QUOTES, 'UTF-8');
-        $authorId = $techSupport->getAuthor()?->getEmail() ?? $techSupport->getGuestEmail() ?? 'Гость';
+        $authorId = $techSupport->getAuthor()?->getContact() ?? $techSupport->getGuestEmail() ?? 'Гость';
         $author   = htmlspecialchars($authorId, ENT_QUOTES, 'UTF-8');
         $msgs     = $techSupport->getTechSupportMessages()->count();
         $imgs     = $techSupport->getTechSupportMessages()->first()
@@ -60,7 +60,7 @@ class NotifyNewTechSupportEmailService extends AbstractTechSupportNotificationSe
         $siteName = $this->siteName();
         $title    = htmlspecialchars($techSupport->getTitle(), ENT_QUOTES, 'UTF-8');
         $text     = htmlspecialchars($message->getDescription(), ENT_QUOTES, 'UTF-8');
-        $authorId = $message->getAuthor()?->getEmail() ?? $techSupport->getGuestEmail() ?? 'Гость';
+        $authorId = $message->getAuthor()?->getContact() ?? $techSupport->getGuestEmail() ?? 'Гость';
         $author   = htmlspecialchars($authorId, ENT_QUOTES, 'UTF-8');
         $imgs     = $message->getImages()->count();
 

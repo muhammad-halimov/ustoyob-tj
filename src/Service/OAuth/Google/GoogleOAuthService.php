@@ -307,7 +307,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
             $user->setImageExternalUrl($userData['picture']);
         }
         if (($userData['email_verified'] ?? false) && isset($userData['email'])
-            && str_contains($user->getEmail(), '@internal.local')) {
+            && str_contains((string) $user->getEmail(), '@internal.local')) {
             $user->setEmail($userData['email']);
         }
     }
