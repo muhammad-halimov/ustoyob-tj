@@ -17,6 +17,7 @@
     "@types/dompurify": "^3.0.5",
     "blurhash": "^2.0.5",
     "dompurify": "^3.4.5",
+    "firebase": "^12.19.0",
     "i18next-browser-languagedetector": "^8.2.0",
     "i18next-http-backend": "^3.0.2",
     "marked": "^18.0.13",

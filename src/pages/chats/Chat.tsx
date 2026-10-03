@@ -29,6 +29,7 @@ import { resolveApiError } from '../../utils/appMessagesUtils';
 import { useShowMore } from '../../hooks';
 import { fetchBlacklistEntries, blockUser as blockUserApi, unblockUser as unblockUserApi } from '../../hooks/useBlacklist';
 import { InfoBanner } from '../../widgets/Banners/InfoBanner/InfoBanner';
+import { PushPrompt } from '../../widgets/Banners/PushPrompt/PushPrompt';
 import { Marquee } from '../../shared/ui/Text/Marquee';
 import type { User as ApiUser } from '../../entities/api/User';
 import type { Chat as ApiChat, ChatMessage as ApiMessage } from '../../entities/api/Chat';
@@ -1582,6 +1583,9 @@ function Chat() {
                     activeTab={activeTab}
                     onChange={setActiveTab}
                 />
+
+                {/* Браузер: предложить push-уведомления о новых сообщениях и откликах (utils/webPush.ts). */}
+                <PushPrompt />
 
                 <div className={styles.chatList}>
                     {isChatListRefreshing && filteredChats.length === 0 ? (

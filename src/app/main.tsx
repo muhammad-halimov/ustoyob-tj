@@ -21,6 +21,7 @@ import {Provider} from "react-redux";
 import { ThemeProvider } from '../contexts';
 import { clearCache, preloadData } from '../utils/dataCacheUtils';
 import { loadAppMessages } from '../utils/appMessagesUtils';
+import { initWebPush } from '../utils/webPush';
 
 // Инициализируем кеш данных при старте приложения
 clearCache('occupations');
@@ -33,6 +34,9 @@ window.addEventListener('languageChanged', () => {
 preloadData();
 
 loadAppMessages();
+
+// Push-уведомления в браузере (Firebase) — если уже разрешены, браузер регистрируется сам (utils/webPush.ts).
+initWebPush();
 
 createRoot(document.getElementById('root')!).render(
     // <React.StrictMode> // Временно отключено для тестирования дубликатов

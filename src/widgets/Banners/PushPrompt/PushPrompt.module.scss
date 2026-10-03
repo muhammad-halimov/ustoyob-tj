@@ -1,0 +1,45 @@
+.wrap {
+  position: relative;
+  margin: 8px 12px;
+}
+
+.banner {
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  padding: 12px 36px 12px 14px;
+  font-size: 13px;
+  line-height: 1.35;
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  // Текст — на всю ширину, кнопка — строкой ниже, под текстом (в узкой колонке списка чатов).
+  p {
+    flex: 1 1 calc(100% - 30px);
+  }
+
+  button {
+    margin-left: 30px;
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+}
+
+.close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  padding: 4px;
+  border: none;
+  background: none;
+  color: #3A54DA;
+  cursor: pointer;
+  opacity: 0.7;
+
+  &:hover { opacity: 1; }
+
+  svg { width: 16px; height: 16px; }
+}

@@ -145,6 +145,9 @@ export const clearAuthData = (): void => {
     // button could keep showing "Откликнулся" for a DIFFERENT (or no) logged-in user in
     // the same tab, just because someone else responded to that ticket here earlier.
     removeSessionItem('respondedTicketIds');
+    // Push-уведомления (utils/webPush.ts, на ветке mobile — nativePush.ts): устройство отписывается от этого
+    // аккаунта — событием, а не импортом: модуль push сам зависит от authUtils.
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('authCleared'));
 };
 
 // ============ Работа с ролью пользователя ============

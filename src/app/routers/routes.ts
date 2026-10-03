@@ -84,6 +84,8 @@ export const API_ROUTES = {
     USER_PROFILE_PHOTO: (id: number | string) => `/api/${id}/profile-photo`,
     USERS_SOCIAL_NETWORKS: '/api/users/social-networks',
     USERS_PING: '/api/users/ping',
+    DEVICE_TOKENS: '/api/device-tokens',
+    DEVICE_TOKENS_UNREGISTER: '/api/device-tokens/unregister',
     USERS_OFFLINE: '/api/users/offline',
 
     // Tickets
