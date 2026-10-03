@@ -231,8 +231,9 @@ const GHOSTS: { selector: string; kind: GhostKind; ms: number; inPlace?: boolean
     { selector: '[class*="_photo_modal_overlay_"], [class*="_photoModalOverlay_"]', kind: 'gallery', ms: 200 },
     { selector: '[data-actions-dropdown-portal]', kind: 'menu', ms: 150 },
     // Выпадающий список позиционирован внутри своего поля — призрак остаётся там же, и только если
-    // закрылся сам список, а не всё поле.
-    { selector: '[class*="_dropdown_"][role="listbox"]', kind: 'listbox', ms: 140, inPlace: true },
+    // закрылся сам список, а не всё поле. Список SelectSearch (`_dropdown_`, role="listbox") здесь нет:
+    // он сворачивается сам, и поле до конца сворачивания остаётся «открытым» — призрак этого не умеет,
+    // поле закрывалось раньше, чем пропадал список.
     { selector: '[class*="_language_dropdown_"]', kind: 'listbox', ms: 140, inPlace: true },
 ];
 
@@ -279,7 +280,8 @@ const PRESS_DELAY_MS = 50;
 const PRESS_IN_MS = 110;
 const MOVE_CANCEL_PX = 10;
 const BUTTONISH = 'button, a[href], a[data-native-href], [role="button"], [role="tab"], [role="option"], label[for], summary';
-const NOT_PRESSABLE = 'input, textarea, select, [contenteditable="true"], [data-native-ghost], [class*="_mobile_header_"]';
+// Поле-выпадашка (SelectSearch, `aria-haspopup="listbox"`) — поле ввода, а не кнопка: не «вдавливается».
+const NOT_PRESSABLE = 'input, textarea, select, [contenteditable="true"], [aria-haspopup="listbox"], [data-native-ghost], [class*="_mobile_header_"]';
 // Выше этих контейнеров не поднимаемся: подложка модалки или галереи — не кнопка, даже с cursor: pointer.
 const PRESS_BOUNDARY = `${DIALOG_OVERLAY}, [class*="_photo_modal_overlay_"], [class*="_photoModalOverlay_"], main`;
 const POPUP_CANDIDATES = '[role="listbox"], [role="menu"], [role="tooltip"], [class*="dropdown" i], [class*="popover" i], [class*="tooltip" i]';

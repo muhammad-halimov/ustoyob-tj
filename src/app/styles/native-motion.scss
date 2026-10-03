@@ -98,9 +98,9 @@ html.native {
     transform-origin: top right;
     animation: 180ms $md-decelerate both native-menu-in;
   }
-  // Выпадающие списки — шторкой сверху вниз (обрезкой, без прозрачности): список лежит поверх полей
-  // формы, и при проявлении/угасании они просвечивали сквозь него — раскрытие выглядело дёрганым.
-  [class*='_dropdown_'][role='listbox']:not([data-native-ghost]),
+  // Список языков — шторкой сверху вниз (обрезкой, без прозрачности). Списки SelectSearch раскрываются
+  // и сворачиваются так же, но сами (SelectSearch.module.scss): поле должно оставаться «открытым», пока
+  // список не свернётся.
   [class*='_language_dropdown_']:not([data-native-ghost]) {
     animation: 220ms $md-decelerate both native-list-in;
   }

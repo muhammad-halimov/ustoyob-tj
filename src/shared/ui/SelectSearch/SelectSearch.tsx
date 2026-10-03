@@ -127,6 +127,9 @@ export function SelectSearch<T = unknown>({
     const resolvedPlaceholder = placeholder ?? t('select');
     const resolvedSearchPlaceholder = searchPlaceholder ?? t('search');
     const [open, setOpen] = useState(false);
+    // Список сворачивается (анимация) — поле до конца остаётся «открытым» (без нижней рамки, со
+    // скруглением только сверху), иначе поле успевало закрыться, а список ещё висел под ним.
+    const [closing, setClosing] = useState(false);
     const [query, setQuery] = useState('');
     const [altFocused, setAltFocused] = useState(false);
     const [passwordVisible, setPasswordVisible] = useState(false);
@@ -157,17 +160,34 @@ export function SelectSearch<T = unknown>({
         el.style.overflowY = Number.isFinite(maxH) && el.scrollHeight > maxH ? 'auto' : 'hidden';
     }, [value, isExpandable]);
 
+    const finishClose = useCallback(() => {
+        setOpen(false);
+        setClosing(false);
+        setQuery('');
+    }, []);
+
+    // Закрыть: со сворачиванием, если анимации не отключены в системе. Поиск очищается уже после —
+    // иначе отфильтрованный список на время сворачивания вырастал до полного.
+    const close = useCallback(() => {
+        if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) finishClose();
+        else setClosing(true);
+    }, [finishClose]);
+
+    // Страховка: animationend может не прийти (вкладка в фоне и т.п.)
+    useEffect(() => {
+        if (!closing) return;
+        const timer = window.setTimeout(finishClose, 300);
+        return () => window.clearTimeout(timer);
+    }, [closing, finishClose]);
+
     // Закрытие по клику снаружи
     useEffect(() => {
         const handler = (e: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-                setOpen(false);
-                setQuery('');
-            }
+            if (open && containerRef.current && !containerRef.current.contains(e.target as Node)) close();
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
-    }, []);
+    }, [open, close]);
 
     // Фокус на поиск при открытии — только с мышью. На сенсорном экране фокус сразу поднимает
     // клавиатуру: страница сжимается и прокручивается, список прыгает, а при закрытии клавиатура
@@ -180,32 +200,28 @@ export function SelectSearch<T = unknown>({
 
     const handleToggle = useCallback(() => {
         if (disabled) return;
-        setOpen(v => {
-            if (v) setQuery('');
-            return !v;
-        });
-    }, [disabled]);
+        if (closing) setClosing(false); // нажали снова, пока сворачивается, — раскрываем обратно
+        else if (open) close();
+        else setOpen(true);
+    }, [disabled, open, closing, close]);
 
     const handleSelect = useCallback((option: SelectOption<T>) => {
         onChange(option.value, option);
-        setOpen(false);
-        setQuery('');
-    }, [onChange]);
+        close();
+    }, [onChange, close]);
 
     const handleClear = useCallback(() => {
         onChange('', undefined);
-        setOpen(false);
-        setQuery('');
-    }, [onChange]);
+        if (open) close();
+    }, [onChange, open, close]);
 
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Escape') {
-            setOpen(false);
-            setQuery('');
+            close();
         } else if (e.key === 'Enter' && filtered.length > 0) {
             handleSelect(filtered[0]);
         }
-    }, [filtered, handleSelect]);
+    }, [filtered, handleSelect, close]);
 
     if (loading) {
         return (
@@ -332,7 +348,7 @@ export function SelectSearch<T = unknown>({
                     }
                 }}
                 aria-haspopup="listbox"
-                aria-expanded={open}
+                aria-expanded={open && !closing}
             >
                 {showSearchIcon && !selectedOption && (
                     <svg className={styles.searchIcon} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -356,7 +372,7 @@ export function SelectSearch<T = unknown>({
                     />
                 )}
                 <svg
-                    className={`${styles.chevron} ${open ? styles.chevronUp : ''}`}
+                    className={`${styles.chevron} ${open && !closing ? styles.chevronUp : ''}`}
                     viewBox="0 0 16 16"
                     fill="none"
                     xmlns="http://www.w3.org/2000/svg"
@@ -367,7 +383,11 @@ export function SelectSearch<T = unknown>({
 
             {/* Дропдаун */}
             {open && (
-                <div className={styles.dropdown} role="listbox">
+                <div
+                    className={`${styles.dropdown} ${closing ? styles.dropdownClosing : ''}`}
+                    role="listbox"
+                    onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) finishClose(); }}
+                >
                     {/* Поле поиска */}
                     {!noSearch && (
                         <div className={styles.searchWrap}>

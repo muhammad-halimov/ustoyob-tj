@@ -183,6 +183,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     // высоты содержимое обрезается (`resizing`), в остальное время — нет: иначе обрезались бы
     // выпадающие списки, которые выходят за экран.
     const screenRef = useRef<HTMLDivElement>(null);
+    const modalContentRef = useRef<HTMLDivElement>(null);
     const [screenHeight, setScreenHeight] = useState<number | null>(null);
     const [resizing, setResizing] = useState(false);
     const lastHeightRef = useRef<number | null>(null);
@@ -197,7 +198,12 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             setAnimateScreens(false);
             return;
         }
-        if (shownStateRef.current !== null && shownStateRef.current !== currentState) setAnimateScreens(true);
+        if (shownStateRef.current !== null && shownStateRef.current !== currentState) {
+            setAnimateScreens(true);
+            // Новый экран — с начала: прокрутка длинного (регистрация) иначе оставалась, и короткий
+            // экран оказывался обрезан сверху
+            modalContentRef.current?.scrollTo({ top: 0 });
+        }
         shownStateRef.current = currentState;
         const el = screenRef.current;
         if (!el) return;
@@ -1859,6 +1865,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             {isOpen && (
                 <div className={styles.modalOverlay} onClick={handleOverlayClick}>
                     <div
+                        ref={modalContentRef}
                         className={`${styles.modalContent} ${styles[`modal_${currentState}`]}`}
                         onClick={(e) => e.stopPropagation()}
                     >

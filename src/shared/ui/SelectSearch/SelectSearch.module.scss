@@ -217,9 +217,9 @@
   border-radius: 0 0 12px 12px;
   box-shadow: 0 8px 24px var(--color-shadow-light);
   overflow: hidden;
-  // Раскрывается шторкой сверху вниз — обрезкой, без прозрачности: список лежит поверх полей формы,
-  // и при проявлении через opacity они просвечивали сквозь него. В приложении (html.native) анимацию
-  // задаёт native-motion.scss — та же шторка, плюс сворачивание при закрытии.
+  // Раскрывается шторкой сверху вниз и так же сворачивается (.dropdownClosing) — обрезкой, без
+  // прозрачности: список лежит поверх полей формы, и при проявлении через opacity они просвечивали
+  // сквозь него. Анимации — только здесь, и на сайте, и в приложении (native-motion этот список не трогает).
   animation: dropdownIn 0.22s cubic-bezier(0.05, 0.7, 0.1, 1);
 
   @media (prefers-reduced-motion: reduce) {
@@ -227,10 +227,20 @@
   }
 }
 
+.dropdownClosing {
+  animation: dropdownOut 0.16s cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
+  pointer-events: none;
+}
+
 // Поля обрезки по бокам и снизу — с запасом под тень списка
 @keyframes dropdownIn {
   from { clip-path: inset(0 -40px 100% -40px); }
   to { clip-path: inset(0 -40px -40px -40px); }
+}
+
+@keyframes dropdownOut {
+  from { clip-path: inset(0 -40px -40px -40px); }
+  to { clip-path: inset(0 -40px 100% -40px); }
 }
 
 // ── Поиск внутри дропдауна ───────────────────────────────────────────────────
