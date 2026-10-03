@@ -16,6 +16,21 @@ const config: CapacitorConfig = {
       backgroundColor: '#3A54DA',
       showSpinner: false,
     },
+    // Push (utils/nativePush.ts): пока приложение открыто, системные уведомления не показываем — новые
+    // сообщения и так видны в приложении. Только iOS; на Android в открытом приложении их и так нет.
+    FirebaseMessaging: {
+      presentationOptions: [],
+    },
+  },
+  experimental: {
+    ios: {
+      spm: {
+        // Иначе SwiftPM путает пакет плагина с пакетом Firebase (см. README @capacitor-firebase/messaging).
+        packageOptions: {
+          '@capacitor-firebase/messaging': { symlink: true },
+        },
+      },
+    },
   },
   ios: {
     // `never` (значение Capacitor по умолчанию, указано явно): веб-вью на весь экран, под статус-баром

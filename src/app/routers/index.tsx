@@ -21,6 +21,7 @@ import { ROUTE_PATTERNS } from './routes';
 import { tabElement } from '../layouts/keepAliveTabs';
 import { installNativePageTransitions } from '../../utils/nativeMotion';
 import { installNativeLinks } from '../../utils/nativeLinks';
+import { installNativePush } from '../../utils/nativePush';
 
 /**
  * Application router.
@@ -133,9 +134,10 @@ const router = createBrowserRouter([
 ]);
 
 // Мобильная сборка: анимированные переходы между экранами (utils/nativeMotion.ts) и ссылки без `href`
-// и «в новой вкладке» (utils/nativeLinks.ts).
+// и «в новой вкладке» (utils/nativeLinks.ts), push-уведомления (utils/nativePush.ts).
 installNativePageTransitions(router);
 installNativeLinks(router);
+installNativePush(router);
 
 export const AppRouter = () => {
     return <RouterProvider router={router} />;

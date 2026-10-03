@@ -7,3 +7,6 @@ DerivedData/
 .swiftpm/config/registries.json
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
+
+# Ссылки на плагины для SwiftPM (packageOptions.symlink в capacitor.config.ts) — создаёт `npx cap sync ios`
+/symlinks

@@ -499,3 +499,25 @@ npm run assets      # перегенерировать иконки и сплэ�
 
 Заменили картинку в `assets/` — запустите `npm run assets` и закоммитьте изменения в `ios/` и `android/`.
 Генератор может переформатировать `AndroidManifest.xml` (только пробелы/теги, смысл не меняется).
+
+## Push-уведомления (Firebase Cloud Messaging)
+
+Новое сообщение в чате и новый отклик на объявление приходят push-уведомлением на Android и iOS; нажатие открывает чат. Код: `src/utils/nativePush.ts` (плагин `@capacitor-firebase/messaging`), сервер — README бэкенда (`main`) → «Push-уведомления». Пока в проекте нет файлов Firebase, приложение собирается и работает как раньше, просто без уведомлений.
+
+Как устроено:
+
+- Устройство регистрируется на сервере при запуске (если пользователь вошёл) и сразу после входа; разрешение на уведомления спрашивается тогда же, один раз. При выходе из аккаунта устройство отписывается. Смена языка — перерегистрация: текст уведомлений на языке приложения.
+- Пока приложение открыто, системные уведомления не показываются (сообщения и так видны в приложении).
+- Одно уведомление на чат: новое сообщение заменяет предыдущее (Android `tag`, iOS `thread-id`). Android-канал — `messages` («Чаты»), значок — `res/drawable/ic_stat_notify.xml`.
+
+Настройка (один раз):
+
+1. [Firebase console](https://console.firebase.google.com) → создать проект → **Add app**:
+   - **Android**, package name `tj.ustoyob.app` → скачать `google-services.json` → положить в `android/app/google-services.json` (gradle сам подключит плагин `google-services`, см. `android/app/build.gradle`).
+   - **iOS**, bundle id `tj.ustoyob.app` → скачать `GoogleService-Info.plist` → в Xcode перетащить в группу `App` (галка **Copy items if needed**, target **App**). Просто положить файл в папку мало — он должен быть в target.
+2. iOS, ключ APNs: [Apple Developer → Keys](https://developer.apple.com/account/resources/authkeys/list) → «+» → **Apple Push Notifications service (APNs)** → скачать `.p8` (скачивается один раз). Firebase → Project settings → **Cloud Messaging** → Apple app configuration → **APNs Authentication Key** → загрузить `.p8`, указать Key ID и Team ID (`PD62HNY4L2`).
+3. Xcode → target **App** → Signing & Capabilities: должны быть **Push Notifications** и **Background Modes → Remote notifications**. В проекте они уже прописаны (`App/App.entitlements`, `UIBackgroundModes` в `Info.plist`); если Xcode ругается на профиль — включите Push Notifications для App ID `tj.ustoyob.app` в Apple Developer → Identifiers. `aps-environment` = `development` в файле — при архивации для App Store Xcode сам ставит `production`.
+4. Сервер: ключ сервисного аккаунта Firebase и `FIREBASE_CREDENTIALS` — см. README бэкенда.
+5. `npm install && npm run build && npx cap sync` — Android/iOS проекты подхватят плагин (на iOS `cap sync` создаёт `ios/App/CapApp-SPM/symlinks/`, в git его нет).
+
+Проверка: войти в приложение на телефоне, разрешить уведомления, свернуть приложение и написать этому пользователю с другого аккаунта (сайт или второе устройство). Push не приходят на iOS-симулятор без настроенного APNs и на Android-эмулятор без Google Play — проверяйте на устройствах.
