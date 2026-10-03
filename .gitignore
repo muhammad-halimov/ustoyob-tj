@@ -45,6 +45,8 @@ coverage/
 .npm
 .gitconfig
 .node_repl_history
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist 
 
 # ============================
 # Capacitor / Android
