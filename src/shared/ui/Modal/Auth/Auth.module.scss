@@ -517,12 +517,6 @@
     padding: 20px;
   }
 
-  // Titles sit on the same horizontal centerline as the close control in compact modals.
-  .modalContent .form h2 {
-    position: relative;
-    top: 8px;
-  }
-
   // Все 4 OAuth-иконки уменьшаются вместе и пропорционально (см. комментарий у базового
   // .form .socialButtons) — раньше только Google/Facebook ужимались (нестрого, через
   // width:70% без height, что ещё и растягивало картинку), а Instagram/Telegram
