@@ -337,6 +337,74 @@ html.native[data-native-tab='/chats'] body:has([class*='_chatAreaActive_']) {
   }
 }
 
+.native-pull-refresh {
+  position: fixed;
+  z-index: 998;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  left: 50%;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--color-border-light);
+  border-radius: 50%;
+  background: var(--color-background-primary);
+  color: var(--color-actual-blue);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 12px));
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 160ms ease;
+
+  svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+  }
+
+  .native-pull-refresh__track {
+    opacity: 0.2;
+  }
+
+  .native-pull-refresh__progress {
+    stroke-dasharray: 56.55;
+    transform: rotate(-90deg);
+    transform-origin: center;
+  }
+}
+
+.native-pull-refresh--pulling {
+  opacity: var(--pull-opacity, 1);
+  transform: translate(-50%, calc(-100% + var(--pull-distance)));
+  transition: none;
+}
+
+.native-pull-refresh--refreshing {
+  opacity: 1;
+  transform: translate(-50%, calc(-100% + var(--pull-distance, 64px)));
+}
+
+.native-pull-refresh--refreshing .native-pull-refresh__progress {
+  animation: nativePullRefreshSpin 0.8s linear infinite;
+}
+
+@keyframes nativePullRefreshSpin {
+  to { transform: rotate(270deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .native-pull-refresh {
+    transition-duration: 0.01ms;
+  }
+
+  .native-pull-refresh--refreshing .native-pull-refresh__progress {
+    animation-duration: 1.2s;
+  }
+}
+
 // Android: поле сообщения в фокусе (открыта клавиатура) — нижняя панель прячется, как в мессенджерах:
 // поле ввода прямо над клавиатурой, а освободившееся место отдаётся переписке. У обращения в ТП ещё
 // сворачиваются подробности шапки (остаётся тема) — иначе ленте оставалась одна строка. Высоты — до

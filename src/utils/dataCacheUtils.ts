@@ -69,6 +69,7 @@ function createCachedFetcher<T>(
 ) {
     const cache    = new Map<string, CacheEntry<T>>();
     const inFlight = new Map<string, Promise<T[]>>();
+    let generation = 0;
     // Мобильная сборка: каждый справочник переживает перезапуск (localStorage), даже без явного ключа.
     if (!persistKey && IS_NATIVE_APP) persistKey = `dataCache:${endpoint}`;
 
@@ -109,20 +110,24 @@ function createCachedFetcher<T>(
     }
 
     function load(cacheKey: string, fullEndpoint: string, targetLocale: string): Promise<T[]> {
+        const loadGeneration = generation;
 
-        const promise = (async (): Promise<T[]> => {
+        let promise!: Promise<T[]>;
+        promise = (async (): Promise<T[]> => {
             try {
                 const apiLocale = opts.locale !== undefined ? opts.locale : (targetLocale as LocaleType);
                 // Справочник — это ВСЕ записи, а не первая страница (бэкенд: 25 по умолчанию, максимум 50) —
                 // см. fetchAllPages. Раньше `/api/categories` отдавал 25 из 32, районы 25 из 30, подкатегории 50 из 124.
                 const items = await fetchAllPages<T>(fullEndpoint, { locale: apiLocale, requiresAuth: opts.requiresAuth });
-                writeEntry(cacheKey, { data: items, locale: targetLocale, timestamp: Date.now() });
+                if (loadGeneration === generation) {
+                    writeEntry(cacheKey, { data: items, locale: targetLocale, timestamp: Date.now() });
+                }
                 return items;
             } catch (error) {
                 console.error(`[dataCache] Error fetching ${fullEndpoint}:`, error);
                 return [];
             } finally {
-                inFlight.delete(cacheKey);
+                if (inFlight.get(cacheKey) === promise) inFlight.delete(cacheKey);
             }
         })();
 
@@ -130,7 +135,7 @@ function createCachedFetcher<T>(
         return promise;
     }
 
-    fetcher.clearCache = (): void => { cache.clear(); inFlight.clear(); };
+    fetcher.clearCache = (): void => { generation++; cache.clear(); inFlight.clear(); };
     /**
      * Мобильная сборка, первый запуск: данные из встроенного снимка (utils/nativeSnapshot.ts) — только
      * в память и только если своих ещё нет. С timestamp 0 запись сразу протухшая: экран получает её
@@ -181,6 +186,7 @@ function createCachedFetcher<T>(
 function createMeCache<T>(endpoint: string, cacheDuration = CACHE_DURATION, paged = false) {
     let cached: { data: T; timestamp: number } | null = null;
     let inFlight: Promise<T> | null = null;
+    let generation = 0;
 
     async function fetcher(force = false): Promise<T> {
         if (!force && cached && Date.now() - cached.timestamp < cacheDuration) {
@@ -188,23 +194,28 @@ function createMeCache<T>(endpoint: string, cacheDuration = CACHE_DURATION, page
         }
         if (inFlight) return inFlight;
 
-        inFlight = (async (): Promise<T> => {
+        const requestGeneration = generation;
+        let request!: Promise<T>;
+        request = (async (): Promise<T> => {
             try {
                 // paged — коллекция (например, свои обращения в ТП): нужны ВСЕ страницы, а не первые 25.
                 const data = (paged ? await fetchAllPages(endpoint) : await universalApiRequest(endpoint)) as T;
-                cached = { data, timestamp: Date.now() };
-                // Мобильная сборка: весь собранный список — в кэш API (переживает перезапуск), см. peek.
-                rememberApi(`${endpoint}?__all=1`, {}, data);
+                if (requestGeneration === generation) {
+                    cached = { data, timestamp: Date.now() };
+                    // Мобильная сборка: весь собранный список — в кэш API (переживает перезапуск), см. peek.
+                    rememberApi(`${endpoint}?__all=1`, {}, data);
+                }
                 return data;
             } finally {
-                inFlight = null;
+                if (inFlight === request) inFlight = null;
             }
         })();
+        inFlight = request;
 
-        return inFlight;
+        return request;
     }
 
-    fetcher.clearCache = (): void => { cached = null; inFlight = null; };
+    fetcher.clearCache = (): void => { generation++; cached = null; inFlight = null; };
     /** Последние данные синхронно (память, в мобильной сборке — и сохранённые до перезапуска), без сети. */
     fetcher.peek = (): T | undefined => cached?.data ?? peekApi<T>(`${endpoint}?__all=1`);
     return fetcher;

@@ -8,6 +8,7 @@ import { setupTokenRefresh, isAuthenticated } from '../../utils/authUtils';
 import { getSessionItem, setSessionItem } from '../../utils/storageUtils';
 import { TabKeepAlive } from './TabKeepAlive';
 import { KEEP_ALIVE, isKeepAliveTab } from './keepAliveTabs';
+import { NativePullToRefresh } from './NativePullToRefresh';
 
 /**
  * Root layout component. Wraps all nested page routes (via <Outlet>).
@@ -119,6 +120,7 @@ export default function Layout() {
                 <Outlet />
             </main>
             <Footer />
+            <NativePullToRefresh disabled={isAuthModalOpen} />
             <Auth
                 isOpen={isAuthModalOpen}
                 onClose={closeAuthModal}

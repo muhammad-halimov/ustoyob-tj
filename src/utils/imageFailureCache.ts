@@ -33,3 +33,8 @@ export const markImageVariantFailed = (src: string): void => {
     if (set.size > MAX_ENTRIES) set.delete(set.values().next().value as string);
     try { sessionStorage.setItem(KEY, JSON.stringify([...set])); } catch { /* ignore */ }
 };
+
+export const clearImageFailureCache = (): void => {
+    failed = new Set();
+    try { sessionStorage.removeItem(KEY); } catch { /* ignore */ }
+};

@@ -6,7 +6,7 @@ import type { Ticket, SortByType, FavoriteTicketView, ResolvedImage } from '../e
 import type { TicketView } from '../entities';
 import { formatTicketImageUrl, toPhotoSource, resolveAvatar } from './imageUtils';
 import { API_BASE_URL } from './configUtils';
-import { apiCacheKey, peekByKey, sameResponse, seedMemoryByKey, storeByKey } from './apiCache';
+import { apiCacheKey, getApiCacheGeneration, peekByKey, sameResponse, seedMemoryByKey, storeByKey } from './apiCache';
 import { API_ROUTES } from '../app/routers/routes';
 import { NATIVE_HTTP, nativeFetch } from './nativeHttp';
 
@@ -182,6 +182,7 @@ export const rememberApi = (endpoint: string, options: ApiRequestOptions, data: 
 };
 
 export const universalApiRequest = async (endpoint: string, options: ApiRequestOptions = {}): Promise<any> => {
+    const cacheGeneration = getApiCacheGeneration();
 
     const executeRequest = async (): Promise<Response> => {
         // Мобильная сборка: пока обновляется токен (например, сразу после запуска с истёкшим JWT),
@@ -240,9 +241,9 @@ export const universalApiRequest = async (endpoint: string, options: ApiRequestO
 
     const text = await response.text();
     const data = text ? JSON.parse(text) : null;
-    if (text && isCacheableGet(options) && isCacheableEndpoint(endpoint)) {
+    if (cacheGeneration === getApiCacheGeneration() && text && isCacheableGet(options) && isCacheableEndpoint(endpoint)) {
         const token = options.requiresAuth !== false ? getAuthToken() : null;
-        storeByKey(apiCacheKey(buildRequestUrl(endpoint, options), token), data, text);
+        storeByKey(apiCacheKey(buildRequestUrl(endpoint, options), token), data, text, cacheGeneration);
         seedTicketsFromList(endpoint, options, data, token);
     }
     return data;

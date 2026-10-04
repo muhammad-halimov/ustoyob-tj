@@ -33,6 +33,12 @@ const _cache = new Map<string, AppMessage>();
 let _loadedLocale: string | null = null;
 let _loadPromise: Promise<void> | null = null;
 
+export const clearAppMessagesCache = (): void => {
+    _cache.clear();
+    _loadedLocale = null;
+    _loadPromise = null;
+};
+
 // ─── Load ─────────────────────────────────────────────────────────────────────
 
 /**

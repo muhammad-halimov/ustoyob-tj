@@ -35,6 +35,7 @@ const TOKEN_LIFETIME_HOURS = 1;
 //              пока не истёк ME_CACHE_TTL_MS (30 сек).
 let _mePromise: Promise<User | null> | null = null;
 let _meCachedAt = 0;
+let _meCacheGeneration = 0;
 const ME_CACHE_TTL_MS = 30_000 as const;
 
 // Aliases to keep internal code concise
@@ -362,6 +363,13 @@ export const invalidateCurrentUserCache = (): void => {
     _meCachedAt = 0;
 };
 
+export const clearCurrentUserCache = (): void => {
+    _meCacheGeneration++;
+    _mePromise = null;
+    _meCachedAt = 0;
+    removeItems(STORAGE_KEYS.USER_DATA);
+};
+
 /**
  * Fetches the current user from /api/users/me with:
  *   - localStorage cache: returns stored data when fresher than ME_CACHE_TTL_MS (30 s).
@@ -380,7 +388,9 @@ export const fetchCurrentUser = async (): Promise<User | null> => {
     // Deduplicate concurrent in-flight requests
     if (_mePromise) return _mePromise;
 
-    _mePromise = (async () => {
+    const requestGeneration = _meCacheGeneration;
+    let request!: Promise<User | null>;
+    request = (async () => {
         try {
             // Мобильная сборка: если токен как раз обновляется (запуск с истёкшим JWT, см.
             // utils/nativeSession.ts), идём уже с новым, а не за заведомым 401.
@@ -396,8 +406,10 @@ export const fetchCurrentUser = async (): Promise<User | null> => {
 
             if (response.ok) {
                 const userData: User = await response.json();
-                setUserData(userData);
-                _meCachedAt = Date.now();
+                if (requestGeneration === _meCacheGeneration) {
+                    setUserData(userData);
+                    _meCachedAt = Date.now();
+                }
                 return userData;
             }
 
@@ -414,8 +426,10 @@ export const fetchCurrentUser = async (): Promise<User | null> => {
                 });
                 if (!retryResp.ok) return null;
                 const userData: User = await retryResp.json();
-                setUserData(userData);
-                _meCachedAt = Date.now();
+                if (requestGeneration === _meCacheGeneration) {
+                    setUserData(userData);
+                    _meCachedAt = Date.now();
+                }
                 return userData;
             }
 
@@ -423,9 +437,10 @@ export const fetchCurrentUser = async (): Promise<User | null> => {
         } catch {
             return null;
         } finally {
-            _mePromise = null;
+            if (_mePromise === request) _mePromise = null;
         }
     })();
+    _mePromise = request;
 
-    return _mePromise;
+    return request;
 };

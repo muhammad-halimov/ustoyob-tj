@@ -49,6 +49,12 @@ const SIZE_EXTERNAL = 32;
 const externalCache = new Map<string, string | undefined>();
 const externalPending = new Map<string, Promise<string | undefined>>();
 
+export const clearBlurhashCache = (): void => {
+    cache.clear();
+    externalCache.clear();
+    externalPending.clear();
+};
+
 export const computeExternalBlurhash = (url: string | null | undefined): Promise<string | undefined> => {
     if (!url) return Promise.resolve(undefined);
     if (externalCache.has(url)) return Promise.resolve(externalCache.get(url));

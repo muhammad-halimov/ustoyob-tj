@@ -1,5 +1,34 @@
 import UIKit
 import Capacitor
+import WebKit
+
+class NativeCachePlugin: CAPPlugin, CAPBridgedPlugin {
+    let identifier = "NativeCachePlugin"
+    let jsName = "NativeCache"
+    let pluginMethods = [
+        CAPPluginMethod(name: "clearWebViewCache", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func clearWebViewCache(_ call: CAPPluginCall) {
+        let dataTypes: Set<String> = [
+            WKWebsiteDataTypeDiskCache,
+            WKWebsiteDataTypeMemoryCache,
+            WKWebsiteDataTypeServiceWorkerRegistrations,
+        ]
+
+        WKWebsiteDataStore.default().removeData(ofTypes: dataTypes, modifiedSince: .distantPast) {
+            URLCache.shared.removeAllCachedResponses()
+            call.resolve()
+        }
+    }
+}
+
+class NativeBridgeViewController: CAPBridgeViewController {
+    override func capacitorDidLoad() {
+        super.capacitorDidLoad()
+        bridge?.registerPluginInstance(NativeCachePlugin())
+    }
+}
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
@@ -8,7 +37,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = CAPBridgeViewController()
+        window?.rootViewController = NativeBridgeViewController()
         window?.makeKeyAndVisible()
 
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)

@@ -26,6 +26,7 @@ const MAX_ENTRY_CHARS = 200_000;
 const MAX_TOTAL_CHARS = 2_000_000;
 
 const memory = new Map<string, unknown>();
+let generation = 0;
 type IndexEntry = [storageKey: string, chars: number];
 let index: IndexEntry[] | null = null; // от старых к новым
 
@@ -79,8 +80,10 @@ export const peekByKey = (key: string): unknown => {
     }
 };
 
-export const storeByKey = (key: string, value: unknown, rawText: string): void => {
-    if (!ENABLED) return;
+export const getApiCacheGeneration = (): number => generation;
+
+export const storeByKey = (key: string, value: unknown, rawText: string, expectedGeneration = generation): void => {
+    if (!ENABLED || expectedGeneration !== generation) return;
     memory.set(key, value);
     if (rawText.length > MAX_ENTRY_CHARS) return;
     const idx = loadIndex();
@@ -106,8 +109,8 @@ export const storeByKey = (key: string, value: unknown, rawText: string): void =
 };
 
 /** Только в память (без localStorage) — для подсказок, выведенных из других ответов, см. seed в apiUtils. */
-export const seedMemoryByKey = (key: string, value: unknown): void => {
-    if (!ENABLED) return;
+export const seedMemoryByKey = (key: string, value: unknown, expectedGeneration = generation): void => {
+    if (!ENABLED || expectedGeneration !== generation) return;
     memory.set(key, value);
 };
 
@@ -117,6 +120,7 @@ export const sameResponse = (a: unknown, b: unknown): boolean => {
 };
 
 export const clearApiCache = (): void => {
+    generation++;
     memory.clear();
     const idx = loadIndex();
     for (const [k] of idx) try { localStorage.removeItem(k); } catch { /* ignore */ }

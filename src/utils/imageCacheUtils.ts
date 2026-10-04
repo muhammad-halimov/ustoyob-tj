@@ -50,6 +50,7 @@ export const registerBundledImages = (images: Record<string, string>): void => {
 const cache = new Map<string, Entry>();      // порядок вставки = порядок «свежести» (LRU)
 const inFlight = new Map<string, Promise<string | null>>();
 let totalBytes = 0;
+let cacheGeneration = 0;
 
 // ─── IndexedDB (Blob-подложка, переживает сброс JS-модулей) ─────────────────
 
@@ -104,9 +105,9 @@ const idbGet = async (url: string): Promise<IdbEntry | null> => {
     });
 };
 
-const idbPut = async (entry: IdbEntry): Promise<void> => {
+const idbPut = async (entry: IdbEntry, expectedGeneration = cacheGeneration): Promise<void> => {
     const db = await openDb();
-    if (!db) return;
+    if (!db || expectedGeneration !== cacheGeneration) return;
     return new Promise((resolve) => {
         try {
             const tx = db.transaction(IDB_STORE, 'readwrite');
@@ -197,12 +198,15 @@ export const getCachedImage = (url: string): Promise<string | null> => {
 
     const existing = inFlight.get(url);
     if (existing) return existing;
+    const requestGeneration = cacheGeneration;
 
-    const promise = (async (): Promise<string | null> => {
+    let promise!: Promise<string | null>;
+    promise = (async (): Promise<string | null> => {
         try {
             // IndexedDB — раньше сети: если Blob уже лежал на диске с прошлой сессии/визита,
             // не тратим сетевой запрос заново.
             const idbHit = await idbGet(url);
+            if (requestGeneration !== cacheGeneration) return null;
             if (idbHit && Date.now() - idbHit.timestamp < IDB_DURATION) {
                 // Срок в памяти — с момента загрузки в память; иначе месячная копия с диска считалась бы
                 // протухшей в памяти сразу же.
@@ -212,10 +216,12 @@ export const getCachedImage = (url: string): Promise<string | null> => {
             const bundled = bundledImages.get(url);
             if (bundled) {
                 const local = await fetch(`/${bundled}`).catch(() => null);
+                if (requestGeneration !== cacheGeneration) return null;
                 if (local?.ok && (local.headers.get('content-type') ?? '').startsWith('image/')) {
                     const blob = await local.blob();
+                    if (requestGeneration !== cacheGeneration) return null;
                     const timestamp = Date.now();
-                    void idbPut({ url, blob, timestamp });
+                    void idbPut({ url, blob, timestamp }, requestGeneration);
                     return registerBlob(url, blob, timestamp);
                 }
             }
@@ -229,15 +235,17 @@ export const getCachedImage = (url: string): Promise<string | null> => {
             } catch {
                 res = await fetch(url, { cache: 'no-cache' });
             }
+            if (requestGeneration !== cacheGeneration) return null;
             if (!res.ok || !(res.headers.get('content-type') ?? '').startsWith('image/')) return null;
             const blob = await res.blob();
+            if (requestGeneration !== cacheGeneration) return null;
             const timestamp = Date.now();
-            void idbPut({ url, blob, timestamp });
+            void idbPut({ url, blob, timestamp }, requestGeneration);
             return registerBlob(url, blob, timestamp);
         } catch {
             return null;
         } finally {
-            inFlight.delete(url);
+            if (inFlight.get(url) === promise) inFlight.delete(url);
         }
     })();
 
@@ -262,7 +270,26 @@ export const preloadImages = async (urls: string[], timeoutMs = 3000): Promise<v
 /** Выкинуть картинку из кэша (например, когда сам `blob:` перестал грузиться). */
 export const evictCachedImage = (url: string): void => drop(url);
 
-export const clearImageCache = (): void => {
-    [...cache.keys()].forEach(url => drop(url));
+export const clearImageCache = async (): Promise<void> => {
+    cacheGeneration++;
+    for (const entry of cache.values()) {
+        setTimeout(() => URL.revokeObjectURL(entry.objectUrl), REVOKE_DELAY);
+    }
+    cache.clear();
+    totalBytes = 0;
     inFlight.clear();
+
+    const db = await openDb();
+    if (!db) return;
+    await new Promise<void>((resolve) => {
+        try {
+            const tx = db.transaction(IDB_STORE, 'readwrite');
+            tx.objectStore(IDB_STORE).clear();
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => resolve();
+            tx.onabort = () => resolve();
+        } catch {
+            resolve();
+        }
+    });
 };

@@ -51,6 +51,7 @@ npm run cap:run:ios         # то же для iOS (симулятор, см. р
 |---|---|---|
 | Вкладки нижней панели не пересоздаются | `app/layouts/TabKeepAlive.tsx`, `keepAliveTabs.ts` | React `<Activity>`: вкладка монтируется один раз, скрытая — на паузе, прокрутка своя у каждой |
 | Экраны открываются мгновенно | `utils/apiCache.ts`, `nativePrefetch.ts`, `nativeChatPrefetch.ts`, `nativeSnapshot.ts` | Stale-while-revalidate: последний ответ API сразу, свежий — следом; фоновая предзагрузка |
+| Обновление свайпом | `app/layouts/NativePullToRefresh.tsx`, `utils/nativeRefresh.ts`, `utils/nativeWebViewCache.ts` | Сбрасывает кэши API/справочников, профиля, изображений (IndexedDB), переводов и категорий, Cache Storage и HTTP-кэш WebView; после reload пропускает встроенный snapshot. Вход, cookies и настройки сохраняются. Новые persistent-кэши нужно добавлять в `clearNativeAppCaches()`. |
 | Сплэш до первых данных | `utils/nativeSplash.ts` | Держится до `app:ready` с главной, максимум 3,5 с |
 | Сессия не слетает | `utils/nativeSession.ts`, `nativeHttp.ts` | Вход, обновление токена и выход — нативными запросами (refresh-cookie в нативном хранилище; WebView межсайтовую cookie не хранит) |
 | Анимации по платформе | `utils/nativeMotion.ts`, `nativeLayoutMotion.ts`, `app/styles/native-motion.scss` | Переходы экранов (Material / UIKit), модалки и меню, отклик на нажатие, перестройка блоков на месте |

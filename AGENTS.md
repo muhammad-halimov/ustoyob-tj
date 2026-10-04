@@ -89,6 +89,16 @@ Separate top-level routes (not nested under Layout) handle OAuth:
 - `preloadData()`: Warm all static data (cities, occupations, etc.).
 - `clearCache(key?)`: Invalidate by key or all if key omitted.
 - Subscribes to `languageChanged` event to clear cache on language switch.
+- The native pull-to-refresh uses `src/utils/nativeRefresh.ts` to clear all app-owned cache layers:
+  API/data responses (`apiCache:` and `dataCache:` in localStorage), image blobs (IndexedDB `imageCache`),
+  failed-image variants, ticket translations, cached category metadata, Cache Storage, WebView/URLSession
+  HTTP resources, cached current-user profile, and module-level TTL/BlurHash/message caches. It preserves
+  auth tokens/cookies, locale, theme, selected city, favorites, search/filter state, and other user state.
+  The packaged `public/snapshot/` seed is immutable app content; pull-to-refresh skips it once after reload
+  so stale bundled data does not refill the just-cleared runtime cache.
+- Add any new persistent cache to `clearNativeAppCaches()` and document its storage key/database. The
+  native WebView cache bridge is `src/utils/nativeWebViewCache.ts` plus Android `NativeCachePlugin.java`
+  and the iOS bridge in `ios/App/App/SceneDelegate.swift`.
 
 ### Config (`src/utils/configUtils.ts`)
 - `API_BASE_URL` = `import.meta.env.VITE_API_BASE_URL` (пусто = относительные URL → dev-прокси Vite).
@@ -294,4 +304,3 @@ npm run lint    # ESLint check
 - **Styling Guide**: `guides/` directory (dark theme, i18n, optimization, etc.)
 - **OAuth Integration**: `guides/OAUTH_INTEGRATION.md`, page at `src/pages/OAuth/`
 - **UUID Migration (backend ids int→string, 09.2026)**: `guides/UUID_MIGRATION_GUIDE.md` — read before touching any code that parses an id out of an IRI (`\d+` regexes) or coerces an id with `Number()`/`parseInt()`
-

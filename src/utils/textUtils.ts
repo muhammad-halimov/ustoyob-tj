@@ -1,4 +1,4 @@
-import { getStorageJSON, setStorageJSON } from './storageUtils';
+import { getStorageJSON, removeStorageItem, setStorageJSON } from './storageUtils';
 
 // ============================================================================
 // Transliteration Maps
@@ -307,6 +307,12 @@ interface TranslationCache {
 }
 
 const TRANSLATION_CACHE_KEY = 'ticketTranslationCache';
+let translationCacheGeneration = 0;
+
+export const clearTicketTranslationCache = (): void => {
+    translationCacheGeneration++;
+    removeStorageItem(TRANSLATION_CACHE_KEY);
+};
 
 /**
  * Получить кэш переводов из localStorage
@@ -352,6 +358,7 @@ export const ticketTranslator = async (
     from: TicketLanguage,
     to: TicketLanguage
 ): Promise<string> => {
+    const requestGeneration = translationCacheGeneration;
     if (!text || text.trim() === '') return '';
     
     // Если языки совпадают, возвращаем как есть
@@ -369,7 +376,8 @@ export const ticketTranslator = async (
     try {
         // Выполняем перевод (пока заглушка)
         const translatedText = await translateTextFallback(text, from, to);
-        
+        if (requestGeneration !== translationCacheGeneration) return translatedText;
+
         // Сохраняем в кэш
         if (!cache[cacheKey]) {
             cache[cacheKey] = {};

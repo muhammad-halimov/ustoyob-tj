@@ -28,6 +28,12 @@ const FETCHERS: Record<SnapshotFetcherName, { seed: (locale: string, data: never
 
 // Файлы лежат в самом приложении — это миллисекунды; таймаут на случай, если что-то пошло не так.
 const LOAD_TIMEOUT_MS = 1500;
+const SKIP_SNAPSHOT_ONCE_KEY = 'nativeRefreshSkipSnapshotOnce';
+
+/** Skip the packaged stale-data seed after pull-to-refresh so the next screen load starts from network. */
+export const skipNativeSnapshotOnNextLoad = (): void => {
+    try { sessionStorage.setItem(SKIP_SNAPSHOT_ONCE_KEY, '1'); } catch { /* ignore unavailable storage */ }
+};
 
 const readJson = async <T>(path: string): Promise<T> => {
     const res = await fetch(`/${SNAPSHOT_DIR}/${path}`);
@@ -37,6 +43,12 @@ const readJson = async <T>(path: string): Promise<T> => {
 
 export async function loadNativeSnapshot(): Promise<void> {
     if (!Capacitor.isNativePlatform()) return;
+    try {
+        if (sessionStorage.getItem(SKIP_SNAPSHOT_ONCE_KEY) === '1') {
+            sessionStorage.removeItem(SKIP_SNAPSHOT_ONCE_KEY);
+            return;
+        }
+    } catch { /* continue with the packaged snapshot when session storage is unavailable */ }
     const locale = getDefaultLocale();
     // Категории для этого языка уже есть — запуск не первый, снимок не нужен.
     if (getCategories.peekStale(locale) !== undefined) return;
