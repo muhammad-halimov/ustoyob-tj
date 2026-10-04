@@ -466,7 +466,31 @@
 .modal_forgot_password { max-width: 520px; }
 .modal_verify_code { max-width: 520px; }
 .modal_new_password { max-width: 520px; }
-.modal_sms_login { max-width: 520px; }
+.modal_sms_login {
+  max-width: 520px;
+
+  // У SMS-входа короткий заголовок и два действия. Не наследуем крупный заголовок
+  // остальных auth-форм: на узкой модалке он залезает под крестик и за край.
+  .form h2 {
+    margin: 0 40px 32px;
+    font-size: 16px;
+    line-height: 1.4;
+  }
+
+  .inputGroup {
+    margin-bottom: 12px;
+  }
+
+  .primaryButton {
+    min-height: 48px;
+    margin: 0 auto 28px;
+    font-size: 16px;
+  }
+
+  .links > .linkButton {
+    font-size: 16px;
+  }
+}
 .modal_sms_code { max-width: 520px; }
 .modal_confirm_email { max-width: 520px; }
 
