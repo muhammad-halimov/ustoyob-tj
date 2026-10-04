@@ -8,6 +8,7 @@ import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import { ProfileSection } from '../ProfileSection';
 import styles from './WorkExamplesSection.module.scss';
 import type { WorkExample } from '../../../../../entities';
+import { handleNativePhotoPickerClick } from '../../../../../utils/nativePhotoPicker';
 
 interface WorkExamplesSectionProps {
     workExamples: WorkExample[];
@@ -163,6 +164,12 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                 onChange={onWorkExampleUpload}
                 accept="image/*"
                 multiple
+                onClick={(event) => handleNativePhotoPickerClick(event, event.currentTarget, {
+                    multiple: true,
+                    cameraLabel: t('common:app.camera'),
+                    photosLabel: t('common:app.photos'),
+                    cancelLabel: t('common:app.cancel'),
+                })}
                 style={{ display: 'none' }}
             />
             <Preview

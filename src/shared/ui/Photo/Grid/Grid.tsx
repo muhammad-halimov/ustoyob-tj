@@ -1,7 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDragReorder, DragHandle } from '../../../../widgets/DragReorder';
 import { Img } from '../Img';
+import { handleNativePhotoPickerClick } from '../../../../utils/nativePhotoPicker';
 import styles from './Grid.module.scss';
 
 export type PhotoItem =
@@ -48,6 +50,7 @@ const Grid: React.FC<PhotoGridProps> = ({
     disabled = false,
 }) => {
     const drag = useDragReorder(photos, onChange);
+    const { t } = useTranslation('common');
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
@@ -115,6 +118,12 @@ const Grid: React.FC<PhotoGridProps> = ({
                     type="file"
                     multiple
                     accept="image/*"
+                    onClick={(event) => handleNativePhotoPickerClick(event, event.currentTarget, {
+                        multiple: true,
+                        cameraLabel: t('app.camera'),
+                        photosLabel: t('app.photos'),
+                        cancelLabel: t('app.cancel'),
+                    })}
                     onChange={handleImageUpload}
                     className={styles.fileInput}
                     id={inputId}

@@ -13,6 +13,7 @@ import type { ResolvedImage } from '../../../../../entities';
 import { ActionsDropdown } from '../../../../../widgets/ActionsDropdown';
 import { IoStarOutline, IoWarningOutline } from 'react-icons/io5';
 import { getUserRole } from '../../../../../utils/authUtils';
+import { handleNativePhotoPickerClick } from '../../../../../utils/nativePhotoPicker';
 
 interface ProfileHeaderProps {
     avatar: string | null;
@@ -99,7 +100,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     onComplaint,
     onLogout,
 }) => {
-    const { t, i18n } = useTranslation(['profile', 'components']);
+    const { t, i18n } = useTranslation(['profile', 'components', 'common']);
     const viewerRole = getUserRole();
     const sameRole = viewerRole !== null && viewerRole === userRole;
 
@@ -286,6 +287,12 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                     ref={fileInputRef}
                     onChange={onFileChange}
                     accept="image/*"
+                    onClick={(event) => handleNativePhotoPickerClick(event, event.currentTarget, {
+                        multiple: false,
+                        cameraLabel: t('common:app.camera'),
+                        photosLabel: t('common:app.photos'),
+                        cancelLabel: t('common:app.cancel'),
+                    })}
                     style={{ display: 'none' }}
                 />}
             </div>

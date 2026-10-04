@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
+import { handleNativePhotoPickerClick } from '../../../utils/nativePhotoPicker';
 import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline, IoPersonOutline, IoHeadsetOutline, IoTrashOutline, IoCloseCircleOutline, IoTimeOutline, IoAlertCircle, IoClose } from 'react-icons/io5';
 import styles from './TechSupportThread.module.scss';
 import { peekApi, universalApiRequest } from '../../../utils/apiUtils';
@@ -123,7 +124,7 @@ const isWithinTicketEditWindow = (createdAt?: string): boolean =>
  * Not real-time (no SSE/polling) by design, unlike the full Chat page.
  */
 function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps) {
-    const { t, i18n } = useTranslation('techSupport');
+    const { t, i18n } = useTranslation(['techSupport', 'common']);
     // «Фамилия Имя» в языке интерфейса — имена в профилях хранятся как ввёл пользователь
     // (кириллица/латиница), поэтому прогоняем через smartNameTranslator, как в Ticket.tsx.
     const nameLang = i18n.language as 'ru' | 'tj' | 'eng';
@@ -1411,6 +1412,12 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                 onChange={handleFileSelect}
                                 multiple
                                 accept="image/*"
+                                onClick={(event) => handleNativePhotoPickerClick(event, event.currentTarget, {
+                                    multiple: true,
+                                    cameraLabel: t('common:app.camera'),
+                                    photosLabel: t('common:app.photos'),
+                                    cancelLabel: t('common:app.cancel'),
+                                })}
                             />
 
                             <div className={styles.chatInput}>

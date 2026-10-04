@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
+import { handleNativePhotoPickerClick } from '../../utils/nativePhotoPicker';
 import { getAuthToken, fetchCurrentUser, getUserData, isAdmin } from "../../utils/authUtils";
 import { API_ROUTES, ROUTES } from '../../app/routers/routes';
 import { smartNameTranslator } from '../../utils/textUtils';
@@ -1801,6 +1802,12 @@ function Chat() {
                 onChange={handleFileSelect}
                 multiple
                 accept="image/*"
+                onClick={(event) => handleNativePhotoPickerClick(event, event.currentTarget, {
+                    multiple: true,
+                    cameraLabel: t('common:app.camera'),
+                    photosLabel: t('common:app.photos'),
+                    cancelLabel: t('common:app.cancel'),
+                })}
             />
 
             {/* Sidebar */}

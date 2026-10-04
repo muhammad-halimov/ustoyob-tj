@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { Clear } from '../../Button/Clear/Clear';
 import styles from './Preview.module.scss';
@@ -38,6 +39,7 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
     onSelectImage,
     fallbackImage = '/img/icons/misc/fonTest5.png'
 }) => {
+    const { t } = useTranslation('common');
     // Мобильная сборка: листание — снимок уезжает в сторону листания (utils/nativeMotion.ts); на сайте — как раньше.
     // Одно фото листать некуда: без этого свайп «перелистывал» его само на себя — с анимацией.
     const showNext = () => { if (images.length > 1) runNativeTransition('gallery-next', onNext); };
@@ -89,8 +91,116 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
 
     // Touch tracking для свайпа главного изображения
     const swipeTouchStart = useRef<{ x: number; y: number } | null>(null);
+    const imageContainerRef = useRef<HTMLDivElement>(null);
+    const pinchStart = useRef<{ distance: number; x: number; y: number; scale: number } | null>(null);
+    const dragStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+    const touchPanStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+    const [view, setView] = useState({ scale: 1, rotation: 0, x: 0, y: 0 });
+
+    useEffect(() => {
+        setView({ scale: 1, rotation: 0, x: 0, y: 0 });
+        pinchStart.current = null;
+        dragStart.current = null;
+        touchPanStart.current = null;
+    }, [isOpen, currentIndex]);
+
+    const clampScale = (scale: number) => Math.min(4, Math.max(1, scale));
+    const clampPan = (x: number, y: number, scale: number) => {
+        if (scale <= 1) return { x: 0, y: 0 };
+        const bounds = imageContainerRef.current?.getBoundingClientRect();
+        if (!bounds) return { x, y };
+        const rotated = view.rotation % 180 !== 0;
+        const maxX = ((rotated ? bounds.height : bounds.width) * (scale - 1)) / 2;
+        const maxY = ((rotated ? bounds.width : bounds.height) * (scale - 1)) / 2;
+        return {
+            x: Math.max(-maxX, Math.min(maxX, x)),
+            y: Math.max(-maxY, Math.min(maxY, y)),
+        };
+    };
+    const changeZoom = (amount: number) => {
+        setView(current => {
+            const scale = clampScale(current.scale + amount);
+            const pan = clampPan(current.x, current.y, scale);
+            return { ...current, scale, ...pan };
+        });
+    };
+
+    const handleImageWheel = (e: React.WheelEvent) => {
+        e.preventDefault();
+        changeZoom(e.deltaY < 0 ? 0.2 : -0.2);
+    };
+
+    const handlePinchStart = (e: React.TouchEvent) => {
+        if (e.touches.length === 1 && view.scale > 1) {
+            swipeTouchStart.current = null;
+            touchPanStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, panX: view.x, panY: view.y };
+            return;
+        }
+        if (e.touches.length !== 2) return;
+        touchPanStart.current = null;
+        swipeTouchStart.current = null;
+        const [first, second] = Array.from(e.touches);
+        pinchStart.current = {
+            distance: Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY),
+            x: (first.clientX + second.clientX) / 2,
+            y: (first.clientY + second.clientY) / 2,
+            scale: view.scale,
+        };
+    };
+
+    const handlePinchMove = (e: React.TouchEvent) => {
+        if (touchPanStart.current && e.touches.length === 1) {
+            e.preventDefault();
+            const start = touchPanStart.current;
+            setView(current => {
+                const pan = clampPan(start.panX + e.touches[0].clientX - start.x, start.panY + e.touches[0].clientY - start.y, current.scale);
+                return { ...current, ...pan };
+            });
+            return;
+        }
+        if (!pinchStart.current || e.touches.length !== 2) return;
+        e.preventDefault();
+        const [first, second] = Array.from(e.touches);
+        const midpointX = (first.clientX + second.clientX) / 2;
+        const midpointY = (first.clientY + second.clientY) / 2;
+        const distance = Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+        const start = pinchStart.current;
+        const scale = clampScale(start.scale * distance / start.distance);
+        setView(current => {
+            const pan = clampPan(current.x + midpointX - start.x, current.y + midpointY - start.y, scale);
+            return { ...current, scale, ...pan };
+        });
+        pinchStart.current = { ...start, distance, x: midpointX, y: midpointY, scale };
+    };
+
+    const handlePinchEnd = (e: React.TouchEvent) => {
+        if (e.touches.length < 2) pinchStart.current = null;
+        if (e.touches.length === 0) touchPanStart.current = null;
+    };
+
+    const handleImagePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (e.pointerType !== 'mouse' || view.scale <= 1) return;
+        e.preventDefault();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        dragStart.current = { x: e.clientX, y: e.clientY, panX: view.x, panY: view.y };
+    };
+
+    const handleImagePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        const start = dragStart.current;
+        if (!start) return;
+        setView(current => {
+            const pan = clampPan(start.panX + e.clientX - start.x, start.panY + e.clientY - start.y, current.scale);
+            return { ...current, ...pan };
+        });
+    };
+
+    const handleImagePointerUp = () => { dragStart.current = null; };
 
     const handleSwipeTouchStart = (e: React.TouchEvent) => {
+        if (e.touches.length !== 1 || view.scale > 1) {
+            swipeTouchStart.current = null;
+            return;
+        }
         swipeTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     };
 
@@ -204,14 +314,26 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
                         </button>
                     )}
 
-                    <div className={styles.photo_modal_image_container}>
+                    <div
+                        ref={imageContainerRef}
+                        className={styles.photo_modal_image_container}
+                        onWheel={handleImageWheel}
+                        onTouchStart={handlePinchStart}
+                        onTouchMove={handlePinchMove}
+                        onTouchEnd={handlePinchEnd}
+                        onPointerDown={handleImagePointerDown}
+                        onPointerMove={handleImagePointerMove}
+                        onPointerUp={handleImagePointerUp}
+                        onPointerCancel={handleImagePointerUp}
+                    >
                         <img
                             // key: при смене фото — новый элемент, чтобы data-fallback от
                             // предыдущего не блокировал откат на оригинал у следующего.
                             key={currentIndex}
                             src={mainSrc}
                             alt={`Фото ${currentIndex + 1}`}
-                            className={styles.photo_modal_image}
+                            className={`${styles.photo_modal_image} ${view.scale > 1 ? styles.zoomed : ''}`}
+                            style={{ transform: `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale}) rotate(${view.rotation}deg)` }}
                             onClick={(e) => e.stopPropagation()}
                             onError={(e) => handleImageError(e, currentIndex)}
                         />
@@ -223,6 +345,19 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
                         ) && (
                             <img key={i} src={src} style={{ display: 'none' }} alt="" aria-hidden />
                         ))}
+                    </div>
+
+                    <div className={styles.photo_modal_tools} onClick={e => e.stopPropagation()}>
+                        <button type="button" onClick={() => changeZoom(-0.25)} disabled={view.scale <= 1} aria-label={t('app.zoomOut')} title={t('app.zoomOut')}>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5M7.5 10.8h6.6"/></svg>
+                        </button>
+                        <span className={styles.photo_modal_zoom_value}>{Math.round(view.scale * 100)}%</span>
+                        <button type="button" onClick={() => changeZoom(0.25)} disabled={view.scale >= 4} aria-label={t('app.zoomIn')} title={t('app.zoomIn')}>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5M7.5 10.8h6.6m-3.3-3.3v6.6"/></svg>
+                        </button>
+                        <button type="button" onClick={() => setView(current => ({ ...current, rotation: (current.rotation + 90) % 360 }))} aria-label={t('app.rotatePhoto')} title={t('app.rotatePhoto')}>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.5-4L3 10m0-5v5h5M4 13a8 8 0 0 0 14.5 4L21 14m0 5v-5h-5"/></svg>
+                        </button>
                     </div>
 
                     {images.length > 1 && (
